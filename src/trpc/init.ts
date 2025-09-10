@@ -34,3 +34,10 @@ export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
 
   return next({ ctx: { ...ctx, auth: session } });
 });
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (ctx.auth.user.role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Forbidden" });
+  }
+
+  return next({ ctx });
+});
