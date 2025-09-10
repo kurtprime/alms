@@ -15,7 +15,7 @@ export default function CardDemo() {
   const login = async (provider: "facebook" | "google") => {
     authClient.signIn.social({
       provider: provider,
-      callbackURL: "/admin",
+      callbackURL: "/",
     });
   };
 

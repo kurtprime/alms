@@ -1,11 +1,12 @@
 import { Button } from "@/components/ui/button";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { authClient } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 export default function AdminView() {
   const router = useRouter();
   return (
-    <div className="h-full m-4 border bg-muted  rounded-2xl flex flex-col items-center justify-center gap-4">
+    <div>
       <Button
         onClick={() => {
           authClient.signOut({
