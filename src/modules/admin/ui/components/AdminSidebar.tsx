@@ -33,11 +33,12 @@ export default function AdminSidebar() {
             <SidebarMenuButton
               onClick={() => setOpen(!open)}
               size="lg"
-              className="hover:bg-transparent "
+              className="hover:bg-transparent max-md:hidden"
             >
               {!open ? <PanelLeftClose /> : <PanelRight />}
               <span className="text-lg">ALMS Admin</span>
             </SidebarMenuButton>
+            <span className="text-lg md:hidden">ALMS Admin</span>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>

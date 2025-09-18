@@ -5,13 +5,13 @@ import { cn } from "@/lib/utils";
 
 interface GeneratedAvatarProps {
   seed: string;
-  className: string;
+  className?: string;
   variant: "botttsNeutral" | "initials";
 }
 
 export const GeneratedAvatar = ({
   seed,
-  className,
+  className = "size-5",
   variant,
 }: GeneratedAvatarProps) => {
   let avatar;

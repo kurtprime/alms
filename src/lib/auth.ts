@@ -37,10 +37,10 @@ export async function getCurrentAdmin() {
     headers: await headers(), // you need to pass the headers object.
   });
 
-  const errorMessage = {
-    error: true,
-    message: "You are not authorized to access this page",
-  };
+  // const errorMessage = {
+  //   error: true,
+  //   message: "You are not authorized to access this page",
+  // };
 
   if (!session?.user) {
     redirect("/sign-in");
@@ -49,5 +49,12 @@ export async function getCurrentAdmin() {
     redirect("/admin");
   }
 
+  return { ...session };
+}
+
+export async function getCurrentUser() {
+  const session = await auth.api.getSession({
+    headers: await headers(), // you need to pass the headers object.
+  });
   return { ...session };
 }
