@@ -4,9 +4,12 @@ import { user } from "./auth-schema";
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").unique(),
+  slug: text("slug").unique().notNull(),
   logo: text("logo"),
-  createdAt: timestamp("created_at").notNull(),
+  LogoKey: text("logo_key"),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
   metadata: text("metadata"),
 });
 
@@ -25,7 +28,9 @@ export const member = pgTable("member", {
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
   role: organizationMemberRole("role").default("owner").notNull(),
-  createdAt: timestamp("created_at").notNull(),
+  createdAt: timestamp("created_at")
+    .$defaultFn(() => new Date())
+    .notNull(),
 });
 
 export const invitation = pgTable("invitation", {
