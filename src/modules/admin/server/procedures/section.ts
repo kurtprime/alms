@@ -1,12 +1,10 @@
 import { adminProcedure } from "@/trpc/init";
-import { createSectionFormSchema } from "../adminSchema";
+import { createSectionFormSchema, getManySectionsSchema } from "../adminSchema";
 import { db } from "@/index";
 import { organization } from "@/db/schema";
-import { nanoid } from "nanoid";
 import { auth } from "@/lib/auth";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
-import { generateAvatar } from "@/lib/avatar";
 import { headers } from "next/headers";
 
 export const section = {
@@ -24,6 +22,7 @@ export const section = {
           message: "Organization with this slug already exists data status",
         });
       }
+
       await auth.api.createOrganization({
         body: {
           name: input.name,
@@ -32,12 +31,23 @@ export const section = {
         },
         headers: await headers(),
       });
-
     }),
 
-  getManySections: adminProcedure.query(async ({ ctx }) => {
-    const data = await db.select().from(organization).orderBy(desc(organization.createdAt));
-
-    return data;
-  }),
+  getManySections: adminProcedure
+    .input(getManySectionsSchema)
+    .query(async ({ ctx, input }) => {
+      const { name, slug } = input;
+      const data = await db
+        .select()
+        .from(organization)
+        .where(
+          or(
+            name ? ilike(organization.name, `%${name}%`) : undefined,
+            slug ? ilike(organization.slug, `%${slug}%`) : undefined
+          )
+        )
+        .orderBy(desc(organization.createdAt));
+      //await waitFor(5000);
+      return data;
+    }),
 };

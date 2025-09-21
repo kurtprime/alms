@@ -1,5 +1,5 @@
 "use client";
-import AdminView from "@/modules/admin/ui/views/AdminView";
+import AdminView from "@/modules/admin/ui/admin/views/AdminView";
 
 import React from "react";
 

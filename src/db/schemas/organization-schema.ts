@@ -1,5 +1,6 @@
 import { pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
+import { nanoid } from "nanoid";
 
 export const organization = pgTable("organization", {
   id: text("id").primaryKey(),
@@ -19,8 +20,11 @@ export const organizationMemberRole = pgEnum("organization_member_role", [
   "student",
   "advisor",
 ]);
+export type OrganizationMemberRole = typeof organizationMemberRole;
 export const member = pgTable("member", {
-  id: text("id").primaryKey(),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => nanoid()),
   organizationId: text("organization_id")
     .notNull()
     .references(() => organization.id, { onDelete: "cascade" }),

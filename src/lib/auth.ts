@@ -7,7 +7,8 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { toast } from "sonner";
+import { ac, admin as adminRole, student, teacher, user } from "./permission";
+import { username } from "better-auth/plugins/username";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -29,7 +30,20 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  plugins: [admin(), organization(), nextCookies()],
+  plugins: [
+    admin({
+      ac,
+      roles: {
+        adminRole,
+        user,
+        student,
+        teacher,
+      },
+    }),
+    organization(),
+    username(),
+    nextCookies(),
+  ],
 });
 
 export async function getCurrentAdmin() {

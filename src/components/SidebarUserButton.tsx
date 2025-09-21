@@ -118,7 +118,7 @@ export default function SidebarUserButton() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={onLogOut}
+          onClick={()=> alert("TODO: user settings Not implemented yet")}
           className="cursor-pointer flex items-center justify-between"
         >
           Settings <Settings className="size-4"> </Settings>
