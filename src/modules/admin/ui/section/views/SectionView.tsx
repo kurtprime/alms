@@ -8,7 +8,15 @@ import { useRouter } from "next/navigation";
 
 export default function SectionView() {
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.admin.getManySections.queryOptions());
-  const router = useRouter()
-  return <AdminSectionDataTable columns={columns} data={data} onRowClick={(row)=> router.push(`/admin/sections/${row.id}`)} />;
+  const { data } = useSuspenseQuery(
+    trpc.admin.getManySections.queryOptions({})
+  );
+  const router = useRouter();
+  return (
+    <AdminSectionDataTable
+      columns={columns}
+      data={data}
+      onRowClick={(row) => router.push(`/admin/sections/${row.id}`)}
+    />
+  );
 }

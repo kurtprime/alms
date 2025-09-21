@@ -38,13 +38,12 @@ export default function SectionForm({
     },
   });
 
-
   const createSection = useMutation(
     trpc.admin.create.mutationOptions({
       onSuccess: () => {
         setOpen(false);
         queryClient.invalidateQueries(
-          trpc.admin.getManySections.queryOptions()
+          trpc.admin.getManySections.queryOptions({})
         );
       },
       onError: (error) => {
@@ -103,9 +102,7 @@ export default function SectionForm({
           />
         </div>
 
-        <Button type="submit">
-          Submit
-        </Button>
+        <Button type="submit">Submit</Button>
       </form>
     </Form>
   );

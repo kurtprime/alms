@@ -16,7 +16,7 @@ import {
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import SidebarUserButton from "@/components/SidebarUserButton";
-import { AdminItems } from "../../constants";
+import { AdminItems } from "../../../constants";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelRight } from "lucide-react";
 
@@ -59,7 +59,8 @@ export default function AdminSidebar() {
                       size="lg"
                       className={cn(
                         "hover:bg-accent/50",
-                        isActive && "bg-primary/50"
+                        isActive &&
+                          "bg-primary/50 hover:bg-primary/45 active:bg-primary/50"
                       )}
                       asChild
                     >

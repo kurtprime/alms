@@ -1,24 +1,38 @@
-import { ContactIcon, Users2Icon, User, UserRoundCog } from "lucide-react";
+import { ContactIcon, Users2Icon, User, Book } from "lucide-react";
 
 export const AdminItems = [
   {
-    title: "Teachers",
-    url: "/admin/teachers",
-    icon: ContactIcon,
+    title: "Users",
+    url: "/admin/users",
+    icon: User,
   },
   {
     title: "Sections",
     url: "/admin/sections",
     icon: Users2Icon,
   },
+
+  {
+    title: "Subjects",
+    url: "/admin/subjects",
+    icon: Book,
+  },
+];
+
+export const UserItems = [
   {
     title: "Students",
-    url: "/admin/students",
-    icon: User,
+    value: "students",
+    icon: Users2Icon,
   },
   {
-    title: "Pending Users",
-    url: "/admin/pendingUsers",
-    icon: UserRoundCog,
+    title: "Teachers",
+    value: "teachers",
+    icon: ContactIcon,
+  },
+  {
+    title: "Admins",
+    value: "admins",
+    icon: User,
   },
 ];

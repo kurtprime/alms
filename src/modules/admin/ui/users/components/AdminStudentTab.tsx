@@ -1,26 +1,24 @@
-import { getCurrentAdmin } from "@/lib/auth";
-import SectionHeader from "@/modules/admin/ui/section/components/SectionHeader";
-import SectionView from "@/modules/admin/ui/section/views/SectionView";
+import { TabsContent } from "@/components/ui/tabs";
+import React, { Suspense } from "react";
+import AdminCreateStudent from "./AdminCreateStudent";
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
+import AdminStudentTable from "./AdminStudentTable";
 
-export default async function page() {
-  await getCurrentAdmin();
+export default function AdminStudentTab() {
   const queryClient = getQueryClient();
-  void queryClient.prefetchQuery(trpc.admin.getManySections.queryOptions({}));
-
+  void queryClient.prefetchQuery(trpc.admin.getManyStudents.queryOptions({}));
   return (
-    <>
-      <SectionHeader />
+    <TabsContent value="students">
+      <AdminCreateStudent />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <Suspense fallback={<div>TODO: Loading...</div>}>
           <ErrorBoundary fallback={<div>Something went wrong</div>}>
-            <SectionView />
+            <AdminStudentTable />
           </ErrorBoundary>
         </Suspense>
       </HydrationBoundary>
-    </>
+    </TabsContent>
   );
 }
