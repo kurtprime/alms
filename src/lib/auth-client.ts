@@ -1,5 +1,9 @@
 import { nextCookies } from "better-auth/next-js";
-import { adminClient, organizationClient } from "better-auth/client/plugins";
+import {
+  adminClient,
+  organizationClient,
+  usernameClient,
+} from "better-auth/client/plugins";
 import { createAuthClient } from "better-auth/react";
 import { ac, admin as adminRole, student, teacher, user } from "./permission";
 
@@ -15,6 +19,7 @@ export const authClient = createAuthClient({
         teacher,
       },
     }),
+    usernameClient(),
     organizationClient(),
     nextCookies(),
   ],

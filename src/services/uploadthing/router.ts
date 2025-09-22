@@ -1,6 +1,5 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
-import { uploadthing } from "./client";
 import { getCurrentUser } from "@/lib/auth";
 
 const f = createUploadthing();
@@ -25,8 +24,9 @@ export const customFileRouter = {
       // Whatever is returned here is accessible in onUploadComplete as `metadata`
       return { userId };
     })
-    .onUploadComplete(async ({ metadata, file }) => {
-      const { userId } = metadata;
+    .onUploadComplete(async () => {
+      // { metadata, file }
+      // const { userId } = metadata;
       // const resumeFileKey = await getUserResumeFileKey(userId);
 
       // await upsertUserResume(userId, {

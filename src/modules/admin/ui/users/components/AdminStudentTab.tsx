@@ -6,7 +6,7 @@ import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { ErrorBoundary } from "react-error-boundary";
 import AdminStudentTable from "./AdminStudentTable";
 
-export default function AdminStudentTab() {
+export default async function AdminStudentTab() {
   const queryClient = getQueryClient();
   void queryClient.prefetchQuery(trpc.admin.getManyStudents.queryOptions({}));
   return (

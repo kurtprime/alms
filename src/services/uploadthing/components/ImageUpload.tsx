@@ -6,10 +6,7 @@ import { useFormContext } from "react-hook-form";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { EndpointArg } from "uploadthing/types";
 import { customFileRouter } from "../router";
-import { Button } from "@/components/ui/button";
-import { uploadthing } from "../client";
 import { deleteExistingFile } from "../server";
 type ImageUploadProps = {
   /** Form field name for the image URL */
@@ -87,7 +84,7 @@ export function ImageUpload({
           className={cn("ut-button", buttonClassName)}
           endpoint={endpoint}
           content={{
-            button: ({ ready }) => (
+            button: () => (
               <div className="flex items-center gap-2">
                 {isUploading && <Loader2 className="size-3 animate-spin" />}
                 {isUploading ? "Uploading..." : buttonText}

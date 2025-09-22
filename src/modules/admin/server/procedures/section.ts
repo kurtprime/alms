@@ -1,9 +1,9 @@
 import { adminProcedure } from "@/trpc/init";
 import { createSectionFormSchema, getManySectionsSchema } from "../adminSchema";
 import { db } from "@/index";
-import { organization } from "@/db/schema";
+import { member, organization } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { headers } from "next/headers";
 
@@ -35,10 +35,24 @@ export const section = {
 
   getManySections: adminProcedure
     .input(getManySectionsSchema)
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       const { name, slug } = input;
       const data = await db
-        .select()
+        .select({
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          logo: organization.logo,
+          createdAt: organization.createdAt,
+          // Count students for each organization
+          studentCount: db.$count(
+            member,
+            and(
+              eq(member.organizationId, organization.id), // Correlate with outer query
+              eq(member.role, "student") // Filter by role
+            )
+          ),
+        })
         .from(organization)
         .where(
           or(
