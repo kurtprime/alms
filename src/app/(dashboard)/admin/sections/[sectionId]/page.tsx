@@ -1,7 +1,8 @@
-import React from 'react'
+import { getCurrentAdmin } from "@/lib/auth";
+import React from "react";
 
-export default function page() {
-  return (
-    <div>page</div>
-  )
+export default async function page() {
+  await getCurrentAdmin();
+
+  return <div>page</div>;
 }

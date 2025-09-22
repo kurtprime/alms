@@ -18,6 +18,7 @@ export const organizationMemberRole = pgEnum("organization_member_role", [
   "owner",
   "teacher",
   "student",
+  "irregular",
   "advisor",
 ]);
 export type OrganizationMemberRole = typeof organizationMemberRole;
