@@ -4,7 +4,7 @@ import AdminUserHeader from "@/modules/admin/ui/users/components/AdminUserHeader
 import UserTabs from "@/modules/admin/ui/users/views/UserTabs";
 
 export default async function page() {
-  const { user } = await getCurrentAdmin();
+  await getCurrentAdmin();
 
   return (
     <Tabs defaultValue="students">

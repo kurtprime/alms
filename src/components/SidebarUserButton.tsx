@@ -20,12 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { authClient } from "@/lib/auth-client";
-import {
-  ChevronDown,
-  CreditCardIcon,
-  LogOutIcon,
-  Settings,
-} from "lucide-react";
+import { ChevronDown, LogOutIcon, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
 
@@ -118,7 +113,7 @@ export default function SidebarUserButton() {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={()=> alert("TODO: user settings Not implemented yet")}
+          onClick={() => alert("TODO: user settings Not implemented yet")}
           className="cursor-pointer flex items-center justify-between"
         >
           Settings <Settings className="size-4"> </Settings>

@@ -2,6 +2,7 @@
 
 import { GeneratedAvatar } from "@/components/generatedAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import { type AdminSectionGetMany } from "@/modules/admin/server/adminSchema";
 import { ColumnDef } from "@tanstack/react-table";
 
@@ -42,10 +43,15 @@ export const columns: ColumnDef<AdminSectionGetMany[number]>[] = [
     cell: () => <div>todo: advisor name</div>,
   },
   {
-    accessorKey: "metadata",
+    accessorKey: "studentCount",
     header: "Total Students",
     cell: ({ row }) => {
-      return <span>{JSON.stringify(row.original.metadata) || 0}</span>;
+      return (
+        <Badge variant="outline" className="border p-2">
+          Students:{" "}
+          <Badge variant="secondary">{row.original.studentCount}</Badge>
+        </Badge>
+      );
     },
   },
 ];

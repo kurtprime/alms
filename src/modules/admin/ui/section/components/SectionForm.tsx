@@ -5,7 +5,6 @@ import { createSectionFormSchema } from "@/modules/admin/server/adminSchema";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -16,17 +15,13 @@ import { Button } from "@/components/ui/button";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ImageUpload } from "@/services/uploadthing/components/ImageUpload";
 
 interface SectionFormProps {
   initialValues?: typeof createSectionFormSchema;
   setOpen: (open: boolean) => void;
 }
 
-export default function SectionForm({
-  initialValues,
-  setOpen,
-}: SectionFormProps) {
+export default function SectionForm({ setOpen }: SectionFormProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 

@@ -11,7 +11,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createUserFormSchema } from "@/modules/admin/server/adminSchema";
+import { createStudentFormSchema } from "@/modules/admin/server/adminSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -30,9 +30,9 @@ export default function AdminCreateStudent() {
   const [recentSections, setRecentSections] = useState<string>("");
 
   return (
-    <div className="flex justify-end md:mr-14">
+    <div className="flex justify-end md:mr-14 mb-4">
       <Button className="justify-self-end" onClick={() => setOpen(true)}>
-        <Plus /> Create Student
+        <Plus className="size-5" /> Create Student
       </Button>
       <ResponsiveDialog
         title="Create Student"
@@ -89,15 +89,15 @@ function AdminCreateStudentForm({
     })
   );
 
-  const form = useForm<z.infer<typeof createUserFormSchema>>({
-    resolver: zodResolver(createUserFormSchema),
+  const form = useForm<z.infer<typeof createStudentFormSchema>>({
+    resolver: zodResolver(createStudentFormSchema),
     defaultValues: {
       firstName: "",
       lastName: "",
       organizationId: recentSections ?? "",
     },
   });
-  async function onSubmit(values: z.infer<typeof createUserFormSchema>) {
+  async function onSubmit(values: z.infer<typeof createStudentFormSchema>) {
     createStudent.mutate(values);
   }
   const isPending = createStudent.isPending;
