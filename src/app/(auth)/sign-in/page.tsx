@@ -34,7 +34,7 @@ export default function CardDemo() {
 
   return (
     <Card className="w-full max-w-md shadow-lg rounded-2xl overflow-hidden border-0">
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-700 py-6">
+      <div className="bg-gradient-to-r from-primary/90 to-primary/40 py-6">
         <CardHeader className="text-center pb-2">
           <CardTitle className="text-2xl font-bold text-white">
             Welcome Back

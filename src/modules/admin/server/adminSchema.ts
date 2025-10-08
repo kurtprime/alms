@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { AppRouter } from "@/trpc/routers/_app";
 import { inferRouterOutputs } from "@trpc/server";
+import { statusEnumValues } from "@/db/schema";
 
 export const createSectionFormSchema = z.object({
   name: z.string().min(2, { message: "Strand name is needed" }).max(100),
@@ -16,6 +17,18 @@ export const createStudentFormSchema = z.object({
 export const createTeacherFormSchema = z.object({
   firstName: z.string().min(1, { message: "Name is required" }).max(100),
   lastName: z.string().min(1, { message: "Last name is required" }).max(100),
+});
+
+export const createSubjectSchema = z.object({
+  name: z.string().min(1),
+  code: z.string().min(1).max(20),
+  description: z.string().optional(),
+  teacherId: z.string().min(1, { message: "Teacher is required" }),
+});
+
+export const newSubjectNameSchema = z.object({
+  name: z.string().min(1, { message: "Subject name is required" }).max(100),
+  description: z.string().optional(),
 });
 
 export const getManySectionsSchema = z.object({

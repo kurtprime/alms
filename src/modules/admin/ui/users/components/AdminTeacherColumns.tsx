@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { separateFullName } from "@/hooks/separate-name";
 import { AdminGetTeachers } from "@/modules/admin/server/adminSchema";
 import { ColumnDef } from "@tanstack/react-table";
-import { CornerDownRight, SquareUserIcon } from "lucide-react";
+import { SquareUserIcon } from "lucide-react";
 
 export const teacherColumns: ColumnDef<AdminGetTeachers[number]>[] = [
   {
@@ -15,7 +15,6 @@ export const teacherColumns: ColumnDef<AdminGetTeachers[number]>[] = [
     cell: ({ row }) => {
       const {
         user: { name, image },
-        organization,
       } = row.original;
 
       return (
