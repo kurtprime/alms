@@ -79,7 +79,7 @@ export default function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="text-accent-foreground">
+      <SidebarFooter className="text-accent-foreground group-data-[collapsible=icon]:size-13 group-data-[collapsible=icon]:mb-3">
         <SidebarUserButton />
       </SidebarFooter>
     </Sidebar>

@@ -10,6 +10,7 @@ import { db } from "@/index";
 import { member, organization, user } from "@/db/schema";
 import { customAlphabet } from "nanoid";
 import { desc, eq } from "drizzle-orm";
+import { headers } from "next/headers";
 
 export const users = {
   createStudent: adminProcedure
@@ -88,10 +89,6 @@ export const users = {
             role: user.role,
             username: user.username,
           },
-          member: {
-            id: member.id,
-            role: member.role,
-          },
           organization: {
             id: organization.id,
             name: organization.name,
@@ -100,9 +97,9 @@ export const users = {
           },
         })
         .from(user)
+        .where(eq(user.role, "student"))
         .leftJoin(member, eq(user.id, member.userId))
         .leftJoin(organization, eq(member.organizationId, organization.id))
-        .where(eq(user.role, "student"))
         .orderBy(desc(user.createdAt));
       return students;
     }),
@@ -127,9 +124,9 @@ export const users = {
           },
         })
         .from(user)
+        .where(eq(user.role, "teacher"))
         .leftJoin(member, eq(user.id, member.userId))
         .leftJoin(organization, eq(member.organizationId, organization.id))
-        .where(eq(user.role, "teacher"))
         .orderBy(desc(user.createdAt));
 
       return teachers;

@@ -1,4 +1,10 @@
-import { ContactIcon, Users2Icon, User, Book } from "lucide-react";
+import {
+  ContactIcon,
+  Users2Icon,
+  User,
+  Book,
+  GraduationCap,
+} from "lucide-react";
 
 export const AdminItems = [
   {
@@ -23,7 +29,7 @@ export const UserItems = [
   {
     title: "Students",
     value: "students",
-    icon: Users2Icon,
+    icon: GraduationCap,
   },
   {
     title: "Teachers",

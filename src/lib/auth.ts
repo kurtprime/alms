@@ -2,12 +2,12 @@ import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "..";
 import * as schema from "../db/schema";
-import { admin } from "better-auth/plugins/admin";
+import { admin as adminPlugin } from "better-auth/plugins/admin";
 import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { ac, admin as adminRole, student, teacher, user } from "./permission";
+import { ac, admin, student, teacher, user } from "./permission";
 import { username } from "better-auth/plugins/username";
 
 export const auth = betterAuth({
@@ -31,10 +31,10 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    admin({
+    adminPlugin({
       ac,
       roles: {
-        adminRole,
+        admin,
         user,
         student,
         teacher,
