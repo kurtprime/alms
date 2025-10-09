@@ -2,7 +2,6 @@ import { pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { nanoid } from "nanoid";
 import { user } from "./auth-schema";
 import { organization } from "./organization-schema";
-import { teacher } from "@/lib/permission";
 
 export const statusEnumValues = ["published", "draft", "archived"] as const;
 export const publishStatusEnum = pgEnum("status", statusEnumValues);
