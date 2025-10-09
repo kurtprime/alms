@@ -31,6 +31,10 @@ export const classSubjects = pgTable("class_subject", {
   subjectId: text("subject_id").references(() => subjects.id, {
     onDelete: "cascade",
   }),
+  teacherId: text("teacher_id")
+    .references(() => user.id, { onDelete: "set null" })
+    .notNull(),
+  assignedBy: text("assigned_by").references(() => user.id),
   enrolledAt: timestamp("enrolled_at")
     .$defaultFn(() => new Date())
     .notNull(),

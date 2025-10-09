@@ -44,15 +44,17 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import z from "zod";
+import SelectSubjectName from "./SelectSubjectName";
+import SelectTeacher from "./SelectTeacher";
+import ResponsiveDialog from "@/components/responsive-dialog";
+import { AdminCreateTeacherForm } from "../../users/components/AdminCreateTeacher";
 
 export default function AdminAddSubjectForm() {
   const [createNewSubjectName, setCreateNewSubjectName] = useState(false);
+  const [createNewTeacher, setCreateNewTeacher] = useState(false);
+
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-
-  const { data, isLoading } = useQuery(
-    trpc.admin.getAllSubjectNames.queryOptions()
-  );
 
   const form = useForm({
     resolver: zodResolver(createSubjectSchema),
@@ -61,106 +63,106 @@ export default function AdminAddSubjectForm() {
       code: "",
       teacherId: "",
       description: "",
+      status: "draft",
+      classId: "",
     },
   });
 
-  function onSubmit(values: z.infer<typeof createSubjectSchema>) {
+  function onSubmitSubject(values: z.infer<typeof createSubjectSchema>) {
     console.log(values);
   }
 
   return (
-    <Form {...form}>
-      <form className="space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-        <FormField
-          control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Subject Name</FormLabel>
-              <FormControl>
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a subject" {...field} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <Command>
-                      <CommandInput placeholder="search for subject" />
-                      <CommandList>
-                        <CommandEmpty>No subject found.</CommandEmpty>
-                        <CommandGroup heading="Subjects">
-                          {isLoading ? (
-                            <CommandItem disabled>
-                              <Spinner /> Loading...
-                            </CommandItem>
-                          ) : (
-                            data?.map((subject) => (
-                              <CommandItem key={subject.id}>
-                                <SelectItem value={subject.id}>
-                                  {subject.name}
-                                </SelectItem>
-                              </CommandItem>
-                            ))
-                          )}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                    <SelectGroup>
-                      <Dialog
-                        onOpenChange={setCreateNewSubjectName}
-                        open={createNewSubjectName}
-                      >
-                        <DialogTrigger asChild>
-                          <Button
-                            className="my-2 w-full"
-                            variant="ghost"
-                            size="sm"
-                          >
-                            <PlusIcon /> Create New Subject
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <CreateNewSubjectName
-                            onOpenChange={setCreateNewSubjectName}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    </SelectGroup>
-                  </SelectContent>
-                </Select>
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="teacherId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Teacher</FormLabel>
-              <FormControl>
-                <Input placeholder="Select Teacher" {...field} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="code"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Subject Code</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter subject code" {...field} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <Button type="submit">Add Subject</Button>
-      </form>
-    </Form>
+    <>
+      <Form {...form}>
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit(onSubmitSubject)}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] ">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subject Name</FormLabel>
+                  <FormControl>
+                    <SelectSubjectName
+                      field={field}
+                      setCreateNewSubjectName={setCreateNewSubjectName}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="code"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subject Code</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter subject code" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="teacherId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Teacher</FormLabel>
+                  <FormControl>
+                    <SelectTeacher
+                      field={field}
+                      setCreateNewTeacher={setCreateNewTeacher}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="classId"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Class</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Select Class" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <Button type="submit">Add Subject</Button>
+        </form>
+      </Form>
+      <Dialog
+        open={createNewSubjectName}
+        onOpenChange={setCreateNewSubjectName}
+      >
+        <DialogContent>
+          <CreateNewSubjectName onOpenChange={setCreateNewSubjectName} />
+        </DialogContent>
+      </Dialog>
+      <ResponsiveDialog
+        title="Add New Teacher"
+        description="Add a new teacher to the system"
+        open={createNewTeacher}
+        onOpenChange={setCreateNewTeacher}
+      >
+        <AdminCreateTeacherForm setOpen={setCreateNewTeacher} />
+      </ResponsiveDialog>
+    </>
   );
 }

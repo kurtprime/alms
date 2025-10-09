@@ -20,10 +20,12 @@ export const createTeacherFormSchema = z.object({
 });
 
 export const createSubjectSchema = z.object({
-  name: z.string().min(1),
-  code: z.string().min(1).max(20),
+  name: z.string().min(1, { message: "Subject name is required" }),
+  code: z.string().min(1, { message: "Subject Code is Required" }).max(20),
   description: z.string().optional(),
   teacherId: z.string().min(1, { message: "Teacher is required" }),
+  classId: z.string().min(1, { message: "Class is required" }),
+  status: z.enum(statusEnumValues).default("draft"),
 });
 
 export const newSubjectNameSchema = z.object({

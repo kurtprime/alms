@@ -21,12 +21,29 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import z from "zod";
 
-export default function AdminCreateTeacher() {
+type Props = {
+  buttonClassName?: string;
+  buttonVariant?: "default" | "outline" | "ghost" | "link";
+  buttonSize?: "default" | "sm" | "lg" | "icon";
+  className?: string;
+};
+
+export default function AdminCreateTeacher({
+  buttonClassName,
+  buttonVariant,
+  buttonSize,
+  className = "flex justify-end md:mr-14 mb-4",
+}: Props) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex justify-end md:mr-14 mb-4">
-      <Button onClick={() => setOpen(true)}>
+    <div className={className}>
+      <Button
+        onClick={() => setOpen(true)}
+        className={buttonClassName}
+        variant={buttonVariant}
+        size={buttonSize}
+      >
         <Plus className="size-5" /> Teacher
       </Button>
       <ResponsiveDialog
@@ -41,7 +58,7 @@ export default function AdminCreateTeacher() {
   );
 }
 
-function AdminCreateTeacherForm({
+export function AdminCreateTeacherForm({
   setOpen,
 }: {
   setOpen: (arg1: boolean) => void;
