@@ -32,7 +32,7 @@ import CreateNewSubjectName from "./CreateNewSubjectName";
 import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useTRPC } from "@/trpc/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Command,
   CommandEmpty,
@@ -48,13 +48,29 @@ import SelectSubjectName from "./SelectSubjectName";
 import SelectTeacher from "./SelectTeacher";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { AdminCreateTeacherForm } from "../../users/components/AdminCreateTeacher";
+import SelectSection from "./SelectSection";
+import SectionForm from "../../section/components/SectionForm";
+import { toast } from "sonner";
+import { statusEnumValues } from "@/db/schema";
 
 export default function AdminAddSubjectForm() {
   const [createNewSubjectName, setCreateNewSubjectName] = useState(false);
   const [createNewTeacher, setCreateNewTeacher] = useState(false);
+  const [createNewSection, setCreateNewSection] = useState(false);
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+
+  const createNewSubject = useMutation(
+    trpc.admin.createSubjectClass.mutationOptions({
+      onSuccess: () => {
+        //todo invalidate subject list query
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    })
+  );
 
   const form = useForm({
     resolver: zodResolver(createSubjectSchema),
@@ -68,8 +84,9 @@ export default function AdminAddSubjectForm() {
     },
   });
 
-  function onSubmitSubject(values: z.infer<typeof createSubjectSchema>) {
+  async function onSubmitSubject(values: z.infer<typeof createSubjectSchema>) {
     console.log(values);
+    await createNewSubject.mutateAsync(values);
   }
 
   return (
@@ -79,7 +96,7 @@ export default function AdminAddSubjectForm() {
           className="space-y-4"
           onSubmit={form.handleSubmit(onSubmitSubject)}
         >
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] ">
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr]">
             <FormField
               control={form.control}
               name="name"
@@ -111,18 +128,33 @@ export default function AdminAddSubjectForm() {
               )}
             />
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="teacherId"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Teacher</FormLabel>
+                <FormControl>
+                  <SelectTeacher
+                    field={field}
+                    setCreateNewTeacher={setCreateNewTeacher}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <div className="grid grid-cols-1 md:grid-cols-[2fr_0.7fr]">
             <FormField
               control={form.control}
-              name="teacherId"
+              name="classId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Teacher</FormLabel>
+                  <FormLabel>Class</FormLabel>
                   <FormControl>
-                    <SelectTeacher
+                    <SelectSection
                       field={field}
-                      setCreateNewTeacher={setCreateNewTeacher}
+                      setCreateNewSection={setCreateNewSection}
                     />
                   </FormControl>
                   <FormMessage />
@@ -131,20 +163,50 @@ export default function AdminAddSubjectForm() {
             />
             <FormField
               control={form.control}
-              name="classId"
+              name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Class</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Select Class" {...field} />
-                  </FormControl>
+                  <FormLabel>Status</FormLabel>
+
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Status</SelectLabel>
+                        {statusEnumValues.map((status) => (
+                          <SelectItem
+                            className="hover:bg-primary/10"
+                            key={status}
+                            value={status}
+                          >
+                            {status}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
           </div>
 
-          <Button type="submit">Add Subject</Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? (
+              <>
+                <Spinner className="mr-2" /> Adding Subject...
+              </>
+            ) : (
+              <>Add Subject Class </>
+            )}
+          </Button>
         </form>
       </Form>
       <Dialog
@@ -162,6 +224,14 @@ export default function AdminAddSubjectForm() {
         onOpenChange={setCreateNewTeacher}
       >
         <AdminCreateTeacherForm setOpen={setCreateNewTeacher} />
+      </ResponsiveDialog>
+      <ResponsiveDialog
+        title="Add New Section"
+        description="Add a new section to the system"
+        open={createNewSection}
+        onOpenChange={setCreateNewSection}
+      >
+        <SectionForm setOpen={setCreateNewSection} />
       </ResponsiveDialog>
     </>
   );
