@@ -7,7 +7,7 @@ export default async function page() {
   await getCurrentAdmin();
 
   return (
-    <Tabs defaultValue="students">
+    <Tabs defaultValue="students" className="pb-10">
       <AdminUserHeader />
       <UserTabs />
     </Tabs>

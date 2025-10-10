@@ -34,6 +34,7 @@ export default function SubjectHeader() {
         description="This will create a subject for students and teachers"
         open={open}
         onOpenChange={setOpen}
+        className="md:max-w-150"
       >
         <AdminAddSubjectForm />
       </ResponsiveDialog>

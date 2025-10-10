@@ -40,6 +40,8 @@ export const getManySectionsSchema = z.object({
 
 export const getManyStudentsSchema = z.object({});
 
+export const getSubjectSchema = z.object({});
+
 export const getManyTeachersSchema = z.object({});
 
 export type AdminCreateSection =

@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "./ui/dialog";
+import { cn } from "@/lib/utils";
 
 type ResponsiveDialogProps = {
   title: string;
@@ -23,6 +24,7 @@ type ResponsiveDialogProps = {
   children: ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  className?: string;
 };
 
 export default function ResponsiveDialog({
@@ -31,13 +33,14 @@ export default function ResponsiveDialog({
   children,
   open,
   onOpenChange,
+  className,
 }: ResponsiveDialogProps) {
   const isMobile = useIsMobile();
 
   if (isMobile) {
     return (
       <Drawer open={open} onOpenChange={onOpenChange}>
-        <DrawerContent className="pb-[20vh]">
+        <DrawerContent className={cn("pb-[20vh]")}>
           <DrawerHeader>
             <DrawerTitle>{title}</DrawerTitle>
             <DrawerDescription>{description}</DrawerDescription>
@@ -49,7 +52,7 @@ export default function ResponsiveDialog({
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className={cn(className)}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

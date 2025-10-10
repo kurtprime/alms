@@ -3,8 +3,9 @@ import { nanoid } from "nanoid";
 import { user } from "./auth-schema";
 import { organization } from "./organization-schema";
 
-export const statusEnumValues = ["published", "draft", "archived"] as const;
+export const statusEnumValues = ["draft", "published", "archived"] as const;
 export const publishStatusEnum = pgEnum("status", statusEnumValues);
+
 export const subjects = pgTable("subject", {
   id: text("id")
     .primaryKey()
@@ -15,7 +16,6 @@ export const subjects = pgTable("subject", {
   code: text("code").notNull().unique(),
   description: text("description"),
   status: publishStatusEnum("status").default("draft"),
-  createdBy: text("created_by").references(() => user.id),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
     .notNull(),
