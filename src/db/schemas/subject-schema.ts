@@ -11,7 +11,9 @@ export const subjects = pgTable("subject", {
     .primaryKey()
     .$defaultFn(() => nanoid(8)),
   name: text("name")
-    .references(() => subjectName.id)
+    .references(() => subjectName.id, {
+      onDelete: "cascade",
+    })
     .notNull(),
   code: text("code").notNull().unique(),
   description: text("description"),

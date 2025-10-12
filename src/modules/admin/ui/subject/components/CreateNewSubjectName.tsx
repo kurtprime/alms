@@ -43,6 +43,9 @@ export default function CreateNewSubjectName({
         queryClient.invalidateQueries(
           trpc.admin.getAllSubjectNames.queryOptions()
         );
+        queryClient.invalidateQueries(
+          trpc.admin.getAllAdminSubject.queryOptions({})
+        );
         onOpenChange(false);
       },
       onError: (error) => {
