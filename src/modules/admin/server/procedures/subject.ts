@@ -1,18 +1,20 @@
 import { adminProcedure } from "@/trpc/init";
 import {
   createSubjectSchema,
+  getAllSubjectsForClassSchema,
   getSubjectSchema,
   newSubjectNameSchema,
 } from "../adminSchema";
 import { db } from "@/index";
 import {
   classSubjects,
+  member,
   organization,
   subjectName,
   subjects,
   user,
 } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { users } from "./users";
 
 export const subjectActions = {
@@ -56,20 +58,55 @@ export const subjectActions = {
         });
       });
     }),
-  getAllSubjects: adminProcedure.input(getSubjectSchema).query(async () => {
-    return await db
+  getAllAdminSubject: adminProcedure.input(getSubjectSchema).query(async () => {
+    const result = await db
       .select({
-        classId: classSubjects.id,
-        className: organization.name,
-        slug: organization.slug,
-        teacher: user.name,
-        subjectName: subjects.name,
+        id: subjectName.id,
+        subjectName: subjectName.name,
+        subjectCount: sql<number>`cast(count(distinct ${subjects.id}) as int)`,
+        teacherCount:
+          sql<number>`cast(count(distinct ${classSubjects.teacherId}) as int)`.mapWith(
+            Number
+          ), // Count distinct teachers
       })
-      .from(classSubjects)
-      .innerJoin(subjects, eq(classSubjects.subjectId, subjects.id))
-      .innerJoin(user, eq(classSubjects.teacherId, user.id))
-      .innerJoin(organization, eq(classSubjects.enrolledClass, organization.id))
-      .innerJoin(subjectName, eq(subjects.name, subjectName.id))
-      .innerJoin(user, eq(classSubjects.assignedBy, user.id));
+      .from(subjectName)
+      .leftJoin(subjects, eq(subjectName.id, subjects.name))
+      .leftJoin(classSubjects, eq(subjects.id, classSubjects.subjectId))
+      .groupBy(subjectName.id, subjectName.name);
+
+    if (!result) {
+      throw new Error("No subjects found");
+    }
+    return result;
   }),
+  getAllSubjectsPerClass: adminProcedure
+    .input(getAllSubjectsForClassSchema)
+    .query(async ({ input }) => {
+      const { subjectId } = input;
+
+      return await db
+        .select({
+          id: classSubjects.id,
+          enrolledClass: organization,
+          subjectCode: subjects.code,
+          teacher: user.name,
+          status: subjects.status,
+          studentCount: db.$count(
+            member,
+            and(
+              eq(member.organizationId, classSubjects.enrolledClass),
+              eq(member.role, "student")
+            )
+          ),
+        })
+        .from(subjectName)
+        .innerJoin(subjects, eq(subjects.name, subjectName.id))
+        .innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id))
+        .innerJoin(
+          organization,
+          eq(organization.id, classSubjects.enrolledClass)
+        )
+        .innerJoin(user, eq(classSubjects.teacherId, user.id))
+        .where(eq(subjectName.id, subjectId));
+    }),
 };

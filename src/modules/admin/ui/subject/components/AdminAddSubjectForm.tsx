@@ -53,7 +53,11 @@ import SectionForm from "../../section/components/SectionForm";
 import { toast } from "sonner";
 import { statusEnumValues } from "@/db/schema";
 
-export default function AdminAddSubjectForm() {
+type Props = {
+  setOpen: (open: boolean) => void;
+};
+
+export default function AdminAddSubjectForm({ setOpen }: Props) {
   const [createNewSubjectName, setCreateNewSubjectName] = useState(false);
   const [createNewTeacher, setCreateNewTeacher] = useState(false);
   const [createNewSection, setCreateNewSection] = useState(false);
@@ -63,8 +67,14 @@ export default function AdminAddSubjectForm() {
 
   const createNewSubject = useMutation(
     trpc.admin.createSubjectClass.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (data, variables) => {
         //todo invalidate subject list query
+        console.log(data);
+        console.log(variables);
+        setOpen(false);
+        queryClient.invalidateQueries(
+          trpc.admin.getAllAdminSubject.queryOptions({})
+        );
       },
       onError: (error) => {
         toast.error(error.message);
@@ -85,7 +95,6 @@ export default function AdminAddSubjectForm() {
   });
 
   async function onSubmitSubject(values: z.infer<typeof createSubjectSchema>) {
-    console.log(values);
     await createNewSubject.mutateAsync(values);
   }
 

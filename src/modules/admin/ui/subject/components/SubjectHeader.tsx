@@ -36,7 +36,7 @@ export default function SubjectHeader() {
         onOpenChange={setOpen}
         className="md:max-w-150"
       >
-        <AdminAddSubjectForm />
+        <AdminAddSubjectForm setOpen={setOpen} />
       </ResponsiveDialog>
     </>
   );

@@ -50,14 +50,14 @@ export default function SelectSection({ field, setCreateNewSection }: Props) {
   return (
     <Select onValueChange={field.onChange} defaultValue={field.value}>
       <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select a subject" {...field} />
+        <SelectValue placeholder="Select a Class" {...field} />
       </SelectTrigger>
       <SelectContent>
         <Command>
-          <CommandInput placeholder="search for subject" />
+          <CommandInput placeholder="search for class" />
           <CommandList>
-            <CommandEmpty>No subject found.</CommandEmpty>
-            <CommandGroup heading="Subjects">
+            <CommandEmpty>No Class found.</CommandEmpty>
+            <CommandGroup heading="Class">
               {isLoading ? (
                 <CommandItem disabled>
                   <Spinner /> Loading...

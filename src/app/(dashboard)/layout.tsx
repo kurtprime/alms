@@ -7,11 +7,9 @@ export default function layout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <AdminSidebar />
-      <ScrollArea className="flex-1">
-        <main className="flex bg-sidebar flex-col min-h-screen ">
-          {children}
-        </main>
-      </ScrollArea>
+      <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-screen w-full">
+        {children}
+      </main>
     </SidebarProvider>
   );
 }

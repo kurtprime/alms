@@ -8,7 +8,9 @@ import AdminStudentTable from "./AdminStudentTable";
 
 export default async function AdminStudentTab() {
   const queryClient = getQueryClient();
+
   void queryClient.prefetchQuery(trpc.admin.getManyStudents.queryOptions({}));
+
   return (
     <TabsContent value="students">
       <AdminCreateStudent />
