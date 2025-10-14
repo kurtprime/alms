@@ -12,8 +12,8 @@ export default function AdminTeacherTable() {
     trpc.admin.getManyTeachers.queryOptions({})
   );
   return (
-    <ScrollArea>
+    <div className="md:px-14">
       <DataTable columns={teacherColumns} data={data} />;
-    </ScrollArea>
+    </div>
   );
 }

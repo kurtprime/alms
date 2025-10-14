@@ -17,7 +17,7 @@ export const subjects = pgTable("subject", {
     .notNull(),
   code: text("code").notNull().unique(),
   description: text("description"),
-  status: publishStatusEnum("status").default("draft"),
+  status: publishStatusEnum("status").default("draft").notNull(),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
     .notNull(),

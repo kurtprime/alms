@@ -10,5 +10,9 @@ export default function AdminStudentTable() {
   const { data } = useSuspenseQuery(
     trpc.admin.getManyStudents.queryOptions({})
   );
-  return <DataTable columns={studentColumns} data={data} />;
+  return (
+    <div className="md:px-14">
+      <DataTable columns={studentColumns} data={data} />
+    </div>
+  );
 }

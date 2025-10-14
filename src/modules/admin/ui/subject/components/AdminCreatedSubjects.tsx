@@ -18,7 +18,7 @@ export default function AdminCreatedSubjects() {
     trpc.admin.getAllAdminSubject.queryOptions({})
   );
   return (
-    <Accordion type="single" collapsible className="w-full md:px-8">
+    <Accordion type="multiple" className="w-full md:px-8">
       {data ? (
         data.map((subject, index) => (
           <AccordionItem key={subject.id} value={subject.id ?? `${index}`}>
@@ -29,7 +29,7 @@ export default function AdminCreatedSubjects() {
                 <Badge variant="outline">{subject.teacherCount} Teachers</Badge>
               </span>
             </AccordionTrigger>
-            <AccordionContent>
+            <AccordionContent className="p-0">
               <SubjectContent subjectId={subject.id} />
             </AccordionContent>
           </AccordionItem>
@@ -37,21 +37,6 @@ export default function AdminCreatedSubjects() {
       ) : (
         <div>No subjects created yet.</div>
       )}
-      <AccordionItem value="item-1">
-        <AccordionTrigger>Product Information</AccordionTrigger>
-        <AccordionContent>
-          <p>
-            We stand behind our products with a comprehensive 30-day return
-            policy. If you&apos;re not completely satisfied, simply return the
-            item in its original condition.
-          </p>
-          <p>
-            Our hassle-free return process includes free return shipping and
-            full refunds processed within 48 hours of receiving the returned
-            item.
-          </p>
-        </AccordionContent>
-      </AccordionItem>
     </Accordion>
   );
 }

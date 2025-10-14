@@ -7,18 +7,34 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { Table, TableBody, TableCell, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
   onRowClick?: (row: TData) => void;
+  className?: string;
+  tableRowClassName?: string;
+  tableCellClassName?: string;
+  showHeader?: boolean;
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
   onRowClick,
+  className,
+  tableRowClassName,
+  tableCellClassName,
+  showHeader = false,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
@@ -27,26 +43,33 @@ export function DataTable<TData, TValue>({
   });
 
   return (
-    <div className="overflow-hidden rounded-md border  md:mx-10 bg-background">
+    <div
+      className={cn(
+        "overflow-hidden rounded-md border bg-background",
+        className
+      )}
+    >
       <Table>
-        {/* <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => {
-                return (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext()
-                        )}
-                  </TableHead>
-                );
-              })}
-            </TableRow>
-          ))}
-        </TableHeader> */}
+        {showHeader && (
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow key={headerGroup.id}>
+                {headerGroup.headers.map((header) => {
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
+                    </TableHead>
+                  );
+                })}
+              </TableRow>
+            ))}
+          </TableHeader>
+        )}
         <TableBody>
           {table.getRowModel().rows?.length ? (
             table.getRowModel().rows.map((row) => (
@@ -54,10 +77,13 @@ export function DataTable<TData, TValue>({
                 key={row.id}
                 data-state={row.getIsSelected() && "selected"}
                 onClick={() => onRowClick?.(row.original)}
-                className="cursor-pointer"
+                className={cn("cursor-pointer", tableRowClassName)}
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id} className="cursor-pointer">
+                  <TableCell
+                    key={cell.id}
+                    className={cn("cursor-pointer w-max", tableCellClassName)}
+                  >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}
