@@ -14,7 +14,7 @@ import {
   subjects,
   user,
 } from "@/db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, or, sql } from "drizzle-orm";
 import { users } from "./users";
 
 export const subjectActions = {
@@ -63,7 +63,9 @@ export const subjectActions = {
       .select({
         id: subjectName.id,
         subjectName: subjectName.name,
-        subjectCount: sql<number>`cast(count(distinct ${subjects.id}) as int)`,
+        subjectCount: count(
+          sql`distinct case when ${subjects.status} != 'archived' then ${subjects.id} end`
+        ),
         teacherCount:
           sql<number>`cast(count(distinct ${classSubjects.teacherId}) as int)`.mapWith(
             Number
@@ -100,13 +102,24 @@ export const subjectActions = {
           ),
         })
         .from(subjectName)
-        .innerJoin(subjects, eq(subjects.name, subjectName.id))
+        .innerJoin(
+          subjects,
+          and(
+            eq(subjects.name, subjectName.id),
+            or(eq(subjects.status, "draft"), eq(subjects.status, "published"))
+          )
+        )
         .innerJoin(classSubjects, eq(classSubjects.subjectId, subjects.id))
         .innerJoin(
           organization,
           eq(organization.id, classSubjects.enrolledClass)
         )
         .innerJoin(user, eq(classSubjects.teacherId, user.id))
-        .where(eq(subjectName.id, subjectId));
+        .where(
+          and(
+            or(eq(subjects.status, "draft"), eq(subjects.status, "published")),
+            eq(subjectName.id, subjectId)
+          )
+        );
     }),
 };
