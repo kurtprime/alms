@@ -3,9 +3,21 @@
 import { GeneratedAvatar } from "@/components/generatedAvatar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { AdminGetAllClassPerSubject } from "@/modules/admin/server/adminSchema";
 import { ColumnDef } from "@tanstack/react-table";
 import {
+  ArchiveIcon,
+  Edit,
+  EllipsisIcon,
   FilePenLineIcon,
   Hash,
   Upload,
@@ -110,6 +122,44 @@ export const subjectColumn: ColumnDef<AdminGetAllClassPerSubject[number]>[] = [
           </Badge>
         );
       }
+    },
+  },
+  {
+    accessorKey: "id",
+    header: "",
+    cell: ({ row }) => {
+      const { id } = row.original;
+
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" className="p-0 h-5 w-10 rounded-2xl">
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+
+          <DropdownMenuContent>
+            <DropdownMenuLabel>Menu</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log(id);
+              }}
+            >
+              <Edit /> edit
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log("archived");
+              }}
+            >
+              <ArchiveIcon /> archived
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      );
     },
   },
 ];
