@@ -15,7 +15,7 @@ export default function SubjectHeader() {
         <span className="flex items-center md:mx-7">
           <h2 className="text-lg text-accent-foreground font-semibold">
             <SidebarTrigger className="md:hidden" />
-            List of Subjects
+            Subjects
           </h2>
         </span>
         <div>

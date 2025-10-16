@@ -4,6 +4,8 @@ import {
   User,
   Book,
   GraduationCap,
+  BookOpen,
+  BookOpenCheck,
 } from "lucide-react";
 
 export const AdminItems = [
@@ -40,5 +42,23 @@ export const UserItems = [
     title: "Admins",
     value: "admins",
     icon: User,
+  },
+];
+
+export const SubjectItems = [
+  {
+    title: "Lessons",
+    value: "lessons",
+    icon: BookOpen,
+  },
+  {
+    title: "Grades",
+    value: "grades",
+    icon: BookOpenCheck,
+  },
+  {
+    title: "Students",
+    value: "students",
+    icon: GraduationCap,
   },
 ];

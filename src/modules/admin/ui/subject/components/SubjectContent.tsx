@@ -2,8 +2,8 @@ import { DataTable } from "@/components/DataTable";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
-import { subjectColumn } from "./SubjectColumn";
 import { useRouter } from "next/navigation";
+import { SubjectColumn } from "./_SubjectColumn";
 
 type Props = {
   subjectId: string;
@@ -14,7 +14,7 @@ export default function SubjectContent({ subjectId }: Props) {
   const router = useRouter();
 
   const { data, isLoading } = useQuery(
-    trpc.admin.getAllSubjectsPerClass.queryOptions({ subjectId })
+    trpc.admin.getAllSubjectIdPerClass.queryOptions({ subjectId })
   );
 
   if (isLoading) {
@@ -28,9 +28,9 @@ export default function SubjectContent({ subjectId }: Props) {
     <DataTable
       className="bg-transparent border-none"
       tableRowClassName="hover:bg-accent/40"
-      columns={subjectColumn}
+      columns={SubjectColumn}
       data={data}
-      onRowClick={(row) => router.push(`/admin/subjects/${row.id}`)}
+      onRowClick={(row) => router.push(`/admin/subjects/${row.classSubjectId}`)}
     />
   );
 }

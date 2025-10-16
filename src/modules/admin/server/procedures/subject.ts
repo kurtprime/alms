@@ -1,6 +1,7 @@
 import { adminProcedure } from "@/trpc/init";
 import {
   createSubjectSchema,
+  getAllSubjectInfoSchema,
   getAllSubjectsForClassSchema,
   getSubjectSchema,
   newSubjectNameSchema,
@@ -15,7 +16,7 @@ import {
   user,
 } from "@/db/schema";
 import { and, count, eq, or, sql } from "drizzle-orm";
-import { users } from "./users";
+import { TRPCError } from "@trpc/server";
 
 export const subjectActions = {
   createSubjectName: adminProcedure
@@ -81,25 +82,14 @@ export const subjectActions = {
     }
     return result;
   }),
-  getAllSubjectsPerClass: adminProcedure
+  getAllSubjectIdPerClass: adminProcedure
     .input(getAllSubjectsForClassSchema)
     .query(async ({ input }) => {
       const { subjectId } = input;
 
       return await db
         .select({
-          id: classSubjects.id,
-          enrolledClass: organization,
-          subjectCode: subjects.code,
-          teacher: user.name,
-          status: subjects.status,
-          studentCount: db.$count(
-            member,
-            and(
-              eq(member.organizationId, classSubjects.enrolledClass),
-              eq(member.role, "student")
-            )
-          ),
+          classSubjectId: classSubjects.id,
         })
         .from(subjectName)
         .innerJoin(
@@ -121,5 +111,65 @@ export const subjectActions = {
             eq(subjectName.id, subjectId)
           )
         );
+    }),
+  getAllSubjectInfo: adminProcedure
+    .input(getAllSubjectInfoSchema)
+    .query(async ({ input, ctx }) => {
+      const { id } = input;
+
+      try {
+        // Fix: Remove the duplicate subjectName join and fix the logic
+        const result = await db
+          .select({
+            id: classSubjects.id,
+            enrolledClass: organization,
+            subjectCode: subjects.code,
+            teacher: user.name,
+            status: subjects.status,
+            studentCount: db.$count(
+              member,
+              and(
+                eq(member.organizationId, classSubjects.enrolledClass),
+                eq(member.role, "student")
+              )
+            ),
+            subjectName: subjectName.name,
+          })
+          .from(classSubjects)
+          .innerJoin(subjects, eq(classSubjects.subjectId, subjects.id))
+          .innerJoin(subjectName, eq(subjects.name, subjectName.id)) // Only join once
+          .innerJoin(
+            organization,
+            eq(organization.id, classSubjects.enrolledClass)
+          )
+          .innerJoin(user, eq(classSubjects.teacherId, user.id))
+          .where(
+            and(
+              or(
+                eq(subjects.status, "draft"),
+                eq(subjects.status, "published")
+              ),
+              eq(classSubjects.id, id)
+            )
+          )
+          .limit(1); // Add limit to ensure single result
+
+        if (!result || result.length === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Class subject not found",
+          });
+        }
+
+        return result[0];
+      } catch (error) {
+        console.error("Error in getAllSubjectInfo:", error);
+        if (error instanceof TRPCError) throw error;
+
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch subject information",
+        });
+      }
     }),
 };
