@@ -12,7 +12,6 @@ interface GeneratedAvatarProps {
 
 export const GeneratedAvatar = ({
   seed,
-  id = "",
   className = "size-5",
   variant,
 }: GeneratedAvatarProps) => {

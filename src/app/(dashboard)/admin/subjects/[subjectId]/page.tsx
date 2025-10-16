@@ -1,3 +1,4 @@
+import { Tabs } from "@/components/ui/tabs";
 import AdminSubjectIdView from "@/modules/admin/ui/subject/views/AdminSubjectIdView";
 import React from "react";
 
@@ -9,5 +10,9 @@ type Props = {
 
 export default async function page({ params }: Props) {
   const { subjectId } = await params;
-  return <AdminSubjectIdView subjectId={subjectId} />;
+  return (
+    <Tabs defaultValue="lessons" className="pb-10">
+      <AdminSubjectIdView subjectId={subjectId} />;
+    </Tabs>
+  );
 }

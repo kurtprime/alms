@@ -10,7 +10,6 @@ import { db } from "@/index";
 import { member, organization, user } from "@/db/schema";
 import { customAlphabet } from "nanoid";
 import { desc, eq } from "drizzle-orm";
-import { headers } from "next/headers";
 
 export const users = {
   createStudent: adminProcedure

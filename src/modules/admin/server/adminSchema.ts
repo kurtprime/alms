@@ -21,7 +21,7 @@ export const createTeacherFormSchema = z.object({
 
 export const createSubjectSchema = z.object({
   name: z.string().min(1, { message: "Subject name is required" }),
-  code: z.string().min(1, { message: "Subject Code is Required" }).max(20),
+  code: z.string().min(1, { message: "Subject Code is Required" }).max(6),
   description: z.string().optional(),
   teacherId: z.string().min(1, { message: "Teacher is required" }),
   classId: z.string().min(1, { message: "Class is required" }),
@@ -48,6 +48,10 @@ export const getAllSubjectsForClassSchema = z.object({
   subjectId: z.string().min(1, { message: "Class ID is required" }),
 });
 
+export const getAllSubjectInfoSchema = z.object({
+  id: z.string().min(1, { message: "Class ID is required" }),
+});
+
 export type AdminCreateSection =
   inferRouterOutputs<AppRouter>["admin"]["create"];
 
@@ -61,4 +65,7 @@ export type AdminGetTeachers =
   inferRouterOutputs<AppRouter>["admin"]["getManyTeachers"];
 
 export type AdminGetAllClassPerSubject =
-  inferRouterOutputs<AppRouter>["admin"]["getAllSubjectsPerClass"];
+  inferRouterOutputs<AppRouter>["admin"]["getAllSubjectInfo"];
+
+export type AdminGetAllClassPerSubjectId =
+  inferRouterOutputs<AppRouter>["admin"]["getAllSubjectIdPerClass"];

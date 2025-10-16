@@ -7,7 +7,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import CreateNewSubjectName from "./CreateNewSubjectName";
 import {
   Command,
   CommandEmpty,
@@ -16,13 +15,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
-import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ControllerRenderProps } from "react-hook-form";
-import { useState } from "react";
 import { useTRPC } from "@/trpc/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import { PlusIcon } from "lucide-react";
 
 type Props = {
   field: ControllerRenderProps<
@@ -44,7 +41,7 @@ export default function SelectSubjectName({
   setCreateNewSubjectName,
 }: Props) {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
+  //const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery(
     trpc.admin.getAllSubjectNames.queryOptions()

@@ -19,7 +19,7 @@ import { PlusIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ControllerRenderProps } from "react-hook-form";
 import { useTRPC } from "@/trpc/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 
 type Props = {
   field: ControllerRenderProps<
@@ -38,7 +38,7 @@ type Props = {
 
 export default function SelectTeacher({ field, setCreateNewTeacher }: Props) {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
+  //const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery(
     trpc.admin.getManyTeachers.queryOptions({})

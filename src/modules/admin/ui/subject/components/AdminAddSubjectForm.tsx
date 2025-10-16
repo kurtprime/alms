@@ -1,13 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   Form,
   FormControl,
@@ -29,18 +23,10 @@ import { createSubjectSchema } from "@/modules/admin/server/adminSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import CreateNewSubjectName from "./CreateNewSubjectName";
-import { PlusIcon } from "lucide-react";
 import { useState } from "react";
 import { useTRPC } from "@/trpc/client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { Spinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import z from "zod";

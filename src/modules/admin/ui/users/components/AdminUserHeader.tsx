@@ -8,16 +8,16 @@ import { Separator } from "@/components/ui/separator";
 export default function AdminUserHeader() {
   return (
     <>
-      <div className="w-full flex flex-col md:flex-row gap-5 items-center justify-between my-5 md:my-4 md:px-14 px-2">
+      <div className="w-full flex flex-col md:flex-row gap-5 items-center justify-between my-5 md:pt-2 md:my-0 md:px-14 px-0">
         <h2 className="text-lg text-accent-foreground font-semibold">
           <SidebarTrigger className="md:hidden" />
           User List
         </h2>
-        <div className="w-full md:w-auto">
-          <TabsList className="bg-background/50 border-b border-border py-6 flex justify-center md:justify-end">
+        <div className="flex justify-center md:justify-end">
+          <TabsList className="bg-background/50 border-b border-border py-4 md:py-6 flex ">
             {UserItems.map((item) => (
               <TabsTrigger
-                className="p-5 font-semibold text-md"
+                className="p-3 md:p-5 font-semibold text-sm md:text-md flex-shrink-0"
                 key={item.title}
                 value={item.value}
               >
