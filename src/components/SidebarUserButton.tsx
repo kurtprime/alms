@@ -1,3 +1,5 @@
+"use client";
+
 import { GeneratedAvatar } from "@/components/generatedAvatar";
 import { Avatar, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -60,14 +62,14 @@ export default function SidebarUserButton() {
           )}
           <div className="flex flex-col gap-0.5 text-left overflow-hidden flex-1 min-w-0">
             <p className="text-sm truncate w-full">{data.user.name}</p>
-            <p className="text-xs truncate w-full">{data.user.email}</p>
+            <p className="text-xs truncate w-full">{data.user.role}</p>
           </div>
           <ChevronDown className="size-4 shrink-0" />
         </DrawerTrigger>
         <DrawerContent>
           <DrawerHeader>
             <DrawerTitle>{data.user.name}</DrawerTitle>
-            <DrawerDescription>{data.user.email}</DrawerDescription>
+            <DrawerDescription>{data.user.role}</DrawerDescription>
           </DrawerHeader>
           <DrawerFooter>
             <Button variant="outline" onClick={() => router.push("/settings")}>
@@ -98,7 +100,7 @@ export default function SidebarUserButton() {
         )}
         <div className="flex flex-col gap-0.5 text-left overflow-hidden flex-1 min-w-0">
           <p className="text-sm truncate w-full">{data.user.name}</p>
-          <p className="text-xs truncate w-full">{data.user.email}</p>
+          <p className="text-xs truncate w-full">{data.user.role}</p>
         </div>
         <ChevronDown className="size-4 shrink-0 " />
       </DropdownMenuTrigger>
@@ -107,7 +109,7 @@ export default function SidebarUserButton() {
           <div className="flex flex-col gap-1 ">
             <span className="font-medium truncate">{data.user.name}</span>
             <span className="text-sm font-normal  truncate">
-              {data.user.email}
+              {data.user.role}
             </span>
           </div>
         </DropdownMenuLabel>

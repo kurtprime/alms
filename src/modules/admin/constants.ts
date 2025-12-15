@@ -38,11 +38,11 @@ export const UserItems = [
     value: "teachers",
     icon: ContactIcon,
   },
-  {
-    title: "Admins",
-    value: "admins",
-    icon: User,
-  },
+  // {
+  //   title: "Admins",
+  //   value: "admins",
+  //   icon: User,
+  // },
 ];
 
 export const SubjectItems = [

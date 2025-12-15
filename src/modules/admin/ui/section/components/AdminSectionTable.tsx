@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/incompatible-library */
 "use client";
 
 import {
@@ -33,7 +34,6 @@ export function AdminSectionDataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
   });
 
-
   return (
     <div className="overflow-hidden rounded-md border md:mx-10 bg-background">
       <Table>
@@ -65,7 +65,7 @@ export function AdminSectionDataTable<TData, TValue>({
                 className="cursor-pointer"
               >
                 {row.getVisibleCells().map((cell) => (
-                  <TableCell key={cell.id}  className="cursor-pointer">  
+                  <TableCell key={cell.id} className="cursor-pointer">
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </TableCell>
                 ))}

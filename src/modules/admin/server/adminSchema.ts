@@ -1,19 +1,55 @@
 import { z } from "zod";
 import type { AppRouter } from "@/trpc/routers/_app";
 import { inferRouterOutputs } from "@trpc/server";
-import { statusEnumValues } from "@/db/schema";
+import { organizationMemberStrand, statusEnumValues } from "@/db/schema";
 
 export const createSectionFormSchema = z.object({
   name: z.string().min(2, { message: "Strand name is needed" }).max(100),
   slug: z.string().min(2, { message: "What is the section name" }).max(50),
 });
 
-export const createStudentFormSchema = z.object({
-  firstName: z.string().min(1, { message: "Name is required" }).max(100),
-  lastName: z.string().min(1, { message: "Last name is required" }).max(100),
-  organizationId: z.string().nullish(),
-});
+export const createStudentFormSchema = z
+  .object({
+    firstName: z.string().min(1, { message: "Name is required" }).max(100),
+    lastName: z.string().min(1, { message: "Last name is required" }).max(100),
+    middleInitial: z
+      .string()
+      .max(2, { message: "Middle initial must be at most 2 characters" })
+      .optional(),
+    organizationId: z.string().nullish(),
+    userId: z.string().min(1, { message: "User ID is required" }),
+    strand: z.enum(organizationMemberStrand.enumValues),
+  })
+  .refine((data) => !(data.organizationId && data.strand === "Not Specified"), {
+    message: "Cannot select 'Not Specified' strand with an organization",
+    path: ["strand"],
+  })
+  .refine(
+    (data) => !(data.strand !== "Not Specified" && !data.organizationId),
+    {
+      message:
+        "Organization is required for all strands except 'Not Specified'",
+      path: ["organizationId"],
+    }
+  );
 
+export const updateStudentFormSchema = z
+  .object({
+    ...createStudentFormSchema.shape,
+    id: z.string().min(1, { message: "Student ID is required" }),
+  })
+  .refine((data) => !(data.organizationId && data.strand === "Not Specified"), {
+    message: "Cannot select 'Not Specified' strand with an organization",
+    path: ["strand"],
+  })
+  .refine(
+    (data) => !(data.strand !== "Not Specified" && !data.organizationId),
+    {
+      message:
+        "Organization is required for all strands except 'Not Specified'",
+      path: ["organizationId"],
+    }
+  );
 export const createTeacherFormSchema = z.object({
   firstName: z.string().min(1, { message: "Name is required" }).max(100),
   lastName: z.string().min(1, { message: "Last name is required" }).max(100),
@@ -38,7 +74,14 @@ export const getManySectionsSchema = z.object({
   slug: z.string().min(1).max(100).optional(),
 });
 
-export const getManyStudentsSchema = z.object({});
+export const getManyStudentsSchema = z.object({
+  userId: z.string().optional(), // Filter by specific user
+  organizationId: z.string().optional(), // Filter by organization
+  strand: z.enum(organizationMemberStrand.enumValues).optional(), // Filter by strand
+  search: z.string().optional(), // Search by name or customId
+  limit: z.number().min(1).max(100).optional().default(50),
+  cursor: z.string().optional(), // For pagination
+});
 
 export const getSubjectSchema = z.object({});
 

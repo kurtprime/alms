@@ -1,8 +1,14 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { getCurrentAdmin } from "@/lib/auth";
 import AdminSidebar from "@/modules/admin/ui/admin/components/AdminSidebar";
 import React from "react";
 
-export default function layout({ children }: { children: React.ReactNode }) {
+export default async function layout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  await getCurrentAdmin();
   return (
     <SidebarProvider>
       <AdminSidebar />
