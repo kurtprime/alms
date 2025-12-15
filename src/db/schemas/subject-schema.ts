@@ -1,5 +1,12 @@
-import { pgEnum, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import { nanoid } from "nanoid";
+import {
+  integer,
+  pgEnum,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  varchar,
+} from "drizzle-orm/pg-core";
 import { user } from "./auth-schema";
 import { organization } from "./organization-schema";
 
@@ -7,10 +14,8 @@ export const statusEnumValues = ["draft", "published", "archived"] as const;
 export const publishStatusEnum = pgEnum("status", statusEnumValues);
 
 export const subjects = pgTable("subject", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => nanoid(8)),
-  name: text("name")
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 })
     .references(() => subjectName.id, {
       onDelete: "cascade",
     })
@@ -24,29 +29,27 @@ export const subjects = pgTable("subject", {
 });
 
 export const classSubjects = pgTable("class_subject", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => nanoid()),
-  enrolledClass: text("class_id").references(() => organization.id, {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  enrolledClass: varchar("class_id", { length: 255 }).references(
+    () => organization.id,
+    {
+      onDelete: "cascade",
+    }
+  ),
+  subjectId: integer("subject_id").references(() => subjects.id, {
     onDelete: "cascade",
   }),
-  subjectId: text("subject_id").references(() => subjects.id, {
-    onDelete: "cascade",
-  }),
-  teacherId: text("teacher_id")
+  teacherId: varchar("teacher_id", { length: 255 })
     .references(() => user.id, { onDelete: "set null" })
     .notNull(),
-  assignedBy: text("assigned_by").references(() => user.id),
   enrolledAt: timestamp("enrolled_at")
     .$defaultFn(() => new Date())
     .notNull(),
 });
 
 export const subjectName = pgTable("subject_name", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => nanoid()),
-  name: text("name").notNull().unique(),
+  id: serial("id").primaryKey(),
+  name: varchar("name", { length: 255 }).notNull().unique(),
   description: text("description"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())

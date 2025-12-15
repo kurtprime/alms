@@ -30,6 +30,7 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
+  
   plugins: [
     adminPlugin({
       ac,
@@ -40,7 +41,14 @@ export const auth = betterAuth({
         teacher,
       },
     }),
-    organization(),
+    organization({
+      ac,
+      roles: {
+        admin,
+        student,
+        teacher,
+      }
+    }),
     username(),
     nextCookies(),
   ],
@@ -60,7 +68,9 @@ export async function getCurrentAdmin() {
     redirect("/sign-in");
   }
   if (session.user?.role !== "admin") {
-    redirect("/admin");
+    if (session.user.role === "students") redirect("/students");
+    if (session.user.role === "teacher") redirect("/teacher");
+    redirect("/");
   }
 
   return { ...session };

@@ -17,6 +17,7 @@ import {
 } from "@/db/schema";
 import { and, count, eq, or, sql } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { nanoid } from "nanoid";
 
 export const subjectActions = {
   createSubjectName: adminProcedure
@@ -37,7 +38,7 @@ export const subjectActions = {
   }),
   createSubjectClass: adminProcedure
     .input(createSubjectSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       const { name, code, teacherId, classId, description, status } = input;
 
       await db.transaction(async (tx) => {
@@ -52,10 +53,10 @@ export const subjectActions = {
           .returning({ id: subjects.id });
 
         await tx.insert(classSubjects).values({
+          id: nanoid(),
           enrolledClass: classId,
           subjectId: newSubject.id,
           teacherId: teacherId,
-          assignedBy: ctx.auth.user.id,
         });
       });
     }),
@@ -108,13 +109,13 @@ export const subjectActions = {
         .where(
           and(
             or(eq(subjects.status, "draft"), eq(subjects.status, "published")),
-            eq(subjectName.id, subjectId)
+            eq(subjectName.id, +subjectId)
           )
         );
     }),
   getAllSubjectInfo: adminProcedure
     .input(getAllSubjectInfoSchema)
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       const { id } = input;
 
       try {

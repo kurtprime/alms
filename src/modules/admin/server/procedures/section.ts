@@ -10,7 +10,7 @@ import { headers } from "next/headers";
 export const section = {
   create: adminProcedure
     .input(createSectionFormSchema)
-    .mutation(async ({ input, ctx }) => {
+    .mutation(async ({ input }) => {
       const checkSlug = await auth.api.checkOrganizationSlug({
         body: {
           slug: input.slug, // required
@@ -27,7 +27,6 @@ export const section = {
         body: {
           name: input.name,
           slug: input.slug,
-          userId: ctx.auth.user.id,
         },
         headers: await headers(),
       });

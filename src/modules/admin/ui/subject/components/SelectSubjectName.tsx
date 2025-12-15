@@ -65,7 +65,9 @@ export default function SelectSubjectName({
               ) : (
                 data?.map((subject) => (
                   <CommandItem key={subject.id}>
-                    <SelectItem value={subject.id}>{subject.name}</SelectItem>
+                    <SelectItem value={`${subject.id}`}>
+                      {subject.name}
+                    </SelectItem>
                   </CommandItem>
                 ))
               )}
