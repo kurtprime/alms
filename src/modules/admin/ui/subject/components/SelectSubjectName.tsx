@@ -48,7 +48,7 @@ export default function SelectSubjectName({
   );
 
   return (
-    <Select onValueChange={field.onChange} defaultValue={field.value}>
+    <Select onValueChange={field.onChange} defaultValue={`${field.value}`}>
       <SelectTrigger className="w-full">
         <SelectValue placeholder="Select a subject" {...field} />
       </SelectTrigger>

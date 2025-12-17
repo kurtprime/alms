@@ -1,4 +1,5 @@
 import {
+  index,
   integer,
   pgEnum,
   pgTable,
@@ -15,7 +16,7 @@ export const publishStatusEnum = pgEnum("status", statusEnumValues);
 
 export const subjects = pgTable("subject", {
   id: serial("id").primaryKey(),
-  name: varchar("name", { length: 255 })
+  name: integer("name")
     .references(() => subjectName.id, {
       onDelete: "cascade",
     })
@@ -28,24 +29,34 @@ export const subjects = pgTable("subject", {
     .notNull(),
 });
 
-export const classSubjects = pgTable("class_subject", {
-  id: varchar("id", { length: 255 }).primaryKey(),
-  enrolledClass: varchar("class_id", { length: 255 }).references(
-    () => organization.id,
-    {
+export const classSubjects = pgTable(
+  "class_subject",
+  {
+    id: varchar("id", { length: 255 }).primaryKey(),
+    enrolledClass: varchar("class_id", { length: 255 }).references(
+      () => organization.id,
+      {
+        onDelete: "cascade",
+      }
+    ),
+    subjectId: integer("subject_id").references(() => subjects.id, {
       onDelete: "cascade",
-    }
-  ),
-  subjectId: integer("subject_id").references(() => subjects.id, {
-    onDelete: "cascade",
-  }),
-  teacherId: varchar("teacher_id", { length: 255 })
-    .references(() => user.id, { onDelete: "set null" })
-    .notNull(),
-  enrolledAt: timestamp("enrolled_at")
-    .$defaultFn(() => new Date())
-    .notNull(),
-});
+    }),
+    teacherId: varchar("teacher_id", { length: 255 })
+      .references(() => user.id, { onDelete: "set null" })
+      .notNull(),
+    enrolledAt: timestamp("enrolled_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [
+    index("enrolled_class_subject_teacher_unique").on(
+      table.enrolledClass,
+      table.subjectId,
+      table.teacherId
+    ),
+  ]
+);
 
 export const subjectName = pgTable("subject_name", {
   id: serial("id").primaryKey(),

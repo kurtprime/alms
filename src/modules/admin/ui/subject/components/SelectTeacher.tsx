@@ -63,7 +63,7 @@ export default function SelectTeacher({ field, setCreateNewTeacher }: Props) {
                 data?.map((teacher) => (
                   <CommandItem key={teacher.user.id}>
                     <SelectItem value={teacher.user.id}>
-                      {teacher.user.name}
+                      {teacher.user.name} ({teacher.user.username})
                     </SelectItem>
                   </CommandItem>
                 ))

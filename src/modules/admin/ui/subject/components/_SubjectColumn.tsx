@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AdminGetAllClassPerSubjectId } from "@/modules/admin/server/adminSchema";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
@@ -27,6 +28,37 @@ import {
   UserSquare2Icon,
 } from "lucide-react";
 
+const BadgeSkeleton = () => (
+  <div className="flex items-center gap-2 px-3 py-1 rounded-full border border-gray-200 bg-gray-100">
+    <Skeleton className="w-4 h-4 rounded-full" />
+    <Skeleton className="w-16 h-4 rounded-full" />
+  </div>
+);
+
+// Skeleton for Avatar with two lines of text
+const AvatarWithTextSkeleton = () => (
+  <div className="flex items-center space-x-2">
+    <Skeleton className="size-10 rounded-full" />
+    <div className="flex flex-col space-y-1">
+      <Skeleton className="w-24 h-4 rounded" />
+      <Skeleton className="w-32 h-3 rounded" />
+    </div>
+  </div>
+);
+
+// Skeleton for Icon + Text
+const IconTextSkeleton = ({ width = "w-24" }: { width?: string }) => (
+  <div className="flex items-center gap-2 font-semibold">
+    <Skeleton className="w-5 h-5 rounded" />
+    <Skeleton className={`${width} h-4 rounded`} />
+  </div>
+);
+
+// Skeleton for Action Button
+const ActionButtonSkeleton = () => (
+  <Skeleton className="h-5 w-10 rounded-2xl" />
+);
+
 const SubjectCodeCell = ({ id }: { id: string }) => {
   const trpc = useTRPC();
   const { data, isLoading } = useQuery(
@@ -35,7 +67,7 @@ const SubjectCodeCell = ({ id }: { id: string }) => {
     })
   );
 
-  if (isLoading) return <div>Loading</div>;
+  if (isLoading) return <BadgeSkeleton />;
   if (!data) return <div>no data</div>;
 
   return (
@@ -53,7 +85,7 @@ const ClassCell = ({ classId }: { classId: string }) => {
     })
   );
 
-  if (isLoading) return <div>Loading</div>;
+  if (isLoading) return <AvatarWithTextSkeleton />;
   if (!data) return <div>no data</div>;
 
   const {
@@ -92,7 +124,7 @@ const TeacherCell = ({ classId }: { classId: string }) => {
     })
   );
 
-  if (isLoading) return <div>Loading</div>;
+  if (isLoading) return <IconTextSkeleton width="w-32" />;
   if (!data) return <div>no data</div>;
 
   const { teacher } = data;
@@ -112,7 +144,7 @@ const StudentCountCell = ({ classId }: { classId: string }) => {
       id: classId,
     })
   );
-  if (isLoading) return <div>Loading</div>;
+  if (isLoading) return <IconTextSkeleton width="w-12" />;
   if (!data) return <div>no data</div>;
 
   const { studentCount } = data;
@@ -132,7 +164,7 @@ const StatusCell = ({ classId }: { classId: string }) => {
       id: classId,
     })
   );
-  if (isLoading) return <div>Loading</div>;
+  if (isLoading) return <BadgeSkeleton />;
   if (!data) return <div>no data</div>;
 
   const { status } = data;
@@ -168,7 +200,7 @@ const IdCell = ({ classId }: { classId: string }) => {
     })
   );
 
-  if (isLoading) return <div>Loading</div>;
+  if (isLoading) return <ActionButtonSkeleton />;
   if (!data) return <div>no data</div>;
 
   const { id } = data;

@@ -61,6 +61,11 @@ export default function AdminAddSubjectForm({ setOpen }: Props) {
         queryClient.invalidateQueries(
           trpc.admin.getAllAdminSubject.queryOptions({})
         );
+        queryClient.invalidateQueries(
+          trpc.admin.getAllSubjectIdPerClass.queryOptions({
+            subjectId: +variables.name,
+          })
+        );
       },
       onError: (error) => {
         toast.error(error.message);

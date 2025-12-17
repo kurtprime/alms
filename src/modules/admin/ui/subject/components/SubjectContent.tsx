@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { SubjectColumn } from "./_SubjectColumn";
 
 type Props = {
-  subjectId: string;
+  subjectId: number;
+  subjectCount: number;
 };
 
-export default function SubjectContent({ subjectId }: Props) {
+export default function SubjectContent({ subjectId, subjectCount }: Props) {
   const trpc = useTRPC();
   const router = useRouter();
 
@@ -17,19 +18,14 @@ export default function SubjectContent({ subjectId }: Props) {
     trpc.admin.getAllSubjectIdPerClass.queryOptions({ subjectId })
   );
 
-  if (isLoading) {
-    return <div>loading</div>;
-  }
-  if (!data) {
-    return <div>no Data</div>;
-  }
-
   return (
     <DataTable
       className="bg-transparent border-none"
       tableRowClassName="hover:bg-accent/40"
       columns={SubjectColumn}
-      data={data}
+      data={data ?? []}
+      loading={isLoading}
+      skeletonRows={subjectCount}
       onRowClick={(row) => router.push(`/admin/subjects/${row.classSubjectId}`)}
     />
   );
