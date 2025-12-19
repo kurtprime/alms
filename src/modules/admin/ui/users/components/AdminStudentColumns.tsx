@@ -85,7 +85,7 @@ export const studentColumns: ColumnDef<AdminGetStudents[number]>[] = [
       }
       return (
         <h2 className="font-semibold">
-          {member ? getInitials(member.strand) : "Not Specified"}
+          {member ? getInitials(`${member.strand}`) : "Not Specified"}
         </h2>
       );
     },

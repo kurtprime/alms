@@ -1,4 +1,5 @@
 import {
+  boolean,
   index,
   pgEnum,
   pgTable,
@@ -6,7 +7,7 @@ import {
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
-import { classSubjects } from "./subject-schema";
+import { classSubjects, publishStatusEnum } from "./subject-schema";
 
 export const lessonTerm = pgEnum("lesson_term", [
   "prelims",
@@ -26,6 +27,9 @@ export const lesson = pgTable(
         onDelete: "cascade",
       })
       .notNull(),
+    status: publishStatusEnum("status")
+      .$default(() => "published")
+      .notNull(),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
@@ -36,5 +40,6 @@ export const lesson = pgTable(
       table.terms
     ),
     index("lesson_class_subject_idx").on(table.classSubjectId),
+    index("lesson_status_idx").on(table.status, table.classSubjectId),
   ]
 );

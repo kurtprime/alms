@@ -47,7 +47,7 @@ export const member = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     role: organizationMemberRole("role").default("owner").notNull(),
-    strand: organizationMemberStrand("strand").notNull(),
+    strand: organizationMemberStrand("strand"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
