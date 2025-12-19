@@ -6,10 +6,8 @@ export async function middleware(request: NextRequest) {
   // Check for the existence of the session cookie
   const session = getSessionCookie(request);
 
-  const { pathname } = request.nextUrl;
-
   // If the user is not signed in and trying to access a protected route...
-  if (!session && pathname.startsWith("/admin")) {
+  if (!session) {
     // Redirect them to the sign-in page
     return NextResponse.redirect(new URL("/sign-in", request.url));
   }

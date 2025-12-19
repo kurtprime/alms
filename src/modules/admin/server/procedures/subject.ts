@@ -45,7 +45,7 @@ export const subjectActions = {
         const [newSubject] = await tx
           .insert(subjects)
           .values({
-            name: name,
+            name: +name,
             code: code,
             description: description,
             status: status,

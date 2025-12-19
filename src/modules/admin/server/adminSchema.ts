@@ -74,6 +74,11 @@ export const createLessonSchema = z.object({
   classId: z.string().min(1, { message: "Class ID is required" }),
 });
 
+export const updateLessonSchema = z.object({
+  ...createLessonSchema.shape,
+  id: z.int(),
+});
+
 export const newSubjectNameSchema = z.object({
   name: z.string().min(1, { message: "Subject name is required" }).max(100),
   description: z.string().optional(),
@@ -122,3 +127,6 @@ export type AdminGetAllClassPerSubject =
 
 export type AdminGetAllClassPerSubjectId =
   inferRouterOutputs<AppRouter>["admin"]["getAllSubjectIdPerClass"];
+
+export type AdminGetLessonsPerClass =
+  inferRouterOutputs<AppRouter>["admin"]["getLessonsPerClass"];

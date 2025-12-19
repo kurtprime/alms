@@ -1,7 +1,10 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
 import { useForm } from "react-hook-form";
-import { createLessonSchema } from "@/modules/admin/server/adminSchema";
+import {
+  AdminGetLessonsPerClass,
+  createLessonSchema,
+} from "@/modules/admin/server/adminSchema";
 import {
   Form,
   FormControl,
@@ -25,31 +28,55 @@ import { lessonTerm } from "@/db/schema";
 import z from "zod";
 import { useParams } from "next/navigation";
 import { useTRPC } from "@/trpc/client";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 
 export default function CreateLessonLeftSide({
   onOpen,
+  initialValues,
 }: {
   onOpen: (open: boolean) => void;
+  initialValues?: AdminGetLessonsPerClass[number];
 }) {
   const params: { subjectId: string } = useParams();
   const form = useForm({
     resolver: zodResolver(createLessonSchema),
     defaultValues: {
-      name: "",
-      terms: undefined,
-      classId: params.subjectId,
+      name: initialValues?.name ?? "",
+      terms: initialValues?.terms ?? "prelims",
+      classId: initialValues?.classSubjectId ?? params.subjectId,
     },
   });
-
+  const queryClient = useQueryClient();
   const trpc = useTRPC();
 
   const newLesson = useMutation(
     trpc.admin.createLessons.mutationOptions({
       onSuccess: () => {
         toast.success("Lesson create Successfully");
+        queryClient.invalidateQueries(
+          trpc.admin.getLessonsPerClass.queryOptions({
+            classId: params.subjectId,
+          })
+        );
+        onOpen(false);
+      },
+      onError: () => {
+        toast.error("Failed to create Lesson");
+      },
+    })
+  );
+
+  const updateLesson = useMutation(
+    trpc.admin.updateLessons.mutationOptions({
+      onSuccess: () => {
+        toast.success("Lesson Updated Successfully");
+        queryClient.invalidateQueries(
+          trpc.admin.getLessonsPerClass.queryOptions({
+            classId: params.subjectId,
+          })
+        );
         onOpen(false);
       },
       onError: () => {
@@ -58,8 +85,11 @@ export default function CreateLessonLeftSide({
     })
   );
   const onSubmit = (data: z.infer<typeof createLessonSchema>) => {
-    newLesson.mutate(data);
-    console.log("Params:", params);
+    if (!initialValues) {
+      newLesson.mutate(data);
+    } else {
+      updateLesson.mutate({ ...data, id: initialValues.id });
+    }
   };
 
   return (
@@ -123,13 +153,15 @@ export default function CreateLessonLeftSide({
             )}
           />
         </div>
-        {newLesson.isPending ? (
+        {newLesson.isPending ||
+        updateLesson.isPending ||
+        form.formState.isSubmitting ? (
           <Button disabled className="mt-4 w-40">
             <Spinner />
           </Button>
         ) : (
           <Button type="submit" className="mt-4 w-40">
-            Create Lesson
+            {initialValues ? "Update Lesson" : "Create Lesson"}
           </Button>
         )}
       </form>
