@@ -1,12 +1,22 @@
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
-import { Edit, EllipsisIcon, Plus, Trash } from "lucide-react";
+import {
+  BookOpenTextIcon,
+  Edit,
+  EllipsisIcon,
+  Plus,
+  PlusSquare,
+  Trash,
+} from "lucide-react";
 import React, { useState } from "react";
 import CreateLessonLeftSide from "./CreateLessonLeftSide";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
-import { AdminGetLessonsPerClass } from "@/modules/admin/server/adminSchema";
+import {
+  AdminGetLessonsPerClass,
+  AdminGetLessonsTypes,
+} from "@/modules/admin/server/adminSchema";
 import {
   Accordion,
   AccordionContent,
@@ -18,10 +28,16 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+} from "@/components/ui/empty";
+import { lessonTypeEnum } from "@/db/schema";
 
 export default function LessonCreate() {
   const [openCreateLesson, setOpenCreateLesson] = React.useState(false);
@@ -66,6 +82,7 @@ function DisplayLessons({
   const [lessonData, setLessonData] = useState<
     AdminGetLessonsPerClass[number] | undefined
   >(undefined);
+
   return (
     <>
       {!isLoading ? (
@@ -82,7 +99,7 @@ function DisplayLessons({
                 className="my-2 mx-0.2 border-none relative" // Add relative
               >
                 {/* Accordion Trigger with extra right padding */}
-                <AccordionTrigger className="px-2 py-4 pr-12 items-center bg-card/60 backdrop-blur-md border border-primary/20 shadow-lg shadow-primary/5 mx-0.2">
+                <AccordionTrigger className="px-2 py-4 pr-12 items-center ring-primary bg-card/60 backdrop-blur-md border border-primary/20 shadow-lg shadow-primary/5 mx-0.2">
                   <span>
                     {lesson.name} ({lesson.terms})
                   </span>
@@ -125,8 +142,8 @@ function DisplayLessons({
                   </DropdownMenu>
                 </div>
 
-                <AccordionContent className="border-l-2 border-l-primary/100 my-2 ml-1 pl-1">
-                  <div>asda</div>
+                <AccordionContent className="flex flex-col justify-stretch border-l-2 border-l-primary/100 my-2 ml-1 pl-1 pb-0">
+                  <LessonType lessonId={lesson.id} />
                 </AccordionContent>
               </AccordionItem>
             );
@@ -162,6 +179,85 @@ function DisplayLessons({
   );
 }
 
+function LessonType({ lessonId }: { lessonId: number }) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  const createLessonType = useMutation(
+    trpc.admin.createLessonType.mutationOptions({
+      onSuccess: (data, value) => {
+        queryClient.invalidateQueries(
+          trpc.admin.getLessonType.queryOptions({ lessonId })
+        );
+        toast.success("Created " + value.type);
+      },
+      onError: () => {
+        toast.error("Something went wrong");
+      },
+    })
+  );
+  const { data, isLoading } = useQuery(
+    trpc.admin.getLessonType.queryOptions({
+      lessonId,
+    })
+  );
+
+  return (
+    <>
+      {isLoading ? (
+        <div>loading...</div>
+      ) : data?.length == 0 || data == undefined ? (
+        <Empty className="p-2 md:p-2">
+          <EmptyHeader className="p-0 m-0">
+            <EmptyMedia>
+              <BookOpenTextIcon />
+            </EmptyMedia>
+            <EmptyDescription>
+              Create an activity or handout first
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <></>
+      )}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant={"ghost"} className="mx-auto p-0">
+            <PlusSquare className="size-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          {lessonTypeEnum.enumValues.map((lessonType, index) => {
+            return (
+              <DropdownMenuItem
+                disabled={createLessonType.isPending}
+                key={index}
+                onClick={async () => {
+                  function countLessonType(
+                    arg0: (typeof lessonTypeEnum.enumValues)[number],
+                    data: AdminGetLessonsTypes
+                  ) {
+                    return ++data.filter((type) => type.type === "topic")
+                      .length;
+                  }
+
+                  const count = data ? countLessonType(lessonType, data) : 0;
+                  createLessonType.mutate({
+                    name: `${lessonType} ${count}`,
+                    lessonId: lessonId,
+                    type: lessonType,
+                  });
+                }}
+              >
+                {lessonType.toLocaleUpperCase()}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
 function AreYouSure({
   onOpen,
   id,
@@ -190,13 +286,14 @@ function AreYouSure({
   );
   return (
     <div className="flex flex-row justify-around items-center mt-3">
-      <Button onClick={() => onOpen(false)}>cancel</Button>
+      <Button variant={"outline"} onClick={() => onOpen(false)}>
+        cancel
+      </Button>
       <Button
         onClick={() => {
           if (id) archiveLesson.mutate({ id: id });
         }}
         disabled={archiveLesson.isPending}
-        variant={"outline"}
       >
         Archive
       </Button>

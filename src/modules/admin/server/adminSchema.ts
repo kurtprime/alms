@@ -3,6 +3,7 @@ import type { AppRouter } from "@/trpc/routers/_app";
 import { inferRouterOutputs } from "@trpc/server";
 import {
   lessonTerm,
+  lessonTypeEnum,
   organizationMemberStrand,
   statusEnumValues,
 } from "@/db/schema";
@@ -74,6 +75,12 @@ export const createLessonSchema = z.object({
   classId: z.string().min(1, { message: "Class ID is required" }),
 });
 
+export const createLessonTypeSchema = z.object({
+  name: z.string(),
+  lessonId: z.int().min(1, { message: "something went wrong" }),
+  type: z.enum(lessonTypeEnum.enumValues),
+});
+
 export const updateLessonSchema = z.object({
   ...createLessonSchema.shape,
   id: z.int(),
@@ -130,3 +137,6 @@ export type AdminGetAllClassPerSubjectId =
 
 export type AdminGetLessonsPerClass =
   inferRouterOutputs<AppRouter>["admin"]["getLessonsPerClass"];
+
+export type AdminGetLessonsTypes =
+  inferRouterOutputs<AppRouter>["admin"]["getLessonType"];
