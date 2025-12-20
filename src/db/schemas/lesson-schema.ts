@@ -1,6 +1,6 @@
 import {
-  boolean,
   index,
+  integer,
   pgEnum,
   pgTable,
   serial,
@@ -42,4 +42,23 @@ export const lesson = pgTable(
     index("lesson_class_subject_idx").on(table.classSubjectId),
     index("lesson_status_idx").on(table.status, table.classSubjectId),
   ]
+);
+export const lessonTypeEnum = pgEnum("lesson_types", ["topic", "activity"]);
+export const lessonType = pgTable(
+  "lesson_type",
+  {
+    id: serial("id").primaryKey(),
+    name: varchar("name", { length: 50 }),
+    lessonId: integer("lesson_id")
+      .references(() => lesson.id, {
+        onDelete: "cascade",
+      })
+      .notNull(),
+    type: lessonTypeEnum().notNull(),
+    status: publishStatusEnum("status").default("draft"),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (table) => [index("lesson_lesson_id_idx").on(table.lessonId)]
 );

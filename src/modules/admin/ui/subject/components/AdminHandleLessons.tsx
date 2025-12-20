@@ -1,4 +1,3 @@
-import { Separator } from "@/components/ui/separator";
 import React from "react";
 import LessonCreate from "./LessonLeftSide";
 import {
@@ -6,22 +5,21 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export default function AdminHandleLessons() {
   return (
-    <ResizablePanelGroup
-      direction="horizontal"
-      className="grid grid-cols-[20%_10px_1fr] gap-0 h-full "
-    >
+    <ResizablePanelGroup direction="horizontal" className=" h-full ">
       <ResizablePanel
         defaultSize={25}
         maxSize={50}
-        className="p-1 bg-background"
+        className="bg-background rounded-bl-2xl"
       >
-        <LessonCreate />
+        <ScrollArea className="h-[calc(100vh-130px)] px-3 pt-2">
+          <LessonCreate />
+        </ScrollArea>
       </ResizablePanel>
       <ResizableHandle />
-      {/* Second column: remaining space (80%) */}
       <ResizablePanel defaultSize={75} className="p-4">
         Remaining space
       </ResizablePanel>
