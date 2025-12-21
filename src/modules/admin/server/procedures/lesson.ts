@@ -67,12 +67,7 @@ export const lessonActions = {
       return await db
         .select()
         .from(lessonType)
-        .where(
-          and(
-            eq(lessonType.lessonId, lessonId),
-            not(eq(lessonType.status, "archived"))
-          )
-        );
+        .where(and(eq(lessonType.lessonId, lessonId)));
     }),
   getLessonsPerClass: adminProcedure
     .input(z.object({ classId: z.string() }))

@@ -3,11 +3,14 @@
     "editor.defaultFormatter": "denoland.vscode-deno"
   },
   "cSpell.words": [
-    "uploadthing"
+    "msword",
+    "officedocument",
+    "openxmlformats",
+    "presentationml",
+    "uploadthing",
+    "wordprocessingml"
   ],
-  "deno.enablePaths": [
-    "supabase/functions"
-  ],
+  "deno.enablePaths": ["supabase/functions"],
   "deno.lint": true,
   "deno.unstable": [
     "bare-node-builtins",

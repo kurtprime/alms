@@ -38,6 +38,8 @@ import {
   EmptyMedia,
 } from "@/components/ui/empty";
 import { lessonTypeEnum } from "@/db/schema";
+import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
+import { cn } from "@/lib/utils";
 
 export default function LessonCreate() {
   const [openCreateLesson, setOpenCreateLesson] = React.useState(false);
@@ -169,7 +171,7 @@ function DisplayLessons({
       </ResponsiveDialog>
       <ResponsiveDialog
         title="Archive Lesson"
-        description="This will be move to an arhive section"
+        description="This will be move to an archive section"
         onOpenChange={setOpenDelete}
         open={openDelete}
       >
@@ -180,6 +182,7 @@ function DisplayLessons({
 }
 
 function LessonType({ lessonId }: { lessonId: number }) {
+  const [lessonTypeParams, setLessonTypeParams] = useLessonTypeParams();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const createLessonType = useMutation(
@@ -217,7 +220,30 @@ function LessonType({ lessonId }: { lessonId: number }) {
           </EmptyHeader>
         </Empty>
       ) : (
-        <></>
+        <div className="flex flex-col gap-2 mb-2">
+          {data.map((lessonType, index) => {
+            return (
+              <Button
+                variant={"ghost"}
+                className={cn(
+                  "border justify-start text-start",
+                  lessonTypeParams.id === lessonType.id &&
+                    lessonTypeParams.type === lessonType.type &&
+                    "bg-accent"
+                )}
+                key={`${lessonType.id} + ${lessonType.name} + ${lessonType.type}`}
+                onClick={() => {
+                  setLessonTypeParams({
+                    type: lessonType.type,
+                    id: lessonType.id,
+                  });
+                }}
+              >
+                <span>{++index}.</span> {lessonType.name}
+              </Button>
+            );
+          })}
+        </div>
       )}
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -236,13 +262,15 @@ function LessonType({ lessonId }: { lessonId: number }) {
                     arg0: (typeof lessonTypeEnum.enumValues)[number],
                     data: AdminGetLessonsTypes
                   ) {
-                    return ++data.filter((type) => type.type === "topic")
-                      .length;
+                    return ++data.filter((type) => {
+                      if (type.type === arg0) return type;
+                    }).length;
                   }
 
                   const count = data ? countLessonType(lessonType, data) : 0;
+
                   createLessonType.mutate({
-                    name: `${lessonType} ${count}`,
+                    name: `${lessonType}`,
                     lessonId: lessonId,
                     type: lessonType,
                   });

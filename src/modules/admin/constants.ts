@@ -62,3 +62,11 @@ export const SubjectItems = [
     icon: GraduationCap,
   },
 ];
+
+export const FILE_CONFIG = {
+  pdf: { maxSize: 4 * 1024 * 1024, label: "PDF", count: 5 },
+  docx: { maxSize: 8 * 1024 * 1024, label: "Word Doc", count: 3 },
+  doc: { maxSize: 8 * 1024 * 1024, label: "Word Doc", count: 3 },
+  pptx: { maxSize: 16 * 1024 * 1024, label: "PowerPoint", count: 3 },
+  ppt: { maxSize: 16 * 1024 * 1024, label: "PowerPoint", count: 3 },
+} as const;

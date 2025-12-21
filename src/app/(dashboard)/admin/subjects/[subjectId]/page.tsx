@@ -1,7 +1,7 @@
 import { Tabs } from "@/components/ui/tabs";
 import { getCurrentAdmin } from "@/lib/auth";
 import SubjectIdHeader from "@/modules/admin/ui/subject/components/SubjectIdHeader";
-import { loadUseTabParams } from "@/modules/admin/ui/subject/hooks/useTabServer";
+import { loadUseTabParams } from "@/modules/admin/ui/subject/hooks/useSubjectSearchParamServer";
 import AdminSubjectIdView from "@/modules/admin/ui/subject/views/AdminSubjectIdView";
 import { SearchParams } from "nuqs/server";
 import React from "react";
