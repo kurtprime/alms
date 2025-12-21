@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { useTabParams } from "../hooks/useTabClient";
+import { useTabParams } from "../hooks/useSubjectSearchParamClient";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type Props = {

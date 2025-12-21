@@ -6,6 +6,7 @@ import {
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import LessonRightSide from "./LessonRightSide";
 
 export default function AdminHandleLessons() {
   return (
@@ -20,8 +21,8 @@ export default function AdminHandleLessons() {
         </ScrollArea>
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel defaultSize={75} className="p-4">
-        Remaining space
+      <ResizablePanel defaultSize={75} className="p-0">
+        <LessonRightSide />
       </ResizablePanel>
     </ResizablePanelGroup>
   );

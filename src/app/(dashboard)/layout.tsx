@@ -12,7 +12,7 @@ export default async function layout({
   return (
     <SidebarProvider>
       <AdminSidebar />
-      <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-screen w-full">
+      <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-screen w-full ">
         {children}
       </main>
     </SidebarProvider>

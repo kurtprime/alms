@@ -4,6 +4,9 @@ import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import { TRPCReactProvider } from "@/trpc/client";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
+import { extractRouterConfig } from "uploadthing/server";
+import { customFileRouter } from "@/services/uploadthing/router";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,8 +32,9 @@ export default function RootLayout({
     <TRPCReactProvider>
       <html lang="en">
         <body
-          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+          className={`${geistSans.variable} ${geistMono.variable} antialiased `}
         >
+          <NextSSRPlugin routerConfig={extractRouterConfig(customFileRouter)} />
           <NuqsAdapter>{children}</NuqsAdapter>
           <Toaster />
         </body>
