@@ -21,8 +21,10 @@ export default function AdminHandleLessons() {
         </ScrollArea>
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel defaultSize={75} className="p-0">
-        <LessonRightSide />
+      <ResizablePanel defaultSize={75}>
+        <ScrollArea className="p-4  h-[calc(100vh-110px)]">
+          <LessonRightSide />
+        </ScrollArea>
       </ResizablePanel>
     </ResizablePanelGroup>
   );

@@ -2,6 +2,8 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import { getCurrentUser } from "@/lib/auth";
 import z from "zod";
+import { db } from "@/index";
+import { lessonDocument } from "@/db/schema";
 
 const f = createUploadthing();
 
@@ -53,6 +55,18 @@ export const customFileRouter = {
           userId: string;
         }
       );
+      const { name, ufsUrl, key, size, fileHash, url, type } = file;
+
+      await db.insert(lessonDocument).values({
+        lessonTypeId: metadata.lessonId,
+        name,
+        fileHash,
+        size,
+        fileKey: key,
+        fileUrl: url,
+        fileUfsUrl: ufsUrl,
+        fileType: type,
+      });
 
       // { metadata, file }
       // const { userId } = metadata;
