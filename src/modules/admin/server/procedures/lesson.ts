@@ -5,7 +5,7 @@ import {
   updateLessonSchema,
 } from "../adminSchema";
 import { db } from "@/index";
-import { lesson, lessonType } from "@/db/schema";
+import { lesson, lessonDocument, lessonType } from "@/db/schema";
 import z from "zod";
 import { and, eq, not, sql } from "drizzle-orm";
 
@@ -68,6 +68,22 @@ export const lessonActions = {
         .select()
         .from(lessonType)
         .where(and(eq(lessonType.lessonId, lessonId)));
+    }),
+  getLessonDocument: adminProcedure
+    .input(
+      z.object({
+        lessonId: z.int(),
+      })
+    )
+    .query(async ({ input }) => {
+      const { lessonId } = input;
+
+      const lessonDocuments = await db
+        .select()
+        .from(lessonDocument)
+        .where(eq(lessonDocument.lessonTypeId, lessonId));
+
+      return lessonDocuments;
     }),
   getLessonsPerClass: adminProcedure
     .input(z.object({ classId: z.string() }))

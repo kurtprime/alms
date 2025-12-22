@@ -12,9 +12,11 @@ export const lessonDocument = pgTable(
   "lesson_document",
   {
     id: serial("id").primaryKey(),
-    lessonTypeId: integer("lesson_type_id").references(() => lessonType.id, {
-      onDelete: "set null",
-    }),
+    lessonTypeId: integer("lesson_type_id")
+      .references(() => lessonType.id, {
+        onDelete: "set null",
+      })
+      .notNull(),
     name: text("name"),
     fileHash: text("file_hash"),
     size: integer("size"),

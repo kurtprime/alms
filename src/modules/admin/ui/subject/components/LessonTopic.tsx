@@ -24,16 +24,23 @@ import { Button } from "@/components/ui/button";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { toast } from "sonner";
 import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
+import { DocumentViewer } from "@/services/fileViewer/DocumentViewer";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTRPC } from "@/trpc/client";
 
 export default function LessonTopic() {
   const [openDropZone, setOpenDropZone] = useState(false);
+
   return (
-    <div className="p-4">
-      <Button onClick={() => setOpenDropZone(true)}>Add File</Button>
+    <div className="flex flex-col gap-2">
+      <Button className="ml-auto" onClick={() => setOpenDropZone(true)}>
+        Add File
+      </Button>
+      <DocumentViewer />
       <ResponsiveDialog
-        title="File Drop"
+        title=""
         description=""
-        className="w-400"
+        className="sm:max-w-200 p-0 pb-5"
         open={openDropZone}
         onOpenChange={setOpenDropZone}
       >
@@ -53,7 +60,8 @@ export function CustomDocumentDropzone({
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [lessonTypeParams] = useLessonTypeParams();
-
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { startUpload, isUploading } = useUploadThing(
     "documentLessonUploader",
     {
@@ -61,6 +69,11 @@ export function CustomDocumentDropzone({
         console.log("Upload complete!", res);
         toast.success("Uploaded Successfully");
         setOpenChange(false);
+        queryClient.invalidateQueries(
+          trpc.admin.getLessonDocument.queryOptions({
+            lessonId: lessonTypeParams.id ?? -1,
+          })
+        );
         setFiles([]);
         setError(null);
       },
