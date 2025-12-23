@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "uploadthing/tw/v4";
+@import "@mdxeditor/editor/style.css";
 @source "../../node_modules/@uploadthing/react/dist";
 
 @custom-variant dark (&:is(.dark *));
@@ -206,4 +207,17 @@
     @apply bg-background text-foreground;
     letter-spacing: var(--tracking-normal);
   }
+}
+
+.mdxeditor-toolbar {
+  @apply border-b border-border bg-muted;
+}
+
+.mdxeditor-root-content {
+  @apply bg-background text-foreground;
+}
+
+/* Ensure proper height */
+.mdxeditor-toolbar-wrapper {
+  height: auto !important;
 }

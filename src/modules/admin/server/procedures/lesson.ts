@@ -8,6 +8,7 @@ import { db } from "@/index";
 import { lesson, lessonDocument, lessonType } from "@/db/schema";
 import z from "zod";
 import { and, eq, not, sql } from "drizzle-orm";
+import { uploadthing } from "@/services/uploadthing/client";
 
 export const lessonActions = {
   createLessons: adminProcedure
@@ -68,6 +69,16 @@ export const lessonActions = {
         .select()
         .from(lessonType)
         .where(and(eq(lessonType.lessonId, lessonId)));
+    }),
+  deleteLessonDocument: adminProcedure
+    .input(z.object({ fileKey: z.string() }))
+    .mutation(async ({ input }) => {
+      const { fileKey } = input;
+      await uploadthing.deleteFiles(fileKey);
+
+      await db
+        .delete(lessonDocument)
+        .where(eq(lessonDocument.fileKey, fileKey));
     }),
   getLessonDocument: adminProcedure
     .input(
