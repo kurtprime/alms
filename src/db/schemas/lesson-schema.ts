@@ -4,6 +4,7 @@ import {
   pgEnum,
   pgTable,
   serial,
+  text,
   timestamp,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -56,6 +57,7 @@ export const lessonType = pgTable(
       .notNull(),
     type: lessonTypeEnum().notNull(),
     status: publishStatusEnum("status").default("draft"),
+    markup: text("markup"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),

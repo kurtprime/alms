@@ -1,14 +1,24 @@
-import { adminProcedure } from "@/trpc/init";
+import { adminProcedure, protectedProcedure } from "@/trpc/init";
 import {
   createLessonSchema,
   createLessonTypeSchema,
+  markupImageUpload,
   updateLessonSchema,
+  updateMarkUp,
 } from "../adminSchema";
 import { db } from "@/index";
-import { lesson, lessonDocument, lessonType } from "@/db/schema";
+import {
+  lesson,
+  lessonDocument,
+  lessonType,
+  mdxEditorImageUpload,
+} from "@/db/schema";
 import z from "zod";
-import { and, eq, not, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
 import { uploadthing } from "@/services/uploadthing/client";
+import { TRPCError } from "@trpc/server";
+import { deleteExistingFile } from "@/services/uploadthing/server";
+import { inngest } from "@/services/inngest/client";
 
 export const lessonActions = {
   createLessons: adminProcedure
@@ -68,7 +78,8 @@ export const lessonActions = {
       return await db
         .select()
         .from(lessonType)
-        .where(and(eq(lessonType.lessonId, lessonId)));
+        .where(and(eq(lessonType.lessonId, lessonId)))
+        .orderBy(lessonType.createdAt);
     }),
   deleteLessonDocument: adminProcedure
     .input(z.object({ fileKey: z.string() }))
@@ -141,4 +152,42 @@ export const lessonActions = {
 
       return lessons;
     }),
+  getMarkUp: adminProcedure
+    .input(
+      z.object({
+        id: z.int(),
+      })
+    )
+    .query(async ({ input }) => {
+      const { id } = input;
+
+      const [markup] = await db
+        .select({ markup: lessonType.markup })
+        .from(lessonType)
+        .where(eq(lessonType.id, id))
+        .limit(1);
+
+      return markup;
+    }),
+  updateMarkUp: adminProcedure
+    .input(updateMarkUp)
+    .mutation(async ({ input }) => {
+      const { lessonTypeId, markup } = input;
+
+      await db
+        .update(lessonType)
+        .set({
+          markup: markup,
+        })
+        .where(eq(lessonType.id, lessonTypeId));
+
+      await inngest.send({
+        name: "uploadthing/markup.image.upload",
+        data: input,
+      });
+    }),
+
+  // Delete a single image (used when image is removed from editor)
+
+  // Batch delete multiple images (for cleanup)
 };

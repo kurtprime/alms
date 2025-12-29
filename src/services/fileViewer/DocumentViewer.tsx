@@ -41,18 +41,7 @@ export function DocumentViewer() {
   );
 
   if (isPending) {
-    return (
-      <Card className="border rounded-lg overflow-hidden">
-        <CardContent className="flex items-center justify-center h-96">
-          <div className="text-center space-y-2">
-            <Skeleton className="h-8 w-8 rounded-full mx-auto" />
-            <p className="text-sm text-muted-foreground">
-              Loading documents...
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return null;
   }
 
   if (!data || data.length === 0) {
@@ -200,6 +189,8 @@ function AreYouSure({
     })
   );
 
+  const disabled = deleteFile.isPending;
+
   return (
     <ResponsiveDialog
       title="Do you want to delete this file?"
@@ -211,6 +202,7 @@ function AreYouSure({
         <Button
           className="flex-1"
           variant={"outline"}
+          disabled={disabled}
           onClick={() => onChange(false)}
         >
           No
@@ -218,6 +210,7 @@ function AreYouSure({
         <Button
           className="flex-1"
           variant={"destructive"}
+          disabled={disabled}
           onClick={() => {
             deleteFile.mutate({ fileKey });
           }}

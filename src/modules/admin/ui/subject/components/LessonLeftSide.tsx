@@ -12,7 +12,7 @@ import React, { useState } from "react";
 import CreateLessonLeftSide from "./CreateLessonLeftSide";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   AdminGetLessonsPerClass,
   AdminGetLessonsTypes,
@@ -204,6 +204,8 @@ function LessonType({ lessonId }: { lessonId: number }) {
     })
   );
 
+  const router = useRouter();
+
   return (
     <>
       {isLoading ? (
@@ -233,6 +235,7 @@ function LessonType({ lessonId }: { lessonId: number }) {
                 )}
                 key={`${lessonType.id} + ${lessonType.name} + ${lessonType.type}`}
                 onClick={() => {
+                  router.refresh();
                   setLessonTypeParams({
                     type: lessonType.type,
                     id: lessonType.id,

@@ -29,7 +29,7 @@ export default function AdminSidebar() {
     <Sidebar className="border-none" collapsible="icon">
       <SidebarHeader>
         <SidebarMenu>
-          <SidebarMenuItem className="flex items-center justify-center my-4">
+          <SidebarMenuItem className="flex items-center justify-left my-4">
             <SidebarMenuButton
               onClick={() => setOpen(!open)}
               size="lg"
@@ -44,30 +44,26 @@ export default function AdminSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu className="flex flex-col gap-2">
+            <SidebarMenu className="flex flex-col gap-1 ">
               {items.map((item) => {
                 const isActive = pathname.includes(item.url);
 
                 return (
                   <SidebarMenuItem
-                    className="w-full flex justify-center"
+                    className="w-full flex justify-left"
                     key={item.title}
                   >
                     <SidebarMenuButton
                       size="lg"
                       className={cn(
-                        "hover:bg-accent/50",
+                        "hover:bg-accent/50 px-2 m-0",
                         isActive &&
                           "bg-primary/50 hover:bg-primary/45 active:bg-primary/50"
                       )}
                       asChild
                     >
-                      <Link
-                        href={item.url}
-                        className="group-data-[collapsible=icon]:p-0!"
-                      >
+                      <Link href={item.url} className="p-0  m-0">
                         <item.icon />
                         {item.title}
                       </Link>

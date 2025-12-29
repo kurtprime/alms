@@ -14,5 +14,5 @@ export const useTabParams = () =>
 export const useLessonTypeParams = () =>
   useQueryStates({
     type: parseAsStringEnum(lessonTypeEnum.enumValues),
-    id: parseAsInteger,
+    id: parseAsInteger.withDefault(-1),
   });

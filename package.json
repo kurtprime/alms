@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "run-p dev:next dev:webhook db:update",
+    "dev": "run-p dev:next dev:webhook db:update inngest",
     "dev:next": "next dev --turbopack ",
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
+    "inngest": "pnpm dlx inngest-cli@latest dev",
     "dev:webhook": "ngrok http --url=smooth-shrimp-assured.ngrok-free.app 3000",
     "db:update": "npx drizzle-kit push"
   },
@@ -88,6 +89,7 @@
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.0.10",
     "@tailwindcss/postcss": "^4",
+    "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

@@ -1,7 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "uploadthing/tw/v4";
-@import "@mdxeditor/editor/style.css";
+@layer reset, base, components, utilities, mdxeditor;
+@import "../../node_modules/@mdxeditor/editor/dist/style.css" layer(mdxeditor);
+@plugin "@tailwindcss/typography";
 @source "../../node_modules/@uploadthing/react/dist";
 
 @custom-variant dark (&:is(.dark *));
@@ -209,15 +211,53 @@
   }
 }
 
+@layer mdxeditor-overrides {
+  /* Target the editor's content area with high specificity */
+  .mdxeditor-root-content.prose {
+    @apply text-foreground;
+  }
+
+  .mdxeditor-root-content.prose h1 {
+    @apply text-2xl font-bold mb-4;
+  }
+
+  .mdxeditor-root-content.prose h2 {
+    @apply text-xl font-semibold mb-3;
+  }
+
+  .mdxeditor-root-content.prose h3 {
+    @apply text-lg font-semibold mb-2;
+  }
+
+  .mdxeditor-root-content.prose ul,
+  .mdxeditor-root-content.prose ol {
+    @apply pl-6 my-4 space-y-2;
+  }
+
+  .mdxeditor-root-content.prose li {
+    @apply my-1;
+  }
+
+  .mdxeditor-root-content.prose li::marker {
+    @apply text-foreground;
+  }
+}
+
+/* Fix Tailwind v4 conflicts */
 .mdxeditor-toolbar {
-  @apply border-b border-border bg-muted;
+  @apply border-b border-border bg-background p-0;
+  overflow-x: auto;
+}
+
+.mdxeditor-toolbar button {
+  @apply px-1 py-1 mx-0.5 rounded hover:bg-muted-foreground bg-card hover:text-muted;
 }
 
 .mdxeditor-root-content {
   @apply bg-background text-foreground;
 }
 
-/* Ensure proper height */
-.mdxeditor-toolbar-wrapper {
-  height: auto !important;
+/* Ensure separators are visible */
+.mdxeditor-toolbar [role="separator"] {
+  @apply w-px h-6 bg-border mx-auto;
 }
