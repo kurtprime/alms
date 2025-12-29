@@ -186,62 +186,8 @@ export const lessonActions = {
         data: input,
       });
     }),
-  uploadImage: protectedProcedure
-    .input(markupImageUpload)
-    .mutation(async ({ input }) => {
-      const { image } = input;
-
-      const file = await uploadthing.uploadFiles(image);
-
-      console.log(file);
-
-      return { success: true };
-    }),
 
   // Delete a single image (used when image is removed from editor)
-  deleteImage: protectedProcedure
-    .input(
-      z.object({
-        fileKey: z.string({ message: "File Key is Required" }),
-      })
-    )
-    .mutation(async ({ input, ctx }) => {
-      const { fileKey } = input;
-
-      // Check if image exists and belongs to user
-      const imageRecord = await db
-        .select()
-        .from(mdxEditorImageUpload)
-        .where(and(eq(mdxEditorImageUpload.fileKey, fileKey)))
-        .limit(1);
-
-      if (imageRecord.length === 0) {
-        throw new TRPCError({
-          message: "Image not found or you don't have permission",
-          code: "NOT_FOUND",
-        });
-      }
-
-      // Delete from UploadThing
-      const deleteResult = await deleteExistingFile(fileKey);
-
-      if (!deleteResult.success) {
-        throw new TRPCError({
-          message: "Failed to delete file from storage",
-          code: "INTERNAL_SERVER_ERROR",
-        });
-      }
-
-      // Delete from database
-      await db
-        .delete(mdxEditorImageUpload)
-        .where(eq(mdxEditorImageUpload.fileKey, fileKey));
-
-      return {
-        success: true,
-        message: "Image deleted successfully",
-      };
-    }),
 
   // Batch delete multiple images (for cleanup)
 };

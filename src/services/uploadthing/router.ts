@@ -98,6 +98,12 @@ export const customFileRouter = {
   })
     .input(z.object({ lessonTypeId: z.int() }))
     .middleware(async ({ input }) => {
+      const user = await getCurrentUser();
+      if (user.session == undefined)
+        throw new UploadThingError({
+          message: "not currently login",
+          code: "FORBIDDEN",
+        });
       return { lessonTypeId: input.lessonTypeId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
