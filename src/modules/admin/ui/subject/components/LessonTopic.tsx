@@ -25,20 +25,18 @@ import ResponsiveDialog from "@/components/responsive-dialog";
 import { toast } from "sonner";
 import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
 import { DocumentViewer } from "@/services/fileViewer/DocumentViewer";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
-import { MdxEditor } from "@/services/mdxEditor/MdxEditor";
+import MdxEditorForm from "./MdxEditorForm";
 
 export default function LessonTopic() {
   const [openDropZone, setOpenDropZone] = useState(false);
-  const [content, setContent] = useState(`
-# Welcome to the Lesson
-  `);
+  const [lessonTypeParams] = useLessonTypeParams();
+  const trpc = useTRPC();
 
-  const handleSave = () => {
-    console.log("Saving content:", content);
-    // Save to your database via tRPC
-  };
+  const { data, isPending } = useQuery(
+    trpc.admin.getMarkUp.queryOptions({ id: lessonTypeParams.id ?? -1 })
+  );
 
   return (
     <div className="flex flex-col gap-2">
@@ -46,18 +44,10 @@ export default function LessonTopic() {
         Add File
       </Button>
       <DocumentViewer />
-      <Card className="p-6 bg-background">
-        <h1 className="text-2xl font-bold mb-4">Edit Lesson</h1>
-
-        <MdxEditor
-          value={content}
-          onChange={setContent}
-          className="min-h-[500px] border rounded-md"
-        />
-
-        <Button onClick={handleSave} className="mt-4">
-          Save Lesson
-        </Button>
+      <Card className="p-2 bg-background">
+        {!isPending && (
+          <MdxEditorForm key={lessonTypeParams.id} markup={data?.markup} />
+        )}
       </Card>
       <ResponsiveDialog
         title=""

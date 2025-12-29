@@ -5,15 +5,10 @@ import LessonTopic from "./LessonTopic";
 export default function LessonRightSide() {
   const [lessonTypeParams] = useLessonTypeParams();
 
-  if (lessonTypeParams.type === "topic" && lessonTypeParams.id != null) {
+  if (lessonTypeParams.type === "topic") {
     return <LessonTopic />;
-  } else if (
-    lessonTypeParams.type === "activity" &&
-    lessonTypeParams.id != null
-  ) {
+  } else if (lessonTypeParams.type === "activity") {
     return <div>LESSON ACTIVITY</div>;
-  } else if (lessonTypeParams.type != null || lessonTypeParams.id != null) {
-    return <div>It does not exist</div>;
   } else {
     return <>Not Selected anything yet</>;
   }

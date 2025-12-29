@@ -3,7 +3,7 @@ import { UploadThingError } from "uploadthing/server";
 import { getCurrentUser } from "@/lib/auth";
 import z from "zod";
 import { db } from "@/index";
-import { lessonDocument } from "@/db/schema";
+import { lessonDocument, mdxEditorImageUpload } from "@/db/schema";
 
 const f = createUploadthing();
 
@@ -89,6 +89,32 @@ export const customFileRouter = {
       // });
 
       return { message: "File uploaded Successfully" };
+    }),
+  mdxImageUploader: f({
+    image: {
+      maxFileSize: "4MB",
+      maxFileCount: 20,
+    },
+  })
+    .input(z.object({ lessonTypeId: z.int() }))
+    .middleware(async ({ input }) => {
+      return { lessonTypeId: input.lessonTypeId };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      // Store in database with userId for tracking
+      const { key, ufsUrl } = file;
+      await db.insert(mdxEditorImageUpload).values({
+        lessonTypeId: metadata.lessonTypeId,
+        fileKey: key,
+        fileUrl: ufsUrl,
+      });
+
+      return {
+        success: true,
+        key: file.key,
+        url: file.ufsUrl,
+        name: file.name,
+      };
     }),
 } satisfies FileRouter;
 

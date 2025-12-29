@@ -86,7 +86,7 @@ export default function SidebarUserButton() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-lg text-accent hover:text-foreground border p-3 group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 w-full flex items-center justify-between bg-secondary hover:bg-accent overflow-hidden">
+      <DropdownMenuTrigger className="rounded-lg text-accent hover:text-foreground border p-3 group-data-[collapsible=icon]:border-none group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0 w-full flex items-center justify-between bg-secondary hover:bg-primary-foreground overflow-hidden">
         {data.user.image ? (
           <Avatar className="size-9 mr-3 group-data-[collapsible=icon]:m-0">
             <AvatarImage src={data.user.image} />
