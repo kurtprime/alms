@@ -20,6 +20,14 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Spinner } from "@/components/ui/spinner";
 
+/**
+ * Renders an MDX editor form prefilled with `markup` and a save control.
+ *
+ * The form validates input against the MDX schema and, when saved, persists the markup for the current lesson type. On successful save, a success toast is shown and the saved markup query is invalidated to refresh data.
+ *
+ * @param markup - Initial markdown/MDX content to populate the editor; if `null` or `undefined`, a predefined example Markdown is used.
+ * @returns The editor form UI (JSX element) that manages editing and saving lesson markup.
+ */
 export default function MdxEditorForm({
   markup,
 }: {
