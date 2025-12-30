@@ -5,11 +5,12 @@ import LessonTopic from "./LessonTopic";
 export default function LessonRightSide() {
   const [lessonTypeParams] = useLessonTypeParams();
 
-  if (lessonTypeParams.type === "topic") {
-    return <LessonTopic />;
-  } else if (lessonTypeParams.type === "activity") {
-    return <div>LESSON ACTIVITY</div>;
-  } else {
-    return <>Not Selected anything yet</>;
+  switch (lessonTypeParams.type) {
+    case "handout":
+      return <LessonTopic />;
+    case "assignment":
+      return <div>Assignment Lesson Type - To be implemented</div>;
+    default:
+      return <div>Not selected</div>;
   }
 }

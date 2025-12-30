@@ -75,11 +75,19 @@ export const lessonActions = {
     .query(async ({ input }) => {
       const { lessonId } = input;
 
-      return await db
+      const data = await db
         .select()
         .from(lessonType)
-        .where(and(eq(lessonType.lessonId, lessonId)))
+        .where(
+          and(
+            eq(lessonType.lessonId, lessonId),
+            not(eq(lessonType.status, "archived"))
+          )
+        )
         .orderBy(lessonType.createdAt);
+
+      console.log(data);
+      return data;
     }),
   deleteLessonDocument: adminProcedure
     .input(z.object({ fileKey: z.string() }))
@@ -118,14 +126,6 @@ export const lessonActions = {
           terms: lesson.terms,
           status: lesson.status,
           classSubjectId: lesson.classSubjectId,
-          topicCount:
-            sql<number>`count(case when ${lessonType.type} = 'topic' then 1 end)`.as(
-              "topic_count"
-            ),
-          activityCount:
-            sql<number>`count(case when ${lessonType.type} = 'activity' then 1 end)`.as(
-              "activity_count"
-            ),
         })
         .from(lesson)
         .leftJoin(lessonType, eq(lessonType.lessonId, lesson.id))
@@ -161,13 +161,13 @@ export const lessonActions = {
     .query(async ({ input }) => {
       const { id } = input;
 
-      const [markup] = await db
+      const [{ markup }] = await db
         .select({ markup: lessonType.markup })
         .from(lessonType)
         .where(eq(lessonType.id, id))
         .limit(1);
 
-      return markup;
+      return markup ?? "";
     }),
   updateMarkUp: adminProcedure
     .input(updateMarkUp)
@@ -186,8 +186,38 @@ export const lessonActions = {
         data: input,
       });
     }),
+  updateLessonTypeName: adminProcedure
+    .input(
+      z.object({
+        id: z.int(),
+        name: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { id, name } = input;
 
-  // Delete a single image (used when image is removed from editor)
+      await db
+        .update(lessonType)
+        .set({
+          name,
+        })
+        .where(eq(lessonType.id, id));
+    }),
+  updateLessonTypeStatus: adminProcedure
+    .input(
+      z.object({
+        status: z.enum(["published", "draft", "archived"]),
+        id: z.int(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { status, id } = input;
 
-  // Batch delete multiple images (for cleanup)
+      await db
+        .update(lessonType)
+        .set({
+          status,
+        })
+        .where(eq(lessonType.id, id));
+    }),
 };

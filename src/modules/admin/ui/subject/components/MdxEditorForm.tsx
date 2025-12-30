@@ -47,7 +47,7 @@ export default function MdxEditorForm({
     defaultValues: {
       description:
         markup ??
-        "# 📚 My Lesson Title\n\n## Learning Objectives\n\n- [ ] Understand key concepts\n- [ ] Apply knowledge in practice\n- [ ] Complete the exercise\n\n## Key Concepts\n\nReact Hooks are  powerful  functions that let you use state in functional components.\n\ntsx\n// Example: useState Hook\nconst [count, setCount] = useState(0);\n\n\n## Comparison Table\n\n| Feature | Class Component | Hook |\n|---------|----------------|------|\n| State   | this.state     | useState |\n| Mount   | componentDidMount | useEffect |\n\n> 💡 Pro Tip: Always use hooks at the top level!\n\n---\n\nNext: Continue to practice exercises.",
+        "# 📚 My Lesson Title\n\n## Learning Objectives\n\n- [ ] Understand key concepts\n- [ ] Apply knowledge in practice\n- [ ] Complete the exercise\n\n## Key Concepts\n\nReact Hooks are  powerful  functions that let you use state in functional components.\n\nts\n// Example: useState Hook\nconst [count, setCount] = useState(0);\n\n\n## Comparison Table\n\n| Feature | Class Component | Hook |\n|---------|----------------|------|\n| State   | this.state     | useState |\n| Mount   | componentDidMount | useEffect |\n\n> 💡 Pro Tip: Always use hooks at the top level!\n\n---\n\nNext: Continue to practice exercises.",
     },
   });
 

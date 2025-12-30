@@ -39,7 +39,7 @@ export const mdxEditorImageUpload = pgTable(
     id: serial("id").primaryKey(),
     lessonTypeId: integer("lesson_type_id")
       .notNull()
-      .references(() => lessonType.id, { onDelete: "cascade" }),
+      .references(() => lessonType.id, { onDelete: "set null" }),
     fileKey: text("key").notNull().unique(),
     fileUrl: text("url").notNull(),
     uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),

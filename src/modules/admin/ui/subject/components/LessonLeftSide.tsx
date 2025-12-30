@@ -2,11 +2,13 @@ import ResponsiveDialog from "@/components/responsive-dialog";
 import { Button } from "@/components/ui/button";
 import {
   BookOpenTextIcon,
+  Check,
   Edit,
   EllipsisIcon,
   Plus,
   PlusSquare,
   Trash,
+  X,
 } from "lucide-react";
 import React, { useState } from "react";
 import CreateLessonLeftSide from "./CreateLessonLeftSide";
@@ -28,6 +30,12 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
@@ -40,6 +48,7 @@ import {
 import { lessonTypeEnum } from "@/db/schema";
 import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 
 export default function LessonCreate() {
   const [openCreateLesson, setOpenCreateLesson] = React.useState(false);
@@ -182,7 +191,6 @@ function DisplayLessons({
 }
 
 function LessonType({ lessonId }: { lessonId: number }) {
-  const [lessonTypeParams, setLessonTypeParams] = useLessonTypeParams();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const createLessonType = useMutation(
@@ -193,8 +201,8 @@ function LessonType({ lessonId }: { lessonId: number }) {
         );
         toast.success("Created " + value.type);
       },
-      onError: () => {
-        toast.error("Something went wrong");
+      onError: ({ message }) => {
+        toast.error("Something went wrong " + message);
       },
     })
   );
@@ -203,8 +211,6 @@ function LessonType({ lessonId }: { lessonId: number }) {
       lessonId,
     })
   );
-
-  const router = useRouter();
 
   return (
     <>
@@ -225,25 +231,11 @@ function LessonType({ lessonId }: { lessonId: number }) {
         <div className="flex flex-col gap-2 mb-2">
           {data.map((lessonType, index) => {
             return (
-              <Button
-                variant={"ghost"}
-                className={cn(
-                  "border justify-start text-start",
-                  lessonTypeParams.id === lessonType.id &&
-                    lessonTypeParams.type === lessonType.type &&
-                    "bg-accent"
-                )}
-                key={`${lessonType.id} + ${lessonType.name} + ${lessonType.type}`}
-                onClick={() => {
-                  router.refresh();
-                  setLessonTypeParams({
-                    type: lessonType.type,
-                    id: lessonType.id,
-                  });
-                }}
-              >
-                <span>{++index}.</span> {lessonType.name}
-              </Button>
+              <ButtonMenuComponent
+                key={index}
+                lessonType={lessonType}
+                lessonId={lessonId}
+              />
             );
           })}
         </div>
@@ -273,7 +265,7 @@ function LessonType({ lessonId }: { lessonId: number }) {
                   const count = data ? countLessonType(lessonType, data) : 0;
 
                   createLessonType.mutate({
-                    name: `${lessonType}`,
+                    name: `${lessonType} ${count}`,
                     lessonId: lessonId,
                     type: lessonType,
                   });
@@ -286,6 +278,169 @@ function LessonType({ lessonId }: { lessonId: number }) {
         </DropdownMenuContent>
       </DropdownMenu>
     </>
+  );
+}
+
+function ButtonMenuComponent({
+  lessonType,
+  lessonId,
+}: {
+  lessonType: AdminGetLessonsTypes[number];
+  lessonId: number;
+}) {
+  const [lessonTypeParams, setLessonTypeParams] = useLessonTypeParams();
+  const router = useRouter();
+  const [showEditName, setShowEditName] = useState(false);
+  const [editName, setEditName] = useState(lessonType.name ?? "");
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  const updateName = useMutation(
+    trpc.admin.updateLessonTypeName.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(
+          trpc.admin.getLessonType.queryOptions({
+            lessonId,
+          })
+        );
+      },
+      onError: () => {
+        toast.error("Something went wrong");
+      },
+    })
+  );
+
+  const updateStatus = useMutation(
+    trpc.admin.updateLessonTypeStatus.mutationOptions({
+      onSuccess: () => {
+        queryClient.invalidateQueries(
+          trpc.admin.getLessonType.queryOptions({
+            lessonId,
+          })
+        );
+      },
+      onError: () => {
+        toast.error("Something went wrong");
+      },
+    })
+  );
+
+  return (
+    <div
+      key={`${lessonType.id} + ${lessonType.name} + ${lessonType.type}`}
+      className={cn("flex")}
+    >
+      {showEditName ? (
+        <>
+          <Input
+            className="focus:ring-2 mr-1"
+            placeholder="Name"
+            value={editName}
+            onChange={(e) => setEditName(e.target.value)}
+          />
+          <Button
+            className="absolute right-11"
+            variant={"ghost"}
+            onClick={() => setShowEditName(false)}
+          >
+            <X />
+          </Button>
+          <Button
+            onClick={() => {
+              updateName.mutate({
+                id: lessonType.id,
+                name: editName,
+              });
+              setShowEditName(false);
+            }}
+            className="absolute right-1"
+            variant={"ghost"}
+          >
+            <Check />
+          </Button>
+        </>
+      ) : (
+        <>
+          <Button
+            variant={"ghost"}
+            className={cn(
+              "border rounded-r-none  flex-1 justify-start text-start",
+              lessonTypeParams.id === lessonType.id &&
+                lessonTypeParams.type === lessonType.type &&
+                "bg-accent"
+            )}
+            onClick={() => {
+              router.refresh();
+              setLessonTypeParams({
+                type: lessonType.type,
+                id: lessonType.id,
+              });
+            }}
+          >
+            {lessonType.name}
+          </Button>
+          <div className="absolute right-0 flex justify-center items-center gap-2">
+            <span
+              className={cn(
+                "text-muted-foreground hidden hover:block",
+                lessonType.id === lessonTypeParams.id && "block"
+              )}
+            >
+              {lessonType.status}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant={"ghost"}>
+                  <EllipsisIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                <DropdownMenuGroup>
+                  <DropdownMenuItem onClick={() => setShowEditName(true)}>
+                    Edit Name
+                  </DropdownMenuItem>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      Change Status
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuSubContent>
+                        <DropdownMenuRadioGroup
+                          value={lessonType.status ?? undefined}
+                          onValueChange={(e) => {
+                            updateStatus.mutate({
+                              id: lessonType.id,
+                              status: e as "draft" | "published" | "archived",
+                            });
+                          }}
+                        >
+                          <DropdownMenuRadioItem value={"published"}>
+                            Published
+                          </DropdownMenuRadioItem>
+                          <DropdownMenuRadioItem value={"draft"}>
+                            Draft
+                          </DropdownMenuRadioItem>
+                        </DropdownMenuRadioGroup>
+                      </DropdownMenuSubContent>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSub>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      updateStatus.mutate({
+                        id: lessonType.id,
+                        status: "archived",
+                      });
+                    }}
+                  >
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 
