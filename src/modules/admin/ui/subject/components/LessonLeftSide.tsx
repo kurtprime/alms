@@ -50,6 +50,14 @@ import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 
+/**
+ * Renders the lessons view for the current class and provides a dialog to create a new lesson.
+ *
+ * Fetches lessons for the class identified by the current route `subjectId`, shows them in a list,
+ * and exposes a "Lesson" button that opens a create-lesson dialog.
+ *
+ * @returns A JSX element containing the create-lesson button, the lessons list, and the create dialog.
+ */
 export default function LessonCreate() {
   const [openCreateLesson, setOpenCreateLesson] = React.useState(false);
   const trpc = useTRPC();
@@ -81,6 +89,15 @@ export default function LessonCreate() {
   );
 }
 
+/**
+ * Render an accordion of lessons with controls to edit, archive, and manage lesson types.
+ *
+ * Renders each lesson as an accordion item showing name and terms, a per-lesson dropdown for Edit/Delete actions, the LessonType list for that lesson, and two dialogs for editing and archiving the selected lesson.
+ *
+ * @param data - Array of lessons for the current class
+ * @param isLoading - Whether lesson data is still loading; when true a loading placeholder is shown
+ * @returns The lesson list UI including lesson-type controls and modal dialogs
+ */
 function DisplayLessons({
   data,
   isLoading,
@@ -190,6 +207,16 @@ function DisplayLessons({
   );
 }
 
+/**
+ * Render lesson-type UI for a specific lesson and provide a control to create new lesson types.
+ *
+ * Shows a loading indicator while types are being fetched, an empty state when no types exist,
+ * a list of lesson-type action items when types are present, and a dropdown menu to create new types.
+ * Creating a type triggers the create mutation and surfaces success or error toasts.
+ *
+ * @param props.lessonId - The lesson's numeric identifier whose lesson types are loaded and managed.
+ * @returns A React element that displays the lesson-type list, empty/loading states, and creation controls.
+ */
 function LessonType({ lessonId }: { lessonId: number }) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -281,6 +308,15 @@ function LessonType({ lessonId }: { lessonId: number }) {
   );
 }
 
+/**
+ * Renders the controls for a single lesson type including selection, inline name editing, status changes, and archival.
+ *
+ * Allows selecting the lesson type (updates global selection and refreshes the view), editing its display name inline, changing its status between Published and Draft, and archiving it. Successful updates propagate to the lesson-type list so the UI reflects the change.
+ *
+ * @param lessonType - The lesson type data to render controls for
+ * @param lessonId - The parent lesson's id used to scope updates and cache invalidation
+ * @returns The rendered lesson-type menu and controls
+ */
 function ButtonMenuComponent({
   lessonType,
   lessonId,
@@ -444,6 +480,15 @@ function ButtonMenuComponent({
   );
 }
 
+/**
+ * Renders a confirmation row with "cancel" and "Archive" actions for archiving a lesson.
+ *
+ * Triggers an archive mutation when "Archive" is clicked; on success it closes the dialog, invalidates the lessons-per-class query for the current class, and shows a success toast; on error it shows an error toast.
+ *
+ * @param onOpen - Callback invoked with `false` to close the parent dialog.
+ * @param id - Optional lesson id to archive; if omitted the Archive action is a no-op.
+ * @returns A JSX element containing the Cancel and Archive buttons.
+ */
 function AreYouSure({
   onOpen,
   id,

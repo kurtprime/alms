@@ -30,6 +30,15 @@ import { useTRPC } from "@/trpc/client";
 import MdxEditorForm from "./MdxEditorForm";
 import { Spinner } from "@/components/ui/spinner";
 
+/**
+ * Renders the lesson topic UI including document viewer, editor form, and upload dialog, with loading and error states.
+ *
+ * Renders a spinner while markup data is loading and an error message if loading fails. When data is available,
+ * it shows an "Add File" button that opens a document dropzone dialog, a DocumentViewer, and an MdxEditorForm bound
+ * to the current lesson's markup. The dialog contains the CustomDocumentDropzone for uploading documents.
+ *
+ * @returns The React element representing the lesson topic interface.
+ */
 export default function LessonTopic() {
   const [openDropZone, setOpenDropZone] = useState(false);
   const [lessonTypeParams] = useLessonTypeParams();
