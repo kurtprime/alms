@@ -28,15 +28,26 @@ import { DocumentViewer } from "@/services/fileViewer/DocumentViewer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTRPC } from "@/trpc/client";
 import MdxEditorForm from "./MdxEditorForm";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function LessonTopic() {
   const [openDropZone, setOpenDropZone] = useState(false);
   const [lessonTypeParams] = useLessonTypeParams();
   const trpc = useTRPC();
 
-  const { data, isPending } = useQuery(
+  const { data, isPending, isError } = useQuery(
     trpc.admin.getMarkUp.queryOptions({ id: lessonTypeParams.id ?? -1 })
   );
+
+  if (isPending) {
+    return (
+      <div>
+        <Spinner />
+      </div>
+    );
+  } else if (isError) {
+    return <div>Error loading content.</div>;
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -46,7 +57,7 @@ export default function LessonTopic() {
       <DocumentViewer />
       <Card className="p-2 bg-background">
         {!isPending && (
-          <MdxEditorForm key={lessonTypeParams.id} markup={data?.markup} />
+          <MdxEditorForm key={lessonTypeParams.id} markup={data} />
         )}
       </Card>
       <ResponsiveDialog

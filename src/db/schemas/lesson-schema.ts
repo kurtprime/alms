@@ -44,7 +44,7 @@ export const lesson = pgTable(
     index("lesson_status_idx").on(table.status, table.classSubjectId),
   ]
 );
-export const lessonTypeEnum = pgEnum("lesson_types", ["topic", "activity"]);
+export const lessonTypeEnum = pgEnum("lesson_types", ["handout", "assignment"]);
 export const lessonType = pgTable(
   "lesson_type",
   {
