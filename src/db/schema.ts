@@ -107,3 +107,4 @@ export * from "./schemas/organization-schema";
 export * from "./schemas/subject-schema";
 export * from "./schemas/lesson-schema";
 export * from "./schemas/file-schema";
+export * from "./schemas/activity-schema";

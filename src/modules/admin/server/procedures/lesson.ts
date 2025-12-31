@@ -1,10 +1,10 @@
-import { adminProcedure, protectedProcedure } from "@/trpc/init";
+import { adminProcedure } from "@/trpc/init";
 import {
   createLessonSchema,
   createLessonTypeSchema,
-  markupImageUpload,
   updateLessonSchema,
   updateMarkUp,
+  updateQuizSettingsFormSchema,
 } from "../adminSchema";
 import { db } from "@/index";
 import {
@@ -12,6 +12,7 @@ import {
   lessonDocument,
   lessonType,
   mdxEditorImageUpload,
+  quiz,
 } from "@/db/schema";
 import z from "zod";
 import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
@@ -61,13 +62,24 @@ export const lessonActions = {
     }),
   createLessonType: adminProcedure
     .input(createLessonTypeSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       const { name, lessonId, type } = input;
 
-      await db.insert(lessonType).values({
-        name,
-        lessonId,
-        type,
+      await db.transaction(async (tx) => {
+        const [lessonTypeResult] = await tx
+          .insert(lessonType)
+          .values({
+            name,
+            lessonId,
+            type,
+          })
+          .returning({ id: lessonType.id });
+
+        if (type === "assignment")
+          await tx.insert(quiz).values({
+            lessonTypeId: lessonTypeResult.id,
+            createdBy: ctx.auth.user.id,
+          });
       });
     }),
   getLessonType: adminProcedure
@@ -164,7 +176,9 @@ export const lessonActions = {
       const [{ markup }] = await db
         .select({ markup: lessonType.markup })
         .from(lessonType)
-        .where(eq(lessonType.id, id))
+        .where(
+          and(eq(lessonType.id, id), not(eq(lessonType.status, "archived")))
+        )
         .limit(1);
 
       return markup ?? "";
@@ -219,5 +233,50 @@ export const lessonActions = {
           status,
         })
         .where(eq(lessonType.id, id));
+    }),
+  getQuizSettings: adminProcedure
+    .input(z.object({ lessonTypeId: z.number() }))
+    .query(async ({ input }) => {
+      const { lessonTypeId } = input;
+
+      const [quizSettings] = await db
+        .select()
+        .from(quiz)
+        .where(eq(quiz.lessonTypeId, lessonTypeId))
+        .limit(1);
+
+      return quizSettings;
+    }),
+  updateQuizSettings: adminProcedure
+    .input(
+      z.object({
+        ...updateQuizSettingsFormSchema.shape,
+        lessonTypeId: z.number(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const {
+        lessonTypeId,
+        attemptsAllowed,
+        isShuffleQuestions,
+        isShowCorrectAnswers,
+        isShowScoreAfterSubmission,
+        startDate,
+        endDate,
+        timeLimit,
+      } = input;
+
+      await db
+        .update(quiz)
+        .set({
+          timeLimit,
+          maxAttempts: attemptsAllowed,
+          shuffleQuestions: isShuffleQuestions,
+          showCorrectAnswers: isShowCorrectAnswers,
+          showScoreAfterSubmission: isShowScoreAfterSubmission,
+          startDate: startDate ? new Date(startDate) : null,
+          endDate: endDate ? new Date(endDate) : null,
+        })
+        .where(eq(quiz.lessonTypeId, lessonTypeId));
     }),
 };

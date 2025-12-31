@@ -7,6 +7,7 @@ import {
   organizationMemberStrand,
   statusEnumValues,
 } from "@/db/schema";
+import { desc } from "drizzle-orm";
 
 export const createSectionFormSchema = z.object({
   name: z.string().min(2, { message: "Strand name is needed" }).max(100),
@@ -109,6 +110,40 @@ export const updateLessonSchema = z.object({
   id: z.int(),
 });
 
+export const updateQuizSettingsFormSchema = z
+  .object({
+    description: z.string().optional(),
+    timeLimit: z.number().min(0).optional(),
+    attemptsAllowed: z.number().min(1).default(1),
+    isShuffleQuestions: z.boolean().default(false),
+    isShowCorrectAnswers: z.boolean().default(false),
+    isShowScoreAfterSubmission: z.boolean().default(false),
+    startDate: z
+      .union([
+        z.string().datetime(), // ISO 8601 format
+        z.date(),
+      ])
+      .nullish(),
+
+    endDate: z.union([z.string().datetime(), z.date()]).nullish(),
+  })
+  .refine(
+    (data) => {
+      if (!data.startDate || !data.endDate) return true;
+
+      // Ensure both are Date objects for comparison
+      const start = new Date(data.startDate);
+      const end = new Date(data.endDate);
+      const diffInHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+
+      return diffInHours >= 1;
+    },
+    {
+      message: "End date must be at least 1 hour after start date",
+      path: ["endDate"],
+    }
+  );
+
 export const newSubjectNameSchema = z.object({
   name: z.string().min(1, { message: "Subject name is required" }).max(100),
   description: z.string().optional(),
@@ -165,3 +200,6 @@ export type AdminGetLessonsPerClass =
 
 export type AdminGetLessonsTypes =
   inferRouterOutputs<AppRouter>["admin"]["getLessonType"];
+
+export type AdminGetQuizSettings =
+  inferRouterOutputs<AppRouter>["admin"]["getQuizSettings"];

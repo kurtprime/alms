@@ -50,7 +50,7 @@ export default function LessonTopic() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 pr-3 pt-2 pl-1 ">
       <Button className="ml-auto" onClick={() => setOpenDropZone(true)}>
         Add File
       </Button>

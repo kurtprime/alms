@@ -6,7 +6,7 @@ import AdminHandleLessons from "../components/AdminHandleLessons";
 export default function AdminSubjectIdView() {
   return (
     <>
-      <TabsContent className="h-full  bg-red" value="lessons">
+      <TabsContent className="h-full" value="lessons">
         <AdminHandleLessons />
       </TabsContent>
       <TabsContent value="grades">grades</TabsContent>
