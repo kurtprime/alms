@@ -1,6 +1,7 @@
 import React from "react";
 import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
 import LessonTopic from "./LessonTopic";
+import Assignments from "./Assignments";
 
 export default function LessonRightSide() {
   const [lessonTypeParams] = useLessonTypeParams();
@@ -9,7 +10,7 @@ export default function LessonRightSide() {
     case "handout":
       return <LessonTopic />;
     case "assignment":
-      return <div>Assignment Lesson Type - To be implemented</div>;
+      return <Assignments />;
     default:
       return <div>Not selected</div>;
   }

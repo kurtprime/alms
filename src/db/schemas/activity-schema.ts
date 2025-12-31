@@ -34,12 +34,17 @@ export const quiz = pgTable(
     lessonTypeId: integer("lesson_type_id")
       .references(() => lessonType.id, { onDelete: "cascade" })
       .notNull(),
-    title: varchar("title", { length: 200 }).notNull(),
     description: text("description"),
     timeLimit: integer("time_limit"),
     maxAttempts: integer("max_attempts").default(1),
     shuffleQuestions: boolean("shuffle_questions").default(false),
+    showScoreAfterSubmission: boolean("show_score_after_submission").default(
+      false
+    ),
+    showCorrectAnswers: boolean("show_correct_answers").default(false),
     status: varchar("status", { length: 20 }).$default(() => "draft"),
+    startDate: timestamp("start_date"),
+    endDate: timestamp("end_date"),
     createdBy: varchar("created_by", { length: 255 })
       .references(() => user.id)
       .notNull(),
