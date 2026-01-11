@@ -10,13 +10,7 @@ import {
   Clock,
   CalendarIcon,
 } from "lucide-react";
-import {
-  format,
-  set,
-  getHours,
-  getMinutes,
-  intervalToDuration,
-} from "date-fns";
+import { format, set, intervalToDuration } from "date-fns";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -52,10 +46,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-import { start } from "repl";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import CreateQuiz from "./CreateQuiz";
 
 export default function Assignments() {
   const trpc = useTRPC();
@@ -72,23 +65,14 @@ export default function Assignments() {
 
   return (
     <div className="bg-background flex flex-col justify-stretch items-stretch w-full min-h-[calc(100vh-110px)]">
-      {isPending ? (
-        <QuizSettingsSkeleton />
-      ) : (
-        <AssignmentHeader data={data} lessonTypeId={lessonTypeParams.id} />
-      )}
+      {isPending ? <QuizSettingsSkeleton /> : <AssignmentHeader data={data} />}
       <Separator />
+      <CreateQuiz />
     </div>
   );
 }
 
-function AssignmentHeader({
-  data,
-  lessonTypeId,
-}: {
-  data?: AdminGetQuizSettings;
-  lessonTypeId?: number;
-}) {
+function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
   const [saveStatus, setSaveStatus] = useState<"syncing" | "synced" | "error">(
     "synced"
   );
