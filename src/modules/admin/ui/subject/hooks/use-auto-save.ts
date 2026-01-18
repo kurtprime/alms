@@ -48,7 +48,7 @@ export function useAutoSaveMultipleQuestion({
 
   useEffect(() => {
     if (!enabled) return;
-    if (!debouncedData || !debouncedData.multipleChoices?.length) return;
+    if (!debouncedData || !debouncedData.multipleChoices) return;
 
     const transformedData = {
       ...debouncedData,
