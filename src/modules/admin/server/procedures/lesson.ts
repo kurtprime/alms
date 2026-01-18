@@ -4,6 +4,7 @@ import {
   createLessonTypeSchema,
   updateLessonSchema,
   updateMarkUp,
+  updateMultipleChoiceQuestionDetailsSchema,
   updateQuizSettingsFormSchema,
 } from "../adminSchema";
 import { db } from "@/index";
@@ -11,14 +12,14 @@ import {
   lesson,
   lessonDocument,
   lessonType,
-  mdxEditorImageUpload,
   quiz,
+  quizAnswerOption,
+  quizQuestion,
+  quizTypeEnum,
 } from "@/db/schema";
 import z from "zod";
-import { and, desc, eq, inArray, not, sql } from "drizzle-orm";
+import { and, eq, inArray, not, sql } from "drizzle-orm";
 import { uploadthing } from "@/services/uploadthing/client";
-import { TRPCError } from "@trpc/server";
-import { deleteExistingFile } from "@/services/uploadthing/server";
 import { inngest } from "@/services/inngest/client";
 
 export const lessonActions = {
@@ -278,5 +279,154 @@ export const lessonActions = {
           endDate: endDate ? new Date(endDate) : null,
         })
         .where(eq(quiz.lessonTypeId, lessonTypeId));
+    }),
+  addQuizQuestion: adminProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+        questionType: z.enum(quizTypeEnum.enumValues),
+        orderIndex: z.number(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { quizId, questionType, orderIndex } = input;
+      await db.insert(quizQuestion).values({
+        quizId,
+        type: questionType,
+        question: "",
+        orderIndex,
+      });
+    }),
+  getQuizQuestions: adminProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+      })
+    )
+    .query(async ({ input }) => {
+      const { quizId } = input;
+
+      const quizQuestions = await db
+        .select({
+          id: quizQuestion.id,
+          type: quizQuestion.type,
+          orderIndex: quizQuestion.orderIndex,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.quizId, quizId))
+        .orderBy(quizQuestion.orderIndex);
+
+      return quizQuestions;
+    }),
+  getMultipleChoiceQuestionDetails: adminProcedure
+    .input(z.object({ quizQuestionId: z.number() }))
+    .query(async ({ input }) => {
+      const { quizQuestionId } = input;
+
+      const awaitQuestionDetails = db
+        .select({
+          id: quizQuestion.id,
+          question: quizQuestion.question,
+          points: quizQuestion.points,
+          orderIndex: quizQuestion.orderIndex,
+          required: quizQuestion.required,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.id, quizQuestionId));
+
+      const awaitMultipleChoiceOptions = db
+        .select({
+          multipleChoiceId: quizAnswerOption.id,
+          optionText: quizAnswerOption.optionText,
+          questionId: quizAnswerOption.questionId,
+          isCorrect: quizAnswerOption.isCorrect,
+          orderIndex: quizAnswerOption.orderIndex,
+        })
+        .from(quizAnswerOption)
+        .where(eq(quizAnswerOption.questionId, quizQuestionId))
+        .orderBy(quizAnswerOption.orderIndex);
+
+      const [[questionDetails], multipleChoiceOptions] = await Promise.all([
+        awaitQuestionDetails,
+        awaitMultipleChoiceOptions,
+      ]);
+
+      return {
+        ...questionDetails,
+        multipleChoices: multipleChoiceOptions,
+      };
+    }),
+  updateMultipleChoiceQuestionDetails: adminProcedure
+    .input(updateMultipleChoiceQuestionDetailsSchema)
+    .mutation(async ({ input }) => {
+      const {
+        id,
+        question,
+        points,
+        required,
+        multipleChoices,
+        deletedChoiceIds,
+      } = input;
+
+      console.log(input);
+
+      await db.transaction(async (tx) => {
+        const [quizQuestionId] = await tx
+          .update(quizQuestion)
+          .set({
+            question,
+            points,
+            required,
+          })
+          .where(eq(quizQuestion.id, id))
+          .returning({ id: quizQuestion.id });
+
+        if (deletedChoiceIds.length > 0) {
+          // Filter out temp IDs - they don't exist in DB yet
+          const realIdsToDelete = deletedChoiceIds.filter(
+            (id) => !id.startsWith("temp_")
+          );
+          if (realIdsToDelete.length > 0) {
+            await tx
+              .delete(quizAnswerOption)
+              .where(inArray(quizAnswerOption.id, realIdsToDelete));
+          }
+        }
+
+        if (multipleChoices && multipleChoices.length > 0) {
+          for (const choice of multipleChoices) {
+            const {
+              multipleChoiceId: id,
+              optionText,
+              isCorrect,
+              orderIndex,
+              feedback,
+            } = choice;
+            // NEW: Check if it's a temp ID (new choice)
+            if (id.startsWith("temp_")) {
+              // INSERT new choice
+              await tx.insert(quizAnswerOption).values({
+                id: id.substring(5),
+                questionId: quizQuestionId.id,
+                optionText,
+                isCorrect,
+                orderIndex,
+                feedback,
+              });
+            } else {
+              // UPDATE existing choice
+              await tx
+                .update(quizAnswerOption)
+                .set({
+                  optionText,
+                  isCorrect,
+                  orderIndex,
+                  feedback,
+                })
+                .where(eq(quizAnswerOption.id, id));
+            }
+          }
+        }
+      });
     }),
 };

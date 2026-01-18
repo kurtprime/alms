@@ -175,6 +175,24 @@ export const getAllSubjectInfoSchema = z.object({
   id: z.string().min(1, { message: "Class ID is required" }),
 });
 
+const multipleChoiceSchema = z.object({
+  multipleChoiceId: z.string(),
+  questionId: z.number(),
+  optionText: z.string(),
+  isCorrect: z.boolean().nullable(), // boolean | null
+  orderIndex: z.number().nullable(), // number | null
+  feedback: z.string().nullish(), // string | null
+});
+
+export const updateMultipleChoiceQuestionDetailsSchema = z.object({
+  id: z.number().min(1, { message: "Question ID is required" }),
+  question: z.string(),
+  points: z.number().min(1, { message: "Points must be at least 1" }),
+  required: z.boolean().nullable(),
+  multipleChoices: z.array(multipleChoiceSchema),
+  deletedChoiceIds: z.array(z.string()),
+});
+
 export const mdxEditorSchema = z.object({ description: z.string() });
 
 export type AdminCreateSection =
@@ -203,3 +221,9 @@ export type AdminGetLessonsTypes =
 
 export type AdminGetQuizSettings =
   inferRouterOutputs<AppRouter>["admin"]["getQuizSettings"];
+
+export type AdminGetQuizQuestions =
+  inferRouterOutputs<AppRouter>["admin"]["getQuizQuestions"];
+
+export type AdminGetMultipleChoiceQuizQuestions =
+  inferRouterOutputs<AppRouter>["admin"]["getMultipleChoiceQuestionDetails"];

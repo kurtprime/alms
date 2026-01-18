@@ -39,13 +39,7 @@ export default function LessonTopic() {
     trpc.admin.getMarkUp.queryOptions({ id: lessonTypeParams.id ?? -1 })
   );
 
-  if (isPending) {
-    return (
-      <div>
-        <Spinner />
-      </div>
-    );
-  } else if (isError) {
+  if (isError) {
     return <div>Error loading content.</div>;
   }
 
@@ -56,7 +50,11 @@ export default function LessonTopic() {
       </Button>
       <DocumentViewer />
       <Card className="p-2 bg-background">
-        {!isPending && (
+        {isPending ? (
+          <div className="flex items-center justify-center h-48">
+            <Spinner />
+          </div>
+        ) : (
           <MdxEditorForm key={lessonTypeParams.id} markup={data} />
         )}
       </Card>
