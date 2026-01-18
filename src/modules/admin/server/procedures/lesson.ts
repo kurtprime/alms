@@ -21,6 +21,7 @@ import z from "zod";
 import { and, eq, inArray, not, sql } from "drizzle-orm";
 import { uploadthing } from "@/services/uploadthing/client";
 import { inngest } from "@/services/inngest/client";
+import { TRPCError } from "@trpc/server";
 
 export const lessonActions = {
   createLessons: adminProcedure
@@ -99,7 +100,6 @@ export const lessonActions = {
         )
         .orderBy(lessonType.createdAt);
 
-      console.log(data);
       return data;
     }),
   deleteLessonDocument: adminProcedure
@@ -351,6 +351,13 @@ export const lessonActions = {
         awaitMultipleChoiceOptions,
       ]);
 
+      if (!questionDetails) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Question not found",
+        });
+      }
+
       return {
         ...questionDetails,
         multipleChoices: multipleChoiceOptions,
@@ -368,8 +375,6 @@ export const lessonActions = {
         deletedChoiceIds,
       } = input;
 
-      console.log(input);
-
       await db.transaction(async (tx) => {
         const [quizQuestionId] = await tx
           .update(quizQuestion)
@@ -380,6 +385,12 @@ export const lessonActions = {
           })
           .where(eq(quizQuestion.id, id))
           .returning({ id: quizQuestion.id });
+        if (!quizQuestionId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Question not found",
+          });
+        }
 
         if (deletedChoiceIds.length > 0) {
           // Filter out temp IDs - they don't exist in DB yet

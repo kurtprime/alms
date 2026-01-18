@@ -34,7 +34,6 @@ export default function AdminUpdateStudents({
     organizationId: firstData.organization?.id || "",
     strand: firstData.member?.strand || "Not Specified",
   };
-  console.log("studentInfo:", studentInfo);
   return (
     <AdminCreateStudentForm
       recentStrand={studentInfo?.strand}

@@ -219,7 +219,6 @@ const IdCell = ({ classId }: { classId: string }) => {
         <DropdownMenuItem
           onClick={(e) => {
             e.stopPropagation();
-            console.log(id);
           }}
         >
           <Edit /> edit
@@ -227,7 +226,6 @@ const IdCell = ({ classId }: { classId: string }) => {
         <DropdownMenuItem
           onClick={(e) => {
             e.stopPropagation();
-            console.log("archived");
           }}
         >
           <ArchiveIcon /> archived

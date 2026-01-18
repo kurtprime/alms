@@ -184,7 +184,6 @@ export default function MultipleChoiceQuestionForm({
   };
 
   const addChoice = () => {
-    console.log("ADD CHOICE", fields);
     append({
       multipleChoiceId: `temp_${nanoid(8)}`,
       optionText: "",
@@ -193,7 +192,6 @@ export default function MultipleChoiceQuestionForm({
       orderIndex: fields.length,
       feedback: "",
     });
-    console.log("AFTER ADDING CHOICE", fields);
   };
 
   const onSubmit = async (
@@ -352,7 +350,10 @@ export default function MultipleChoiceQuestionForm({
                         onClick={() => {
                           const choice = fields[index];
 
-                          if (choice.id && !choice.id.startsWith("temp_")) {
+                          if (
+                            choice.multipleChoiceId &&
+                            !choice.multipleChoiceId.startsWith("temp_")
+                          ) {
                             const currentDeleted =
                               form.getValues("deletedChoiceIds") || [];
                             form.setValue(
@@ -363,7 +364,6 @@ export default function MultipleChoiceQuestionForm({
                               }
                             );
                           }
-                          console.log("FIELDS", fields);
                           remove(index);
                         }}
                         disabled={fields.length <= 2}

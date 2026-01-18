@@ -42,7 +42,6 @@ export function useAutoSaveMultipleQuestion({
       },
       onError: (error) => {
         onError?.(error);
-        console.log(error);
       },
     })
   );
@@ -62,7 +61,6 @@ export function useAutoSaveMultipleQuestion({
     ) {
       return;
     }
-    console.log(transformedData);
     mutate(transformedData);
     previousDataRef.current = transformedData;
   }, [debouncedData, enabled, mutate]);
