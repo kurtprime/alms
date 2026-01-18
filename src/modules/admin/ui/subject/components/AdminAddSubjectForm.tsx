@@ -55,8 +55,6 @@ export default function AdminAddSubjectForm({ setOpen }: Props) {
     trpc.admin.createSubjectClass.mutationOptions({
       onSuccess: (data, variables) => {
         //todo invalidate subject list query
-        console.log(data);
-        console.log(variables);
         setOpen(false);
         queryClient.invalidateQueries(
           trpc.admin.getAllAdminSubject.queryOptions({})

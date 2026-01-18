@@ -42,7 +42,7 @@ import {
 import z from "zod";
 import { Calendar } from "@/components/ui/calendar";
 import { useTRPC } from "@/trpc/client";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLessonTypeParams } from "../hooks/useSubjectSearchParamClient";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
@@ -63,19 +63,27 @@ export default function Assignments() {
     return <div className="p-4">Error loading quiz settings.</div>;
   }
 
+  if (!data && !isPending) {
+    return <div className="p-4">Quiz not found.</div>;
+  }
+
   return (
     <div className="bg-background flex flex-col justify-stretch items-stretch w-full min-h-[calc(100vh-110px)]">
       {isPending ? <QuizSettingsSkeleton /> : <AssignmentHeader data={data} />}
       <Separator />
-      <CreateQuiz />
+      {isPending ? (
+        <div className="p-4">Loading quiz questions...</div>
+      ) : (
+        <CreateQuiz quizId={data.id} />
+      )}
     </div>
   );
 }
 
 function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
-  const [saveStatus, setSaveStatus] = useState<"syncing" | "synced" | "error">(
-    "synced"
-  );
+  const [saveStatus, setSaveStatus] = useState<
+    "waiting" | "syncing" | "synced" | "error"
+  >("synced");
   const isInitialMount = useRef(true);
   const [lessonTypeParams] = useLessonTypeParams();
 
@@ -94,11 +102,17 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
   });
 
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
 
   const updateQuizSettingsMutation = useMutation(
     trpc.admin.updateQuizSettings.mutationOptions({
       onSuccess: () => {
         toast.success("Quiz settings updated successfully");
+        queryClient.invalidateQueries(
+          trpc.admin.getQuizSettings.queryOptions({
+            lessonTypeId: lessonTypeParams.id,
+          })
+        );
       },
       onError: (error) => {
         console.error("Update quiz settings failed:", error);
@@ -123,9 +137,9 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
       // Reset dirty state after successful save
       form.reset(values, { keepDefaultValues: false });
 
-      setTimeout(() => setSaveStatus("synced"), 2000);
+      setSaveStatus("synced");
     },
-    2000 // Wait 2 second after last change
+    1500 // Wait 1.5 second after last change
   );
 
   // Watch for changes and trigger debounced save

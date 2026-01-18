@@ -36,16 +36,16 @@ export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
 });
 export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
   const data = await auth.api.userHasPermission({
-    body:{
+    body: {
       userId: ctx.auth.user.id,
-      role: 'admin',
+      role: "admin",
       permissions: {
         setUser: ["create", "update", "delete"],
-      }
-    }
-  })
+      },
+    },
+  });
 
-  if(data.success === false){
+  if (data.success === false) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Forbidden" });
   }
 

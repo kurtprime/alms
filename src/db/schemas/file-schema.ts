@@ -5,7 +5,6 @@ import {
   serial,
   text,
   timestamp,
-  varchar,
 } from "drizzle-orm/pg-core";
 import { lessonType } from "./lesson-schema";
 

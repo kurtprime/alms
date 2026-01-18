@@ -57,7 +57,6 @@ export const quiz = pgTable(
   ]
 );
 
-// Questions table (no metadata!)
 export const quizQuestion = pgTable(
   "quiz_question",
   {
@@ -86,10 +85,7 @@ export const quizQuestion = pgTable(
     hint: text("hint"),
     required: boolean("required").default(true),
   },
-  (table) => [
-    index("question_quiz_idx").on(table.quizId),
-    index("question_type_idx").on(table.type),
-  ]
+  (table) => [index("question_quiz_idx").on(table.quizId)]
 );
 
 // Separate table for matching question pairs
@@ -125,7 +121,7 @@ export const quizOrderingItem = pgTable(
 export const quizAnswerOption = pgTable(
   "quiz_answer_option",
   {
-    id: serial("id").primaryKey(),
+    id: varchar("id", { length: 255 }).primaryKey(),
     questionId: integer("question_id")
       .references(() => quizQuestion.id, { onDelete: "cascade" })
       .notNull(),

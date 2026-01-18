@@ -42,19 +42,11 @@ export const customFileRouter = {
         throw new UploadThingError("Unauthorize user");
 
       const userId = currentUser.user.id;
-      console.log("FILES ", files);
 
       // Whatever is returned here is accessible in onUploadComplete as `metadata`
       return { userId, lessonId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log("FILE INFORMATION: ", file);
-      console.log(
-        "metadata INFORMATION: ",
-        metadata as {
-          userId: string;
-        }
-      );
       const { name, ufsUrl, key, size, fileHash, url, type } = file;
 
       await db.insert(lessonDocument).values({
