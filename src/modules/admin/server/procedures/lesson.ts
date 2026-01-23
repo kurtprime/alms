@@ -6,6 +6,7 @@ import {
   updateMarkUp,
   updateMultipleChoiceQuestionDetailsSchema,
   updateQuizSettingsFormSchema,
+  updateTrueOrFalseQuestionDetailsSchema,
 } from "../adminSchema";
 import { db } from "@/index";
 import {
@@ -22,6 +23,7 @@ import { and, eq, inArray, not, sql } from "drizzle-orm";
 import { uploadthing } from "@/services/uploadthing/client";
 import { inngest } from "@/services/inngest/client";
 import { TRPCError } from "@trpc/server";
+import { admin } from "better-auth/plugins/admin";
 
 export const lessonActions = {
   createLessons: adminProcedure
@@ -50,7 +52,7 @@ export const lessonActions = {
     .input(
       z.object({
         id: z.int().min(1),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const { id } = input;
@@ -95,8 +97,8 @@ export const lessonActions = {
         .where(
           and(
             eq(lessonType.lessonId, lessonId),
-            not(eq(lessonType.status, "archived"))
-          )
+            not(eq(lessonType.status, "archived")),
+          ),
         )
         .orderBy(lessonType.createdAt);
 
@@ -116,7 +118,7 @@ export const lessonActions = {
     .input(
       z.object({
         lessonId: z.int(),
-      })
+      }),
     )
     .query(async ({ input }) => {
       const { lessonId } = input;
@@ -145,15 +147,15 @@ export const lessonActions = {
         .where(
           and(
             eq(lesson.classSubjectId, classId),
-            not(eq(lesson.status, "archived"))
-          )
+            not(eq(lesson.status, "archived")),
+          ),
         )
         .groupBy(
           lesson.id, // Group by all non-aggregated columns
           lesson.name,
           lesson.terms,
           lesson.status,
-          lesson.classSubjectId
+          lesson.classSubjectId,
         ).orderBy(sql`
     CASE ${lesson.terms}
       WHEN 'prelims' THEN 1
@@ -169,7 +171,7 @@ export const lessonActions = {
     .input(
       z.object({
         id: z.int(),
-      })
+      }),
     )
     .query(async ({ input }) => {
       const { id } = input;
@@ -178,7 +180,7 @@ export const lessonActions = {
         .select({ markup: lessonType.markup })
         .from(lessonType)
         .where(
-          and(eq(lessonType.id, id), not(eq(lessonType.status, "archived")))
+          and(eq(lessonType.id, id), not(eq(lessonType.status, "archived"))),
         )
         .limit(1);
 
@@ -206,7 +208,7 @@ export const lessonActions = {
       z.object({
         id: z.int(),
         name: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const { id, name } = input;
@@ -223,7 +225,7 @@ export const lessonActions = {
       z.object({
         status: z.enum(["published", "draft", "archived"]),
         id: z.int(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const { status, id } = input;
@@ -253,7 +255,7 @@ export const lessonActions = {
       z.object({
         ...updateQuizSettingsFormSchema.shape,
         lessonTypeId: z.number(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const {
@@ -286,7 +288,7 @@ export const lessonActions = {
         quizId: z.number(),
         questionType: z.enum(quizTypeEnum.enumValues),
         orderIndex: z.number(),
-      })
+      }),
     )
     .mutation(async ({ input }) => {
       const { quizId, questionType, orderIndex } = input;
@@ -301,7 +303,7 @@ export const lessonActions = {
     .input(
       z.object({
         quizId: z.number(),
-      })
+      }),
     )
     .query(async ({ input }) => {
       const { quizId } = input;
@@ -311,6 +313,7 @@ export const lessonActions = {
           id: quizQuestion.id,
           type: quizQuestion.type,
           orderIndex: quizQuestion.orderIndex,
+          quizId: quizQuestion.quizId,
         })
         .from(quizQuestion)
         .where(eq(quizQuestion.quizId, quizId))
@@ -330,6 +333,7 @@ export const lessonActions = {
           points: quizQuestion.points,
           orderIndex: quizQuestion.orderIndex,
           required: quizQuestion.required,
+          imageBase64Jpg: quizQuestion.imageBase64Jpg,
         })
         .from(quizQuestion)
         .where(eq(quizQuestion.id, quizQuestionId));
@@ -340,6 +344,8 @@ export const lessonActions = {
           optionText: quizAnswerOption.optionText,
           questionId: quizAnswerOption.questionId,
           isCorrect: quizAnswerOption.isCorrect,
+          points: quizAnswerOption.points,
+          imageBase64Jpg: quizAnswerOption.imageBase64Jpg,
           orderIndex: quizAnswerOption.orderIndex,
         })
         .from(quizAnswerOption)
@@ -373,15 +379,17 @@ export const lessonActions = {
         required,
         multipleChoices,
         deletedChoiceIds,
+        imageBase64,
       } = input;
 
-      await db.transaction(async (tx) => {
+      const result = await db.transaction(async (tx) => {
         const [quizQuestionId] = await tx
           .update(quizQuestion)
           .set({
             question,
             points,
             required,
+            imageBase64Jpg: imageBase64,
           })
           .where(eq(quizQuestion.id, id))
           .returning({ id: quizQuestion.id });
@@ -395,7 +403,7 @@ export const lessonActions = {
         if (deletedChoiceIds.length > 0) {
           // Filter out temp IDs - they don't exist in DB yet
           const realIdsToDelete = deletedChoiceIds.filter(
-            (id) => !id.startsWith("temp_")
+            (id) => !id.startsWith("temp_"),
           );
           if (realIdsToDelete.length > 0) {
             await tx
@@ -403,7 +411,7 @@ export const lessonActions = {
               .where(inArray(quizAnswerOption.id, realIdsToDelete));
           }
         }
-
+        const insertedChoices: { tempId: string; realId: string }[] = [];
         if (multipleChoices && multipleChoices.length > 0) {
           for (const choice of multipleChoices) {
             const {
@@ -411,18 +419,31 @@ export const lessonActions = {
               optionText,
               isCorrect,
               orderIndex,
+              points,
               feedback,
+              imageBase64Jpg,
             } = choice;
             // NEW: Check if it's a temp ID (new choice)
             if (id.startsWith("temp_")) {
               // INSERT new choice
-              await tx.insert(quizAnswerOption).values({
-                id: id.substring(5),
-                questionId: quizQuestionId.id,
-                optionText,
-                isCorrect,
-                orderIndex,
-                feedback,
+
+              const [newChoice] = await tx
+                .insert(quizAnswerOption)
+                .values({
+                  id: id.substring(5),
+                  questionId: quizQuestionId.id,
+                  optionText,
+                  isCorrect,
+                  orderIndex,
+                  feedback,
+                  points,
+                  imageBase64Jpg,
+                })
+                .returning({ id: quizAnswerOption.id });
+
+              insertedChoices.push({
+                tempId: id,
+                realId: newChoice.id,
               });
             } else {
               // UPDATE existing choice
@@ -433,11 +454,64 @@ export const lessonActions = {
                   isCorrect,
                   orderIndex,
                   feedback,
+                  points,
+                  imageBase64Jpg,
                 })
                 .where(eq(quizAnswerOption.id, id));
             }
           }
         }
+        return { insertedChoices };
       });
+
+      return { success: true, insertedChoices: result.insertedChoices };
+    }),
+  getTrueOrFalseQuestionDetails: adminProcedure
+    .input(z.object({ quizQuestionId: z.number() }))
+    .query(async ({ input }) => {
+      const { quizQuestionId } = input;
+
+      const [trueOrFalseQuestion] = await db
+        .select({
+          id: quizQuestion.id,
+          question: quizQuestion.question,
+          points: quizQuestion.points,
+          orderIndex: quizQuestion.orderIndex,
+          required: quizQuestion.required,
+          correctBoolean: quizQuestion.correctBoolean,
+          imageBase64Jpg: quizQuestion.imageBase64Jpg,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.id, quizQuestionId));
+
+      return { ...trueOrFalseQuestion };
+    }),
+  updateTrueOrFalseQuestionDetails: adminProcedure
+    .input(updateTrueOrFalseQuestionDetailsSchema)
+    .mutation(async ({ input }) => {
+      const { id, question, points, required, correctBoolean, imageBase64Jpg } =
+        input;
+
+      await db
+        .update(quizQuestion)
+        .set({
+          question,
+          points,
+          required,
+          correctBoolean,
+          imageBase64Jpg,
+        })
+        .where(eq(quizQuestion.id, id));
+    }),
+  deleteQuestion: adminProcedure
+    .input(
+      z.object({
+        id: z.number(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { id } = input;
+
+      await db.delete(quizQuestion).where(eq(quizQuestion.id, id));
     }),
 };

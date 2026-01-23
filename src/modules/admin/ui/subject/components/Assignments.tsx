@@ -56,7 +56,7 @@ export default function Assignments() {
   const { data, isPending, isError } = useQuery(
     trpc.admin.getQuizSettings.queryOptions({
       lessonTypeId: lessonTypeParams.id,
-    })
+    }),
   );
 
   if (isError) {
@@ -111,14 +111,14 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
         queryClient.invalidateQueries(
           trpc.admin.getQuizSettings.queryOptions({
             lessonTypeId: lessonTypeParams.id,
-          })
+          }),
         );
       },
       onError: (error) => {
         console.error("Update quiz settings failed:", error);
         setSaveStatus("error");
       },
-    })
+    }),
   );
 
   // Debounced auto-save function
@@ -131,7 +131,6 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
         lessonTypeId: lessonTypeParams.id,
       });
 
-      console.log("Auto-saved:", values);
       setSaveStatus("synced");
 
       // Reset dirty state after successful save
@@ -139,7 +138,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
 
       setSaveStatus("synced");
     },
-    1500 // Wait 1.5 second after last change
+    1500, // Wait 1.5 second after last change
   );
 
   // Watch for changes and trigger debounced save
@@ -155,18 +154,17 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
 
     if (form.formState.isDirty) {
       debouncedSave(
-        watchedValues as z.infer<typeof updateQuizSettingsFormSchema>
+        watchedValues as z.infer<typeof updateQuizSettingsFormSchema>,
       );
     }
   }, [watchedValues, form.formState.isDirty, debouncedSave]);
 
   const onSubmit = async (
-    values: z.infer<typeof updateQuizSettingsFormSchema>
+    values: z.infer<typeof updateQuizSettingsFormSchema>,
   ) => {
     setSaveStatus("syncing");
     try {
       await new Promise((resolve) => setTimeout(resolve, 500));
-      console.log("Form submitted:", values);
       setSaveStatus("synced");
       form.reset(values);
       setTimeout(() => setSaveStatus("synced"), 2000);
@@ -179,7 +177,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="bg-card border-b sticky top-0 z-10 shadow-sm"
+        className="bg-card border-b  z-10 shadow-sm"
       >
         {/* Top Row: Title & Primary Actions */}
         <Separator />
@@ -312,7 +310,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                   <FormControl>
                     <Switch
                       id="shuffle"
-                      checked={field.value}
+                      checked={field.value ?? false}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
@@ -345,7 +343,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                   <FormControl>
                     <Switch
                       id="showAnswers"
-                      checked={field.value}
+                      checked={field.value ?? false}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
@@ -379,7 +377,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                   <FormControl>
                     <Switch
                       id="showScore"
-                      checked={field.value}
+                      checked={field.value ?? false}
                       onCheckedChange={field.onChange}
                     />
                   </FormControl>
@@ -425,7 +423,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                                   <span className="text-sm">
                                     {format(
                                       startField.value as Date,
-                                      "MMM d, h:mm a"
+                                      "MMM d, h:mm a",
                                     )}
                                   </span>
 
@@ -441,13 +439,13 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                                       >
                                         {formatDurationBadge(
                                           startField.value as Date,
-                                          endField.value as Date
+                                          endField.value as Date,
                                         )}
                                       </Badge>
                                       <span className="text-xs text-muted-foreground">
                                         {format(
                                           endField.value as Date,
-                                          "MMM d, h:mm a"
+                                          "MMM d, h:mm a",
                                         )}
                                       </span>
                                     </>
@@ -489,7 +487,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                                       step="60"
                                       value={format(
                                         startField.value as Date,
-                                        "HH:mm"
+                                        "HH:mm",
                                       )}
                                       onChange={(e) => {
                                         const [hours, minutes] = e.target.value
@@ -499,7 +497,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                                           set(startField.value!, {
                                             hours,
                                             minutes,
-                                          })
+                                          }),
                                         );
                                       }}
                                     />
@@ -514,7 +512,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                                       step="60"
                                       value={format(
                                         endField.value as Date,
-                                        "HH:mm"
+                                        "HH:mm",
                                       )}
                                       onChange={(e) => {
                                         const [hours, minutes] = e.target.value
@@ -524,7 +522,7 @@ function AssignmentHeader({ data }: { data?: AdminGetQuizSettings }) {
                                           set(endField.value!, {
                                             hours,
                                             minutes,
-                                          })
+                                          }),
                                         );
                                       }}
                                     />

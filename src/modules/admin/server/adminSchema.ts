@@ -33,7 +33,7 @@ export const markupImageUpload = z.object({
     .refine((file) => file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
     .refine(
       (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png and .webp formats are supported."
+      "Only .jpg, .jpeg, .png and .webp formats are supported.",
     ),
 });
 
@@ -59,7 +59,7 @@ export const createStudentFormSchema = z
       message:
         "Organization is required for all strands except 'Not Specified'",
       path: ["organizationId"],
-    }
+    },
   );
 
 export const updateStudentFormSchema = z
@@ -77,7 +77,7 @@ export const updateStudentFormSchema = z
       message:
         "Organization is required for all strands except 'Not Specified'",
       path: ["organizationId"],
-    }
+    },
   );
 export const createTeacherFormSchema = z.object({
   firstName: z.string().min(1, { message: "Name is required" }).max(100),
@@ -141,7 +141,7 @@ export const updateQuizSettingsFormSchema = z
     {
       message: "End date must be at least 1 hour after start date",
       path: ["endDate"],
-    }
+    },
   );
 
 export const newSubjectNameSchema = z.object({
@@ -179,18 +179,54 @@ const multipleChoiceSchema = z.object({
   multipleChoiceId: z.string(),
   questionId: z.number(),
   optionText: z.string(),
+  points: z.number(),
+  imageBase64Jpg: z.string().nullish(),
   isCorrect: z.boolean().nullable(), // boolean | null
   orderIndex: z.number().nullable(), // number | null
   feedback: z.string().nullish(), // string | null
 });
 
-export const updateMultipleChoiceQuestionDetailsSchema = z.object({
+export const updateMultipleChoiceQuestionDetailsSchema = z
+  .object({
+    id: z.number().min(1, { message: "Question ID is required" }),
+    question: z.string(),
+    points: z.number().min(1, { message: "Total points must not be below 1" }),
+    required: z.boolean().nullable(),
+    multipleChoices: z.array(multipleChoiceSchema),
+    imageBase64: z.string().nullish(),
+    deletedChoiceIds: z.array(z.string()),
+  })
+  .refine(
+    (data) => {
+      // If question is required, ensure at least one correct answer exists
+      if (data.required) {
+        const hasCorrectAnswer = data.multipleChoices.some(
+          (choice) => choice.isCorrect === true,
+        );
+        return hasCorrectAnswer;
+      }
+      return true; // Not required, so no validation needed
+    },
+    {
+      message: "Required questions must have at least one correct answer",
+      path: ["multipleChoices"], // Error appears on the choices field
+    },
+  )
+  .transform((data) => ({
+    ...data,
+    points: data.multipleChoices.reduce(
+      (acc, choice) => acc + choice.points,
+      0,
+    ), // Auto-calculate
+  }));
+
+export const updateTrueOrFalseQuestionDetailsSchema = z.object({
   id: z.number().min(1, { message: "Question ID is required" }),
   question: z.string(),
-  points: z.number().min(1, { message: "Points must be at least 1" }),
+  points: z.number().min(1, { message: "Points cannot go below 1" }),
   required: z.boolean().nullable(),
-  multipleChoices: z.array(multipleChoiceSchema),
-  deletedChoiceIds: z.array(z.string()),
+  correctBoolean: z.boolean(),
+  imageBase64Jpg: z.string().nullish(),
 });
 
 export const mdxEditorSchema = z.object({ description: z.string() });
@@ -227,3 +263,9 @@ export type AdminGetQuizQuestions =
 
 export type AdminGetMultipleChoiceQuizQuestions =
   inferRouterOutputs<AppRouter>["admin"]["getMultipleChoiceQuestionDetails"];
+
+export type AdminUpdateMultipleChoiceQuizQuestions =
+  inferRouterOutputs<AppRouter>["admin"]["updateMultipleChoiceQuestionDetails"];
+
+export type AdminGetTrueOrFalseQuizQuestions =
+  inferRouterOutputs<AppRouter>["admin"]["getTrueOrFalseQuestionDetails"];

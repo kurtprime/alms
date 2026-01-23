@@ -87,7 +87,6 @@ export function CustomDocumentDropzone({
     "documentLessonUploader",
     {
       onClientUploadComplete: (res) => {
-        console.log("Upload complete!", res);
         toast.success("Uploaded Successfully");
         setOpenChange(false);
         queryClient.invalidateQueries(
