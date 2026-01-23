@@ -12,17 +12,16 @@ import { AdminGetQuizQuestions } from "@/modules/admin/server/adminSchema";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
-import React from "react";
-import MultipleChoiceQuestion from "./QuizQuestionTypes/MultipleChoiceQuestion";
+import React, { useState } from "react";
 import MultipleChoiceQuestionForm from "./QuizQuestionTypes/MultipleChoiceQuestion";
-import { Badge } from "@/components/ui/badge";
+import TrueOrFalseQuestion from "./QuizQuestionTypes/TrueOrFalseQuestion";
 
 export default function CreateQuiz({ quizId }: { quizId: number }) {
   const trpc = useTRPC();
   const { data, isLoading, isError } = useQuery(
     trpc.admin.getQuizQuestions.queryOptions({
       quizId,
-    })
+    }),
   );
 
   return (
@@ -42,36 +41,93 @@ function QuizQuestionType({
   isLoading: boolean;
   isError: boolean;
 }) {
+  const trpc = useTRPC();
+
+  const queryClient = useQueryClient();
+
+  const { mutate } = useMutation(
+    trpc.admin.deleteQuestion.mutationOptions({
+      onSuccess: () => {
+        if (data)
+          queryClient.invalidateQueries(
+            trpc.admin.getQuizQuestions.queryOptions({
+              quizId: data[0].quizId,
+            }),
+          );
+      },
+    }),
+  );
+
   if (isLoading) {
     return <div>Loading questions...</div>;
   }
   if (isError) {
     return <div>Error loading questions.</div>;
   }
+
   return (
     <div className="flex flex-col gap-2 mt-1">
       {data && data.length > 0 ? (
         data.map((question) => (
           <Card className="mx-2" key={question.id}>
             {question.type === "multiple_choice" ? (
-              <MultipleChoiceQuestionCard data={question} />
+              <MultipleChoiceQuestionCard data={question} mutate={mutate} />
+            ) : question.type === "true_false" ? (
+              <TrueOrFalseQuestionCard data={question} mutate={mutate} />
             ) : (
               question.type
             )}
           </Card>
         ))
       ) : (
-        <div>No questions added yet.</div>
+        <div>No questions added yet. //TODO update this UI</div>
       )}
     </div>
   );
 }
 
-function MultipleChoiceQuestionCard({
-  data,
-}: {
+interface QuizQuestionInterface {
   data: AdminGetQuizQuestions[number];
-}) {
+  mutate: ({ id }: { id: number }) => void;
+}
+
+function TrueOrFalseQuestionCard({ data, mutate }: QuizQuestionInterface) {
+  const trpc = useTRPC();
+  const {
+    data: trueOrFalseDetails,
+    isPending,
+    isError,
+    error,
+  } = useQuery(
+    trpc.admin.getTrueOrFalseQuestionDetails.queryOptions({
+      quizQuestionId: data.id,
+    }),
+  );
+
+  const [deleteQuestion, setDeleteQuestion] = useState(false);
+
+  if (isPending) {
+    return <div>Loading question details...</div>;
+  }
+
+  if (isError) {
+    return <div>{error.message}</div>;
+  }
+
+  return (
+    <>
+      {!deleteQuestion && (
+        <TrueOrFalseQuestion
+          mutate={mutate}
+          setDeleteQuestion={setDeleteQuestion}
+          initialData={trueOrFalseDetails}
+        />
+      )}
+    </>
+  );
+}
+
+function MultipleChoiceQuestionCard({ data, mutate }: QuizQuestionInterface) {
   const trpc = useTRPC();
   const {
     data: multipleChoiceQuestionDetails,
@@ -80,8 +136,9 @@ function MultipleChoiceQuestionCard({
   } = useQuery(
     trpc.admin.getMultipleChoiceQuestionDetails.queryOptions({
       quizQuestionId: data.id,
-    })
+    }),
   );
+  const [deleteQuestion, setDeleteQuestion] = useState(false);
 
   if (isPending) {
     return <div>Loading question details...</div>;
@@ -93,11 +150,15 @@ function MultipleChoiceQuestionCard({
 
   return (
     <>
-      <MultipleChoiceQuestionForm
-        questionId={data.id}
-        orderIndex={data.orderIndex}
-        initialData={multipleChoiceQuestionDetails}
-      />
+      {!deleteQuestion && (
+        <MultipleChoiceQuestionForm
+          setDeleteQuestion={setDeleteQuestion}
+          questionId={data.id}
+          mutate={mutate}
+          orderIndex={data.orderIndex}
+          initialData={multipleChoiceQuestionDetails}
+        />
+      )}
     </>
   );
 }
@@ -110,10 +171,10 @@ function AddQuizButton({ count, quizId }: { count: number; quizId: number }) {
     trpc.admin.addQuizQuestion.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(
-          trpc.admin.getQuizQuestions.queryOptions({ quizId })
+          trpc.admin.getQuizQuestions.queryOptions({ quizId }),
         );
       },
-    })
+    }),
   );
 
   const addQuestion = (type: (typeof quizTypeEnum.enumValues)[number]) => {

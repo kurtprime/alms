@@ -19,11 +19,9 @@ import { user } from "./auth-schema";
 export const quizTypeEnum = pgEnum("quiz_type", [
   "multiple_choice",
   "true_false",
-  "fill_in_blank",
   "matching",
   "essay",
   "ordering",
-  "short_answer",
 ]);
 
 // Main quiz table
@@ -39,7 +37,7 @@ export const quiz = pgTable(
     maxAttempts: integer("max_attempts").default(1),
     shuffleQuestions: boolean("shuffle_questions").default(false),
     showScoreAfterSubmission: boolean("show_score_after_submission").default(
-      false
+      false,
     ),
     showCorrectAnswers: boolean("show_correct_answers").default(false),
     status: varchar("status", { length: 20 }).$default(() => "draft"),
@@ -54,7 +52,7 @@ export const quiz = pgTable(
   (table) => [
     index("quiz_lesson_type_idx").on(table.lessonTypeId),
     index("quiz_status_idx").on(table.status),
-  ]
+  ],
 );
 
 export const quizQuestion = pgTable(
@@ -80,12 +78,15 @@ export const quizQuestion = pgTable(
     // For short_answer/fill_in_blank (array of acceptable answers):
     acceptableAnswers: text("acceptable_answers").array(),
 
+    // Image for the Question
+    imageBase64Jpg: text("image_base_64_jpg"),
+
     // Common fields
     explanation: text("explanation"),
     hint: text("hint"),
     required: boolean("required").default(true),
   },
-  (table) => [index("question_quiz_idx").on(table.quizId)]
+  (table) => [index("question_quiz_idx").on(table.quizId)],
 );
 
 // Separate table for matching question pairs
@@ -100,7 +101,7 @@ export const quizMatchingPair = pgTable(
     rightItem: text("right_item").notNull(), // Right column to match
     orderIndex: integer("order_index"),
   },
-  (table) => [index("matching_question_idx").on(table.questionId)]
+  (table) => [index("matching_question_idx").on(table.questionId)],
 );
 
 // Separate table for ordering question items
@@ -114,7 +115,7 @@ export const quizOrderingItem = pgTable(
     itemText: text("item_text").notNull(),
     correctPosition: integer("correct_position").notNull(), // 1, 2, 3...
   },
-  (table) => [index("ordering_question_idx").on(table.questionId)]
+  (table) => [index("ordering_question_idx").on(table.questionId)],
 );
 
 // Simplified answer options (for MCQ)
@@ -127,10 +128,15 @@ export const quizAnswerOption = pgTable(
       .notNull(),
     optionText: text("option_text").notNull(),
     isCorrect: boolean("is_correct").default(false),
+
+    // Image for the Question
+    imageBase64Jpg: text("image_base_64_jpg"),
+
+    points: integer("points").default(0).notNull(),
     orderIndex: integer("order_index"),
     feedback: text("feedback"),
   },
-  (table) => [index("option_question_idx").on(table.questionId)]
+  (table) => [index("option_question_idx").on(table.questionId)],
 );
 
 // Student attempts and responses remain the same
@@ -159,7 +165,7 @@ export const quizAttempt = pgTable(
   },
   (table) => [
     index("attempt_quiz_student_idx").on(table.quizId, table.studentId),
-  ]
+  ],
 );
 
 export const quizQuestionResponse = pgTable(
@@ -187,5 +193,5 @@ export const quizQuestionResponse = pgTable(
   (table) => [
     index("response_attempt_idx").on(table.attemptId),
     index("response_question_idx").on(table.questionId),
-  ]
+  ],
 );
