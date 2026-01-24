@@ -15,6 +15,7 @@ import { Plus } from "lucide-react";
 import React, { useState } from "react";
 import MultipleChoiceQuestionForm from "./QuizQuestionTypes/MultipleChoiceQuestion";
 import TrueOrFalseQuestion from "./QuizQuestionTypes/TrueOrFalseQuestion";
+import EssayQuestion from "./QuizQuestionTypes/EssayQuestion";
 
 export default function CreateQuiz({ quizId }: { quizId: number }) {
   const trpc = useTRPC();
@@ -74,6 +75,8 @@ function QuizQuestionType({
               <MultipleChoiceQuestionCard data={question} mutate={mutate} />
             ) : question.type === "true_false" ? (
               <TrueOrFalseQuestionCard data={question} mutate={mutate} />
+            ) : question.type === "essay" ? (
+              <EssayQuestionCard data={question} mutate={mutate} />
             ) : (
               question.type
             )}
@@ -161,6 +164,30 @@ function MultipleChoiceQuestionCard({ data, mutate }: QuizQuestionInterface) {
       )}
     </>
   );
+}
+
+function EssayQuestionCard({ data, mutate }: QuizQuestionInterface) {
+  const trpc = useTRPC();
+  const {
+    data: multipleChoiceQuestionDetails,
+    isPending,
+    isError,
+  } = useQuery(
+    trpc.admin.getMultipleChoiceQuestionDetails.queryOptions({
+      quizQuestionId: data.id,
+    }),
+  );
+  const [deleteQuestion, setDeleteQuestion] = useState(false);
+
+  if (isPending) {
+    return <div>Loading question details...</div>;
+  }
+
+  if (isError) {
+    return <div>Error loading question details.</div>;
+  }
+
+  return <EssayQuestion />;
 }
 
 function AddQuizButton({ count, quizId }: { count: number; quizId: number }) {

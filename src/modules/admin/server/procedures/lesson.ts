@@ -2,6 +2,7 @@ import { adminProcedure } from "@/trpc/init";
 import {
   createLessonSchema,
   createLessonTypeSchema,
+  updateEssayQuestionDetailSchema,
   updateLessonSchema,
   updateMarkUp,
   updateMultipleChoiceQuestionDetailsSchema,
@@ -499,6 +500,24 @@ export const lessonActions = {
           points,
           required,
           correctBoolean,
+          imageBase64Jpg,
+        })
+        .where(eq(quizQuestion.id, id));
+    }),
+  getEssayQuestionDetails: adminProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {}),
+  updateEssayQuestionDetails: adminProcedure
+    .input(updateEssayQuestionDetailSchema)
+    .mutation(async ({ input }) => {
+      const { id, question, points, required, imageBase64Jpg } = input;
+
+      await db
+        .update(quizQuestion)
+        .set({
+          question,
+          points,
+          required,
           imageBase64Jpg,
         })
         .where(eq(quizQuestion.id, id));

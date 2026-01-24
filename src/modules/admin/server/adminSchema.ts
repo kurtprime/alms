@@ -229,6 +229,14 @@ export const updateTrueOrFalseQuestionDetailsSchema = z.object({
   imageBase64Jpg: z.string().nullish(),
 });
 
+export const updateEssayQuestionDetailSchema = z.object({
+  id: z.number().min(1, { message: "Question ID is required" }),
+  question: z.string(),
+  points: z.number().min(1, { message: "Points cannot go below 1" }),
+  required: z.boolean().nullable(),
+  imageBase64Jpg: z.string().nullish(),
+});
+
 export const mdxEditorSchema = z.object({ description: z.string() });
 
 export type AdminCreateSection =

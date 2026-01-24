@@ -190,9 +190,17 @@ export default function MultipleChoiceSortableChoiceItem({
             <X className="h-4 w-4 text-destructive" />
           </Button>
         </div>
-        {field.imageBase64Jpg && (
+        {form.getValues(`multipleChoices.${index}.imageBase64Jpg`) && (
           <div className="col-span-full relative">
-            <Button className="absolute right-10" variant={"ghost"}>
+            <Button
+              onClick={() => {
+                form.setValue(`multipleChoices.${index}.imageBase64Jpg`, null, {
+                  shouldDirty: true,
+                });
+              }}
+              className="absolute right-10"
+              variant={"ghost"}
+            >
               <X />
               Remove Image
             </Button>
