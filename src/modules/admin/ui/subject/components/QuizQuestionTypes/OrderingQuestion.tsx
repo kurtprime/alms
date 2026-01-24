@@ -1,35 +1,28 @@
 import {
-  DndContext,
+  AdminGetOrderingQuizQuestion,
+  updateOrderingChoiceDetailSchema,
+} from "@/modules/admin/server/adminSchema";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { nanoid } from "nanoid";
+import React, { useState } from "react";
+import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import z from "zod";
+import { useAutoSaveOrderingQuestion } from "../../hooks/use-auto-save";
+import { toast } from "sonner";
+import {
   closestCenter,
+  DndContext,
+  DragEndEvent,
   KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import {
-  AlertCircle,
-  CheckCircle,
-  ImageIcon,
-  Plus,
-  Save,
-  Trash2,
-  X,
-} from "lucide-react";
-import React, { useState } from "react";
-import {
-  AdminGetMultipleChoiceQuizQuestions,
-  updateMultipleChoiceQuestionDetailsSchema,
-} from "@/modules/admin/server/adminSchema";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useAutoSaveMultipleQuestion } from "../../hooks/use-auto-save";
-import { toast } from "sonner";
 import {
   Form,
   FormControl,
@@ -39,83 +32,79 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Badge } from "@/components/ui/badge";
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { nanoid } from "nanoid";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { ImageIcon, Plus, Trash2, X } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { SaveStatusBadge } from "./MultipleChoiceQuestion";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { ImageCropper } from "@/components/image-cropper";
-import z from "zod";
-import MultipleChoiceSortableChoiceItem from "./_MultipleChoiceSortableChoiceItem";
-import { parseErrorMessage } from "../../hooks/parseErrorMessage";
+import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import OrderedAnswersSortableItem from "./_OrderedAnswersSortableItem";
 
-interface AutoSaveQuestionFormProps {
+interface OrderingQuestionInterface {
   questionId: number;
-  initialData: AdminGetMultipleChoiceQuizQuestions;
+  initialData: AdminGetOrderingQuizQuestion;
   orderIndex?: number;
   setDeleteQuestion: (arg: boolean) => void;
   mutate: ({ id }: { id: number }) => void;
 }
 
-export default function MultipleChoiceQuestionForm({
+export default function OrderingQuestion({
   questionId,
   initialData,
+  orderIndex,
   setDeleteQuestion,
   mutate: deleteQuestion,
-}: AutoSaveQuestionFormProps) {
-  const form = useForm<
-    z.infer<typeof updateMultipleChoiceQuestionDetailsSchema>
-  >({
-    resolver: zodResolver(updateMultipleChoiceQuestionDetailsSchema),
+}: OrderingQuestionInterface) {
+  type OrderingQuestionData = z.infer<typeof updateOrderingChoiceDetailSchema>;
+
+  const form = useForm<OrderingQuestionData>({
+    resolver: zodResolver(updateOrderingChoiceDetailSchema),
     defaultValues: {
       question: initialData?.question ?? "",
       points: initialData?.points ?? 1,
       required: initialData?.required ?? false,
-      imageBase64: initialData?.imageBase64Jpg ?? undefined,
-      multipleChoices:
-        initialData?.multipleChoices.length === 0
+      imageBase64Jpg: initialData?.imageBase64Jpg ?? undefined,
+      orderingOptions:
+        initialData?.orderingOptions.length === 0
           ? [
               {
-                multipleChoiceId: `temp_${nanoid(8)}`,
-                optionText: "",
+                orderingOptionId: `temp_${nanoid(8)}`,
+                itemText: "",
                 questionId,
-                isCorrect: true,
-                orderIndex: 0,
-                feedback: "",
+                correctPosition: 0,
                 points: 1,
                 imageBase64Jpg: null,
               },
               {
-                multipleChoiceId: `temp_${nanoid(8)}`,
-                optionText: "",
+                orderingOptionId: `temp_${nanoid(8)}`,
+                itemText: "",
                 questionId,
-                isCorrect: false,
-                orderIndex: 1,
-                feedback: "",
-                points: 0,
+                correctPosition: 1,
+                points: 1,
                 imageBase64Jpg: null,
               },
             ]
-          : initialData?.multipleChoices,
+          : initialData?.orderingOptions,
       deletedChoiceIds: [],
     },
   });
 
   const [openCropImage, setOpenCropImag] = useState(false);
 
-  const { fields, append, remove, move } = useFieldArray<
-    z.infer<typeof updateMultipleChoiceQuestionDetailsSchema>
-  >({
+  const { fields, append, remove, move } = useFieldArray<OrderingQuestionData>({
     control: form.control,
-    name: "multipleChoices",
+    name: "orderingOptions",
   });
 
   const formValues = useWatch({ control: form.control });
   const isDirty = form.formState.isDirty;
+
+  //computes for the total points of the ordering question
   function compute() {
-    const choices = form.getValues("multipleChoices");
+    const choices = form.getValues("orderingOptions");
     const totalPoints = choices.reduce(
       (acc, choice) => acc + (Number(choice.points) || 0),
       0,
@@ -123,36 +112,38 @@ export default function MultipleChoiceQuestionForm({
 
     return totalPoints;
   }
-  const { isSaving, errorMessage } = useAutoSaveMultipleQuestion({
+
+  const { isSaving, errorMessage } = useAutoSaveOrderingQuestion({
     data: {
       ...formValues,
-      deletedChoiceIds: formValues.deletedChoiceIds ?? [],
       points: compute(),
       id: initialData.id,
-    } as z.infer<typeof updateMultipleChoiceQuestionDetailsSchema>,
+    } as OrderingQuestionData,
     interval: 1,
     enabled: isDirty,
     onError: (e) => {
       toast.error(e);
     },
+
     onSuccess: (insertedChoices) => {
       if (insertedChoices.length > 0) {
-        const currentChoices = form.getValues("multipleChoices");
+        const currentChoices = form.getValues("orderingOptions");
 
         // Replace temp IDs with real IDs
         const updatedChoices = currentChoices.map((choice) => {
           const mapping = insertedChoices.find(
-            (m) => m.tempId === choice.multipleChoiceId,
+            (m) => m.tempId === choice.orderingOptionId,
           );
           return mapping
-            ? { ...choice, multipleChoiceId: mapping.realId }
+            ? { ...choice, orderingOptionId: mapping.realId }
             : choice;
         });
-        console.log("Updated Choices", updatedChoices);
+
         // Update form without marking as dirty
-        form.setValue("multipleChoices", updatedChoices, {
+        form.setValue("orderingOptions", updatedChoices, {
           shouldDirty: false,
         });
+        console.log("Success: ", updatedChoices);
       }
 
       // ✅ Clear deleted IDs
@@ -165,7 +156,7 @@ export default function MultipleChoiceQuestionForm({
   });
 
   const onCropComplete = (baseImage64: string) => {
-    form.setValue("imageBase64", baseImage64, {
+    form.setValue("imageBase64Jpg", baseImage64, {
       shouldDirty: true,
     });
     console.log(baseImage64);
@@ -191,9 +182,9 @@ export default function MultipleChoiceQuestionForm({
     move(oldIndex, newIndex);
 
     // Update orderIndex values
-    const choices = form.getValues("multipleChoices");
+    const choices = form.getValues("orderingOptions");
     choices.forEach((choice, index) => {
-      form.setValue(`multipleChoices.${index}.orderIndex`, index);
+      form.setValue(`orderingOptions.${index}.correctPosition`, index);
     });
 
     // Mark form as dirty
@@ -201,24 +192,19 @@ export default function MultipleChoiceQuestionForm({
       shouldDirty: true,
     });
   };
-
   const addChoice = () => {
     console.log("ADD CHOICE", fields);
     append({
-      multipleChoiceId: `temp_${nanoid(8)}`,
-      optionText: "",
+      orderingOptionId: `temp_${nanoid(8)}`,
+      itemText: "",
       questionId,
-      isCorrect: false,
-      orderIndex: fields.length,
-      feedback: "",
-      points: 0,
+      correctPosition: fields.length,
+      points: 1,
       imageBase64Jpg: null,
     });
   };
 
-  const onSubmit = async (
-    data: z.infer<typeof updateMultipleChoiceQuestionDetailsSchema>,
-  ) => {
+  const onSubmit = async (data: OrderingQuestionData) => {
     console.log(data);
   };
 
@@ -231,7 +217,7 @@ export default function MultipleChoiceQuestionForm({
         >
           <div className="flex flex-row  gap-4 justify-between items-center">
             <Badge className="text-sm h-8">
-              Question {(initialData?.orderIndex ?? 0) + 1} - Multiple Choice
+              Question {(initialData?.orderIndex ?? 0) + 1} - Ordering
             </Badge>
             <div className="flex gap-4">
               <FormField
@@ -293,13 +279,13 @@ export default function MultipleChoiceQuestionForm({
                   </FormControl>
                 </div>
 
-                {form.getValues("imageBase64") && (
+                {form.getValues("imageBase64Jpg") && (
                   <picture className="relative">
                     <Button
                       className="absolute right-0 w-auto"
                       variant={"outline"}
                       onClick={() => {
-                        form.setValue("imageBase64", null, {
+                        form.setValue("imageBase64Jpg", null, {
                           shouldDirty: true,
                         });
                       }}
@@ -309,7 +295,7 @@ export default function MultipleChoiceQuestionForm({
                     </Button>
                     <img
                       className="max-h-50 mx-auto"
-                      src={form.getValues("imageBase64") ?? undefined}
+                      src={form.getValues("imageBase64Jpg") ?? undefined}
                       alt="Question Image"
                     />
                   </picture>
@@ -319,7 +305,7 @@ export default function MultipleChoiceQuestionForm({
             )}
           />
 
-          {/* Answer Choices */}
+          {/* Order of answers */}
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               Answer Choices
@@ -347,7 +333,7 @@ export default function MultipleChoiceQuestionForm({
                 <div className="space-y-1">
                   {fields.map((field, index) => {
                     return (
-                      <MultipleChoiceSortableChoiceItem
+                      <OrderedAnswersSortableItem
                         key={field.id}
                         field={field}
                         fields={fields}
@@ -366,7 +352,7 @@ export default function MultipleChoiceQuestionForm({
             <SaveStatusBadge
               isSaving={isSaving}
               isDirty={isDirty}
-              error={errorMessage}
+              error={errorMessage ?? ""}
             />
           </div>
         </form>
@@ -381,60 +367,5 @@ export default function MultipleChoiceQuestionForm({
         <ImageCropper onCropComplete={(a) => onCropComplete(a)} />
       </ResponsiveDialog>
     </>
-  );
-}
-
-interface SaveStatusBadgeProps {
-  isSaving: boolean;
-  isDirty: boolean;
-  error: string | null;
-}
-
-export function SaveStatusBadge({
-  isSaving,
-  error,
-  isDirty,
-}: SaveStatusBadgeProps) {
-  if (error) {
-    const readableError = parseErrorMessage(error);
-
-    return (
-      <Badge
-        variant="destructive"
-        className="flex items-center gap-1 max-w-[300px] truncate"
-        title={readableError} // Show full error on hover
-      >
-        <AlertCircle className="h-3 w-3 flex-shrink-0" />
-        <span className="truncate">Auto-save failed: {readableError}</span>
-      </Badge>
-    );
-  }
-
-  if (isSaving) {
-    return (
-      <Badge
-        variant="secondary"
-        className="flex items-center gap-1 animate-pulse"
-      >
-        <Save className="h-3 w-3 animate-spin" />
-        Saving...
-      </Badge>
-    );
-  }
-
-  if (isDirty) {
-    return (
-      <Badge variant="outline" className="flex items-center gap-1">
-        <CheckCircle className="h-3 w-3 text-yellow-500" />
-        Unsaved changes
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge variant="outline" className="flex items-center gap-1">
-      <CheckCircle className="h-3 w-3 text-green-500" />
-      All changes saved
-    </Badge>
   );
 }

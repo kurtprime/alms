@@ -100,6 +100,7 @@ export const quizMatchingPair = pgTable(
     leftItem: text("left_item").notNull(), // Left column
     rightItem: text("right_item").notNull(), // Right column to match
     orderIndex: integer("order_index"),
+    imageBase64Jpg: text("image_base_64_jpg"),
   },
   (table) => [index("matching_question_idx").on(table.questionId)],
 );
@@ -108,12 +109,14 @@ export const quizMatchingPair = pgTable(
 export const quizOrderingItem = pgTable(
   "quiz_ordering_item",
   {
-    id: serial("id").primaryKey(),
+    id: varchar("id", { length: 255 }).primaryKey(),
     questionId: integer("question_id")
       .references(() => quizQuestion.id, { onDelete: "cascade" })
       .notNull(),
     itemText: text("item_text").notNull(),
-    correctPosition: integer("correct_position").notNull(), // 1, 2, 3...
+    correctPosition: integer("correct_position").notNull(), // 0, 1, 2, 3...
+    imageBase64Jpg: text("image_base_64_jpg"),
+    points: integer("points").notNull(),
   },
   (table) => [index("ordering_question_idx").on(table.questionId)],
 );
