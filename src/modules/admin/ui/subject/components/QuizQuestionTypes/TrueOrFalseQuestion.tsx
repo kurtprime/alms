@@ -4,7 +4,6 @@ import {
 } from "@/modules/admin/server/adminSchema";
 import React, { useState } from "react";
 import { useAutoSaveTrueOrFalseQuestion } from "../../hooks/use-auto-save";
-import { useTRPC } from "@/trpc/client";
 import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -38,8 +37,6 @@ export default function TrueOrFalseQuestion({
   setDeleteQuestion,
   mutate: deleteQuestion,
 }: TrueOrFalseQuestionInterface) {
-  const trpc = useTRPC();
-
   const form = useForm<z.infer<typeof updateTrueOrFalseQuestionDetailsSchema>>({
     resolver: zodResolver(updateTrueOrFalseQuestionDetailsSchema),
     defaultValues: {
@@ -69,6 +66,12 @@ export default function TrueOrFalseQuestion({
     } as z.infer<typeof updateTrueOrFalseQuestionDetailsSchema>,
     enabled: isDirty,
     onError: (e) => toast.error(e),
+    onSuccess: () => {
+      form.reset(form.getValues(), {
+        keepValues: true,
+        keepDirty: false,
+      });
+    },
   });
 
   function onSubmit(
@@ -86,7 +89,7 @@ export default function TrueOrFalseQuestion({
         >
           <div className="flex flex-row  gap-4 justify-between items-center">
             <Badge className="text-sm h-8">
-              Question {(initialData?.orderIndex ?? 0) + 1} - Multiple Choice
+              Question {(initialData?.orderIndex ?? 0) + 1} - True or False
             </Badge>
             <div className="flex gap-4 ">
               <FormField
@@ -195,7 +198,9 @@ export default function TrueOrFalseQuestion({
                   <Button
                     type="button"
                     variant={field.value === true ? "secondary" : "outline"}
-                    onClick={() => field.onChange(true)}
+                    onClick={() => {
+                      field.onChange(true);
+                    }}
                     className="flex-1"
                   >
                     True

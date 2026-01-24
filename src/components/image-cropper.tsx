@@ -12,7 +12,6 @@ import ReactCrop, {
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -22,10 +21,11 @@ import {
   ZoomOut,
   Download,
   RefreshCw,
+  Upload,
+  ClipboardPaste,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Utility functions from the first example
 function useDebounceEffect(
   fn: () => void,
   waitTime: number,
@@ -34,7 +34,7 @@ function useDebounceEffect(
   useEffect(() => {
     const t = setTimeout(fn, waitTime);
     return () => clearTimeout(t);
-  }, deps);
+  }, [deps, fn, waitTime]);
 }
 
 function canvasPreview(
@@ -49,7 +49,6 @@ function canvasPreview(
 
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
-
   const pixelRatio = window.devicePixelRatio || 1;
 
   canvas.width = Math.floor(crop.width * scaleX * pixelRatio);
@@ -60,7 +59,6 @@ function canvasPreview(
 
   const cropX = crop.x * scaleX;
   const cropY = crop.y * scaleY;
-
   const rotateRads = (rotate * Math.PI) / 180;
   const centerX = image.naturalWidth / 2;
   const centerY = image.naturalHeight / 2;
@@ -100,6 +98,9 @@ export function ImageCropper({
   className,
 }: ImageCropperProps) {
   const [imgSrc, setImgSrc] = useState("");
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [isPasting, setIsPasting] = useState(false);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
   const previewCanvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const hiddenAnchorRef = useRef<HTMLAnchorElement>(null);
@@ -110,21 +111,99 @@ export function ImageCropper({
   const [rotate, setRotate] = useState(0);
   const [aspect, setAspect] = useState<number | undefined>(aspectRatio);
 
+  // Handle clipboard paste
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (imgSrc) return; // Don't paste if already editing
+
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      for (const item of Array.from(items)) {
+        if (item.type.indexOf("image") === 0) {
+          e.preventDefault();
+          setIsPasting(true);
+
+          const file = item.getAsFile();
+          if (file) {
+            if (file.size > maxFileSizeMB * 1024 * 1024) {
+              alert(`File size must be less than ${maxFileSizeMB}MB`);
+              setIsPasting(false);
+              return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = () => {
+              setImgSrc(reader.result?.toString() || "");
+              setIsPasting(false);
+            };
+            reader.readAsDataURL(file);
+          }
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  }, [imgSrc, maxFileSizeMB]);
+
+  // Drag and drop handlers
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (
+      e.relatedTarget &&
+      !dropZoneRef.current?.contains(e.relatedTarget as Node)
+    ) {
+      setIsDragActive(false);
+    }
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const processFile = (file: File) => {
+    if (file.size > maxFileSizeMB * 1024 * 1024) {
+      alert(`File size must be less than ${maxFileSizeMB}MB`);
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload an image file");
+      return;
+    }
+
+    setCrop(undefined);
+    const reader = new FileReader();
+    reader.addEventListener("load", () =>
+      setImgSrc(reader.result?.toString() || ""),
+    );
+    reader.readAsDataURL(file);
+  };
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragActive(false);
+
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processFile(files[0]);
+    }
+  }, []);
+
   function onSelectFile(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files && e.target.files.length > 0) {
-      const file = e.target.files[0];
-
-      if (file.size > maxFileSizeMB * 1024 * 1024) {
-        alert(`File size must be less than ${maxFileSizeMB}MB`);
-        return;
-      }
-
-      setCrop(undefined);
-      const reader = new FileReader();
-      reader.addEventListener("load", () =>
-        setImgSrc(reader.result?.toString() || ""),
-      );
-      reader.readAsDataURL(file);
+      processFile(e.target.files[0]);
     }
   }
 
@@ -238,9 +317,7 @@ export function ImageCropper({
     const previewCanvas = previewCanvasRef.current;
     if (!previewCanvas || !completedCrop) return;
 
-    // Generate base64 JPG directly from canvas
     const base64Image = previewCanvas.toDataURL("image/jpeg", 0.95);
-    console.log(base64Image);
     onCropComplete?.(base64Image);
   }
 
@@ -281,6 +358,7 @@ export function ImageCropper({
     setScale(1);
     setRotate(0);
     setCompletedCrop(undefined);
+    setIsDragActive(false);
     if (blobUrlRef.current) {
       URL.revokeObjectURL(blobUrlRef.current);
     }
@@ -289,21 +367,63 @@ export function ImageCropper({
   if (!imgSrc) {
     return (
       <Card className={cn(className, "h-80")}>
-        <CardContent className="flex h-full items-center justify-center p-6">
-          <Label className="cursor-pointer">
-            <div className="flex h-full flex-col items-center gap-2">
-              <ImagePlus className="h-12 w-12 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">
-                Click to upload image (max {maxFileSizeMB}MB)
-              </span>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={onSelectFile}
-                className="hidden"
-              />
-            </div>
-          </Label>
+        <CardContent className="h-full p-6">
+          <div
+            ref={dropZoneRef}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+            className={cn(
+              "flex h-full cursor-pointer flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed transition-all duration-200",
+              isDragActive
+                ? "border-primary bg-primary/5 scale-[1.02]"
+                : "border-muted-foreground/25 hover:border-muted-foreground/50",
+              isPasting && "border-primary bg-primary/5",
+            )}
+          >
+            <input
+              type="file"
+              accept="image/*"
+              onChange={onSelectFile}
+              className="hidden"
+              id="image-upload"
+            />
+            <label
+              htmlFor="image-upload"
+              className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-4"
+            >
+              <div className="relative">
+                <div
+                  className={cn(
+                    "rounded-full bg-muted p-4 transition-transform duration-200",
+                    isDragActive && "scale-110",
+                  )}
+                >
+                  {isDragActive ? (
+                    <Upload className="h-8 w-8 text-primary" />
+                  ) : isPasting ? (
+                    <ClipboardPaste className="h-8 w-8 text-primary animate-pulse" />
+                  ) : (
+                    <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
+
+              <div className="text-center space-y-1">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {isDragActive
+                    ? "Drop image here"
+                    : isPasting
+                      ? "Pasting..."
+                      : "Click, paste, or drop image here"}
+                </p>
+                <p className="text-xs text-muted-foreground/60">
+                  Supports JPG, PNG, WebP (max {maxFileSizeMB}MB)
+                </p>
+              </div>
+            </label>
+          </div>
         </CardContent>
       </Card>
     );

@@ -220,6 +220,25 @@ export const updateMultipleChoiceQuestionDetailsSchema = z
     ), // Auto-calculate
   }));
 
+const orderingChoiceSchema = z.object({
+  orderingOptionId: z.string(),
+  itemText: z.string(),
+  points: z.number(),
+  questionId: z.number(),
+  correctPosition: z.number(),
+  imageBase64Jpg: z.string().nullish(),
+});
+
+export const updateOrderingChoiceDetailSchema = z.object({
+  id: z.number(),
+  question: z.string(),
+  points: z.number(),
+  required: z.boolean(),
+  imageBase64Jpg: z.string().nullish(),
+  deletedChoiceIds: z.array(z.string()),
+  orderingOptions: z.array(orderingChoiceSchema),
+});
+
 export const updateTrueOrFalseQuestionDetailsSchema = z.object({
   id: z.number().min(1, { message: "Question ID is required" }),
   question: z.string(),
@@ -277,3 +296,12 @@ export type AdminUpdateMultipleChoiceQuizQuestions =
 
 export type AdminGetTrueOrFalseQuizQuestions =
   inferRouterOutputs<AppRouter>["admin"]["getTrueOrFalseQuestionDetails"];
+
+export type AdminGetEssayQuizQuestion =
+  inferRouterOutputs<AppRouter>["admin"]["getEssayQuestionDetails"];
+
+export type AdminGetOrderingQuizQuestion =
+  inferRouterOutputs<AppRouter>["admin"]["getOrderingQuestionDetails"];
+
+export type AdminOrderingChoiceQuizQuestions =
+  inferRouterOutputs<AppRouter>["admin"]["updateOrderingQuestionDetails"];

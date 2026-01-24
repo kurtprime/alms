@@ -6,6 +6,7 @@ import {
   updateLessonSchema,
   updateMarkUp,
   updateMultipleChoiceQuestionDetailsSchema,
+  updateOrderingChoiceDetailSchema,
   updateQuizSettingsFormSchema,
   updateTrueOrFalseQuestionDetailsSchema,
 } from "../adminSchema";
@@ -16,6 +17,7 @@ import {
   lessonType,
   quiz,
   quizAnswerOption,
+  quizOrderingItem,
   quizQuestion,
   quizTypeEnum,
 } from "@/db/schema";
@@ -467,6 +469,145 @@ export const lessonActions = {
 
       return { success: true, insertedChoices: result.insertedChoices };
     }),
+  getOrderingQuestionDetails: adminProcedure
+    .input(z.object({ quizQuestionId: z.number() }))
+    .query(async ({ input }) => {
+      const { quizQuestionId } = input;
+
+      const awaitQuestionDetails = db
+        .select({
+          id: quizQuestion.id,
+          question: quizQuestion.question,
+          points: quizQuestion.points,
+          orderIndex: quizQuestion.orderIndex,
+          required: quizQuestion.required,
+          imageBase64Jpg: quizQuestion.imageBase64Jpg,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.id, quizQuestionId));
+
+      const awaitOrderingOptions = db
+        .select({
+          orderingOptionId: quizOrderingItem.id,
+          itemText: quizOrderingItem.itemText,
+          correctPosition: quizOrderingItem.correctPosition,
+          imageBase64Jpg: quizOrderingItem.imageBase64Jpg,
+          points: quizOrderingItem.points,
+          questionId: quizOrderingItem.questionId,
+        })
+        .from(quizOrderingItem)
+        .where(eq(quizOrderingItem.questionId, quizQuestionId))
+        .orderBy(quizOrderingItem.correctPosition);
+
+      const [[questionDetails], orderingOptions] = await Promise.all([
+        awaitQuestionDetails,
+        awaitOrderingOptions,
+      ]);
+
+      if (!questionDetails) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Question not found",
+        });
+      }
+
+      return {
+        ...questionDetails,
+        orderingOptions,
+      };
+    }),
+  updateOrderingQuestionDetails: adminProcedure
+    .input(updateOrderingChoiceDetailSchema)
+    .mutation(async ({ input }) => {
+      const {
+        id,
+        question,
+        points,
+        required,
+        imageBase64Jpg,
+        orderingOptions,
+        deletedChoiceIds,
+      } = input;
+
+      const result = await db.transaction(async (tx) => {
+        const [quizQuestionId] = await tx
+          .update(quizQuestion)
+          .set({
+            question,
+            points,
+            required,
+            imageBase64Jpg,
+          })
+          .where(eq(quizQuestion.id, id))
+          .returning({ id: quizQuestion.id });
+        if (!quizQuestionId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Question not found",
+          });
+        }
+
+        if (orderingOptions.length > 0) {
+          // Filter out temp IDs - they don't exist in DB yet
+          const realIdsToDelete = deletedChoiceIds.filter(
+            (id) => !id.startsWith("temp_"),
+          );
+          if (realIdsToDelete.length > 0) {
+            await tx
+              .delete(quizAnswerOption)
+              .where(inArray(quizAnswerOption.id, realIdsToDelete));
+          }
+        }
+        const insertedChoices: { tempId: string; realId: string }[] = [];
+        if (orderingOptions && orderingOptions.length > 0) {
+          for (const options of orderingOptions) {
+            const {
+              orderingOptionId: id,
+              itemText,
+              points,
+              correctPosition,
+              imageBase64Jpg,
+            } = options;
+            // NEW: Check if it's a temp ID (new choice)
+            if (id.startsWith("temp_")) {
+              // INSERT new choice
+
+              const [newChoice] = await tx
+                .insert(quizOrderingItem)
+                .values({
+                  id: id.substring(5),
+                  questionId: quizQuestionId.id,
+                  itemText,
+                  points,
+                  correctPosition,
+                  imageBase64Jpg,
+                })
+                .returning({ id: quizOrderingItem.id });
+
+              insertedChoices.push({
+                tempId: id,
+                realId: newChoice.id,
+              });
+            } else {
+              // UPDATE existing choice
+              await tx
+                .update(quizOrderingItem)
+                .set({
+                  questionId: quizQuestionId.id,
+                  itemText,
+                  points,
+                  correctPosition,
+                  imageBase64Jpg,
+                })
+                .where(eq(quizOrderingItem.id, id));
+            }
+          }
+        }
+        return { insertedChoices };
+      });
+
+      return { success: true, insertedChoices: result.insertedChoices };
+    }),
   getTrueOrFalseQuestionDetails: adminProcedure
     .input(z.object({ quizQuestionId: z.number() }))
     .query(async ({ input }) => {
@@ -485,7 +626,7 @@ export const lessonActions = {
         .from(quizQuestion)
         .where(eq(quizQuestion.id, quizQuestionId));
 
-      return { ...trueOrFalseQuestion };
+      return trueOrFalseQuestion;
     }),
   updateTrueOrFalseQuestionDetails: adminProcedure
     .input(updateTrueOrFalseQuestionDetailsSchema)
@@ -506,7 +647,22 @@ export const lessonActions = {
     }),
   getEssayQuestionDetails: adminProcedure
     .input(z.object({ id: z.number() }))
-    .query(async ({ input }) => {}),
+    .query(async ({ input }) => {
+      const { id } = input;
+      const [essayDetails] = await db
+        .select({
+          id: quizQuestion.id,
+          question: quizQuestion.question,
+          points: quizQuestion.points,
+          required: quizQuestion.required,
+          orderIndex: quizQuestion.orderIndex,
+          imageBase64Jpg: quizQuestion.imageBase64Jpg,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.id, id));
+
+      return essayDetails;
+    }),
   updateEssayQuestionDetails: adminProcedure
     .input(updateEssayQuestionDetailSchema)
     .mutation(async ({ input }) => {

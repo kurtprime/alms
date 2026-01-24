@@ -16,6 +16,7 @@ import React, { useState } from "react";
 import MultipleChoiceQuestionForm from "./QuizQuestionTypes/MultipleChoiceQuestion";
 import TrueOrFalseQuestion from "./QuizQuestionTypes/TrueOrFalseQuestion";
 import EssayQuestion from "./QuizQuestionTypes/EssayQuestion";
+import OrderingQuestion from "./QuizQuestionTypes/OrderingQuestion";
 
 export default function CreateQuiz({ quizId }: { quizId: number }) {
   const trpc = useTRPC();
@@ -77,8 +78,12 @@ function QuizQuestionType({
               <TrueOrFalseQuestionCard data={question} mutate={mutate} />
             ) : question.type === "essay" ? (
               <EssayQuestionCard data={question} mutate={mutate} />
+            ) : question.type === "ordering" ? (
+              <OrderingQuestionCard data={question} mutate={mutate} />
+            ) : question.type === "matching" ? (
+              <div>Matching</div>
             ) : (
-              question.type
+              <div>does not exist</div>
             )}
           </Card>
         ))
@@ -166,14 +171,14 @@ function MultipleChoiceQuestionCard({ data, mutate }: QuizQuestionInterface) {
   );
 }
 
-function EssayQuestionCard({ data, mutate }: QuizQuestionInterface) {
+function OrderingQuestionCard({ data, mutate }: QuizQuestionInterface) {
   const trpc = useTRPC();
   const {
-    data: multipleChoiceQuestionDetails,
+    data: orderingQuestionDetails,
     isPending,
     isError,
   } = useQuery(
-    trpc.admin.getMultipleChoiceQuestionDetails.queryOptions({
+    trpc.admin.getOrderingQuestionDetails.queryOptions({
       quizQuestionId: data.id,
     }),
   );
@@ -187,7 +192,53 @@ function EssayQuestionCard({ data, mutate }: QuizQuestionInterface) {
     return <div>Error loading question details.</div>;
   }
 
-  return <EssayQuestion />;
+  return (
+    <>
+      {!deleteQuestion && (
+        <OrderingQuestion
+          initialData={orderingQuestionDetails}
+          mutate={mutate}
+          setDeleteQuestion={setDeleteQuestion}
+          questionId={data.id}
+          orderIndex={data.orderIndex}
+        />
+      )}
+    </>
+  );
+}
+
+function EssayQuestionCard({ data, mutate }: QuizQuestionInterface) {
+  const trpc = useTRPC();
+  const {
+    data: essayQuestionDetails,
+    isPending,
+    isError,
+  } = useQuery(
+    trpc.admin.getEssayQuestionDetails.queryOptions({
+      id: data.id,
+    }),
+  );
+  const [deleteQuestion, setDeleteQuestion] = useState(false);
+
+  if (isPending) {
+    return <div>Loading question details...</div>;
+  }
+
+  if (isError) {
+    return <div>Error loading question details.</div>;
+  }
+
+  return (
+    <>
+      {!deleteQuestion && (
+        <EssayQuestion
+          initialData={essayQuestionDetails}
+          setDeleteQuestion={setDeleteQuestion}
+          mutate={mutate}
+        />
+      )}
+    </>
+  );
 }
 
 function AddQuizButton({ count, quizId }: { count: number; quizId: number }) {
