@@ -85,7 +85,6 @@ export default function MultipleChoiceSortableChoiceItem({
   const [openCropImage, setOpenCropImag] = useState(false);
 
   const onCropComplete = (base64: string) => {
-    console.log(base64);
     form.setValue(`multipleChoices.${index}.imageBase64Jpg`, base64, {
       shouldDirty: true,
     });

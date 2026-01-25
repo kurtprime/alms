@@ -63,6 +63,7 @@ export default function MultipleChoiceQuestionForm({
   questionId,
   initialData,
   setDeleteQuestion,
+  orderIndex,
   mutate: deleteQuestion,
 }: AutoSaveQuestionFormProps) {
   const form = useForm<
@@ -231,7 +232,7 @@ export default function MultipleChoiceQuestionForm({
         >
           <div className="flex flex-row  gap-4 justify-between items-center">
             <Badge className="text-sm h-8">
-              Question {(initialData?.orderIndex ?? 0) + 1} - Multiple Choice
+              Question {(orderIndex ?? 0) + 1} - Multiple Choice
             </Badge>
             <div className="flex gap-4">
               <FormField

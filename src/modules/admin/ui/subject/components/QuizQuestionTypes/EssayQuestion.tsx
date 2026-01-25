@@ -35,11 +35,13 @@ interface EssayQuestionInterface {
   initialData: AdminGetEssayQuizQuestion;
   setDeleteQuestion: (arg: boolean) => void;
   mutate: ({ id }: { id: number }) => void;
+  orderIndex: number;
 }
 
 export default function EssayQuestion({
   initialData,
   setDeleteQuestion,
+  orderIndex,
   mutate: deleteQuestion,
 }: EssayQuestionInterface) {
   type EssayData = z.infer<typeof updateEssayQuestionDetailSchema>;
@@ -92,7 +94,7 @@ export default function EssayQuestion({
           <div className="flex flex-row  gap-4 justify-between items-center">
             <span className="flex gap-2 items-center">
               <Badge className="text-sm h-8">
-                Question {(initialData?.orderIndex ?? 0) + 1} - Essay
+                Question {(orderIndex ?? 0) + 1} - Essay
               </Badge>
               <Tooltip>
                 <TooltipTrigger asChild>

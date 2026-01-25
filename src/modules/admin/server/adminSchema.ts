@@ -239,6 +239,27 @@ export const updateOrderingChoiceDetailSchema = z.object({
   orderingOptions: z.array(orderingChoiceSchema),
 });
 
+const matchingPairSchema = z.object({
+  matchingPairId: z.string(),
+  questionId: z.number(),
+  leftItem: z.string().nullable(),
+  rightItem: z.string(),
+  orderIndex: z.number().nullable(),
+  points: z.number(),
+  leftImageBase64Jpg: z.string().nullish(),
+  rightImageBase64Jpg: z.string().nullish(),
+});
+
+export const updateMatchingPairDetailSchema = z.object({
+  id: z.number(),
+  question: z.string(),
+  points: z.number(),
+  required: z.boolean(),
+  imageBase64Jpg: z.string().nullish(),
+  deletedChoiceIds: z.array(z.string()),
+  matchingOptions: z.array(matchingPairSchema),
+});
+
 export const updateTrueOrFalseQuestionDetailsSchema = z.object({
   id: z.number().min(1, { message: "Question ID is required" }),
   question: z.string(),
@@ -305,3 +326,9 @@ export type AdminGetOrderingQuizQuestion =
 
 export type AdminOrderingChoiceQuizQuestions =
   inferRouterOutputs<AppRouter>["admin"]["updateOrderingQuestionDetails"];
+
+export type AdminGetMatchingPairQuestion =
+  inferRouterOutputs<AppRouter>["admin"]["getMatchingQuestionDetails"];
+
+export type AdminMatchingPairQuestion =
+  inferRouterOutputs<AppRouter>["admin"]["updateMatchingQuestionDetails"];

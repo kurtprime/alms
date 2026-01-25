@@ -93,14 +93,16 @@ export const quizQuestion = pgTable(
 export const quizMatchingPair = pgTable(
   "quiz_matching_pair",
   {
-    id: serial("id").primaryKey(),
+    id: varchar("id", { length: 255 }).primaryKey(),
     questionId: integer("question_id")
       .references(() => quizQuestion.id, { onDelete: "cascade" })
       .notNull(),
-    leftItem: text("left_item").notNull(), // Left column
+    leftItem: text("left_item"), // Left column
     rightItem: text("right_item").notNull(), // Right column to match
     orderIndex: integer("order_index"),
-    imageBase64Jpg: text("image_base_64_jpg"),
+    points: integer("points").notNull(),
+    leftImageBase64Jpg: text("left_image_base_64_jpg"),
+    rightImageBase64Jpg: text("right_image_base_64_jpg"),
   },
   (table) => [index("matching_question_idx").on(table.questionId)],
 );

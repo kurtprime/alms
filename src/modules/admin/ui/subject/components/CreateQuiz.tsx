@@ -17,6 +17,7 @@ import MultipleChoiceQuestionForm from "./QuizQuestionTypes/MultipleChoiceQuesti
 import TrueOrFalseQuestion from "./QuizQuestionTypes/TrueOrFalseQuestion";
 import EssayQuestion from "./QuizQuestionTypes/EssayQuestion";
 import OrderingQuestion from "./QuizQuestionTypes/OrderingQuestion";
+import MatchingPairQuestion from "./QuizQuestionTypes/MatchingPairQuestion";
 
 export default function CreateQuiz({ quizId }: { quizId: number }) {
   const trpc = useTRPC();
@@ -81,7 +82,7 @@ function QuizQuestionType({
             ) : question.type === "ordering" ? (
               <OrderingQuestionCard data={question} mutate={mutate} />
             ) : question.type === "matching" ? (
-              <div>Matching</div>
+              <MatchingPairQuestionCard data={question} mutate={mutate} />
             ) : (
               <div>does not exist</div>
             )}
@@ -127,6 +128,7 @@ function TrueOrFalseQuestionCard({ data, mutate }: QuizQuestionInterface) {
       {!deleteQuestion && (
         <TrueOrFalseQuestion
           mutate={mutate}
+          orderIndex={data.orderIndex}
           setDeleteQuestion={setDeleteQuestion}
           initialData={trueOrFalseDetails}
         />
@@ -165,6 +167,43 @@ function MultipleChoiceQuestionCard({ data, mutate }: QuizQuestionInterface) {
           mutate={mutate}
           orderIndex={data.orderIndex}
           initialData={multipleChoiceQuestionDetails}
+        />
+      )}
+    </>
+  );
+}
+
+function MatchingPairQuestionCard({ data, mutate }: QuizQuestionInterface) {
+  const trpc = useTRPC();
+  const {
+    data: matchingPairDetails,
+    isPending,
+    isError,
+    error,
+  } = useQuery(
+    trpc.admin.getMatchingQuestionDetails.queryOptions({
+      quizQuestionId: data.id,
+    }),
+  );
+  const [deleteQuestion, setDeleteQuestion] = useState(false);
+
+  if (isPending) {
+    return <div>Loading question details...</div>;
+  }
+
+  if (isError) {
+    return <div>{error.message}</div>;
+  }
+
+  return (
+    <>
+      {!deleteQuestion && (
+        <MatchingPairQuestion
+          questionId={data.id}
+          initialData={matchingPairDetails}
+          mutate={mutate}
+          orderIndex={data.orderIndex}
+          setDeleteQuestion={setDeleteQuestion}
         />
       )}
     </>
@@ -234,6 +273,7 @@ function EssayQuestionCard({ data, mutate }: QuizQuestionInterface) {
         <EssayQuestion
           initialData={essayQuestionDetails}
           setDeleteQuestion={setDeleteQuestion}
+          orderIndex={data.orderIndex}
           mutate={mutate}
         />
       )}
