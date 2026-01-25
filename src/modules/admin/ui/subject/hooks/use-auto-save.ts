@@ -1,7 +1,9 @@
 import {
+  AdminMatchingPairQuestion,
   AdminOrderingChoiceQuizQuestions,
   AdminUpdateMultipleChoiceQuizQuestions,
   updateEssayQuestionDetailSchema,
+  updateMatchingPairDetailSchema,
   updateMultipleChoiceQuestionDetailsSchema,
   updateOrderingChoiceDetailSchema,
   updateTrueOrFalseQuestionDetailsSchema,
@@ -226,6 +228,61 @@ export function useAutoSaveOrderingQuestion({
 
   useEffect(() => {
     if (!enabled || !debouncedData?.orderingOptions) return;
+
+    if (
+      JSON.stringify(previousDataRef.current) === JSON.stringify(debouncedData)
+    ) {
+      return;
+    }
+
+    mutate(debouncedData);
+    previousDataRef.current = debouncedData;
+  }, [debouncedData, enabled, mutate]);
+
+  return {
+    isSaving: isPending,
+    errorMessage: error ? JSON.stringify(error) : null,
+    lastSaved: isPending ? null : new Date(),
+  };
+}
+
+type MatchingPairData = z.infer<typeof updateMatchingPairDetailSchema>;
+
+export function useAutoSaveMatchingPairQuestion({
+  data,
+  interval = 1,
+  enabled = true,
+  onError,
+  onSuccess,
+}: UseAutoSaveQuestion<
+  MatchingPairData,
+  AdminMatchingPairQuestion["insertedChoices"]
+>) {
+  const [debouncedData] = useDebounce(data, interval * 1000);
+  const previousDataRef = useRef<MatchingPairData>(data);
+
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  const { mutate, isPending, error } = useMutation(
+    trpc.admin.updateMatchingQuestionDetails.mutationOptions({
+      onSuccess: (result) => {
+        onSuccess?.(result.insertedChoices || []);
+        queryClient.invalidateQueries(
+          trpc.admin.getMatchingQuestionDetails.queryOptions({
+            quizQuestionId: debouncedData.id,
+          }),
+        );
+      },
+      onError: (e) => {
+        const err = JSON.parse(e.message)[0].message;
+        onError?.(JSON.parse(err.message)[0].message);
+      },
+    }),
+  );
+
+  useEffect(() => {
+    if (!enabled || !debouncedData?.matchingOptions) return;
 
     if (
       JSON.stringify(previousDataRef.current) === JSON.stringify(debouncedData)

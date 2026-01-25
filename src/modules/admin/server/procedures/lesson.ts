@@ -5,6 +5,7 @@ import {
   updateEssayQuestionDetailSchema,
   updateLessonSchema,
   updateMarkUp,
+  updateMatchingPairDetailSchema,
   updateMultipleChoiceQuestionDetailsSchema,
   updateOrderingChoiceDetailSchema,
   updateQuizSettingsFormSchema,
@@ -17,12 +18,13 @@ import {
   lessonType,
   quiz,
   quizAnswerOption,
+  quizMatchingPair,
   quizOrderingItem,
   quizQuestion,
   quizTypeEnum,
 } from "@/db/schema";
 import z from "zod";
-import { and, eq, inArray, not, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, not, sql } from "drizzle-orm";
 import { uploadthing } from "@/services/uploadthing/client";
 import { inngest } from "@/services/inngest/client";
 import { TRPCError } from "@trpc/server";
@@ -469,6 +471,153 @@ export const lessonActions = {
 
       return { success: true, insertedChoices: result.insertedChoices };
     }),
+  getMatchingQuestionDetails: adminProcedure
+    .input(z.object({ quizQuestionId: z.number() }))
+    .query(async ({ input }) => {
+      const { quizQuestionId } = input;
+
+      const awaitQuestionDetails = db
+        .select({
+          id: quizQuestion.id,
+          question: quizQuestion.question,
+          points: quizQuestion.points,
+          orderIndex: quizQuestion.orderIndex,
+          required: quizQuestion.required,
+          imageBase64Jpg: quizQuestion.imageBase64Jpg,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.id, quizQuestionId));
+
+      const awaitMatchingOptions = db
+        .select({
+          matchingPairId: quizMatchingPair.id,
+          questionId: quizMatchingPair.questionId,
+          leftItem: quizMatchingPair.leftItem,
+          rightIem: quizMatchingPair.rightItem,
+          orderIndex: quizMatchingPair.orderIndex,
+          points: quizMatchingPair.points,
+          leftImageBase64Jpg: quizMatchingPair.leftImageBase64Jpg,
+          rightImageBase64Jpg: quizMatchingPair.rightImageBase64Jpg,
+        })
+        .from(quizMatchingPair)
+        .where(eq(quizMatchingPair.questionId, quizQuestionId))
+        .orderBy(quizMatchingPair.orderIndex);
+
+      const [[questionDetails], matchingOptions] = await Promise.all([
+        awaitQuestionDetails,
+        awaitMatchingOptions,
+      ]);
+
+      if (!questionDetails) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Question not found",
+        });
+      }
+
+      return {
+        ...questionDetails,
+        matchingOptions,
+      };
+    }),
+  updateMatchingQuestionDetails: adminProcedure
+    .input(updateMatchingPairDetailSchema)
+    .mutation(async ({ input }) => {
+      const {
+        id,
+        question,
+        points,
+        required,
+        imageBase64Jpg,
+        matchingOptions,
+        deletedChoiceIds,
+      } = input;
+
+      const result = await db.transaction(async (tx) => {
+        const [quizQuestionId] = await tx
+          .update(quizQuestion)
+          .set({
+            question,
+            points,
+            required,
+            imageBase64Jpg,
+          })
+          .where(eq(quizQuestion.id, id))
+          .returning({ id: quizQuestion.id });
+        if (!quizQuestionId) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Question not found",
+          });
+        }
+
+        if (matchingOptions.length > 0) {
+          // Filter out temp IDs - they don't exist in DB yet
+          const realIdsToDelete = deletedChoiceIds.filter(
+            (id) => !id.startsWith("temp_"),
+          );
+          if (realIdsToDelete.length > 0) {
+            await tx
+              .delete(quizMatchingPair)
+              .where(inArray(quizMatchingPair.id, realIdsToDelete));
+          }
+        }
+        const insertedChoices: { tempId: string; realId: string }[] = [];
+        if (matchingOptions && matchingOptions.length > 0) {
+          for (const options of matchingOptions) {
+            const {
+              matchingPairId: id,
+              leftItem,
+              rightItem,
+              points,
+              orderIndex,
+              leftImageBase64Jpg,
+              rightImageBase64Jpg,
+            } = options;
+            // NEW: Check if it's a temp ID (new choice)
+            if (id.startsWith("temp_")) {
+              // INSERT new choice
+
+              const [newChoice] = await tx
+                .insert(quizMatchingPair)
+                .values({
+                  id: id.substring(5),
+                  questionId: quizQuestionId.id,
+                  leftItem,
+                  rightItem,
+                  points,
+                  orderIndex,
+                  leftImageBase64Jpg,
+                  rightImageBase64Jpg,
+                })
+                .returning({ id: quizMatchingPair.id });
+
+              insertedChoices.push({
+                tempId: id,
+                realId: newChoice.id,
+              });
+            } else {
+              // UPDATE existing choice
+              await tx
+                .update(quizMatchingPair)
+                .set({
+                  questionId: quizQuestionId.id,
+                  leftItem,
+                  rightItem,
+                  points,
+                  orderIndex,
+                  leftImageBase64Jpg,
+                  rightImageBase64Jpg,
+                })
+                .where(eq(quizMatchingPair.id, id));
+            }
+          }
+        }
+        return { insertedChoices };
+      });
+
+      return { success: true, insertedChoices: result.insertedChoices };
+    }),
   getOrderingQuestionDetails: adminProcedure
     .input(z.object({ quizQuestionId: z.number() }))
     .query(async ({ input }) => {
@@ -516,6 +665,7 @@ export const lessonActions = {
         orderingOptions,
       };
     }),
+
   updateOrderingQuestionDetails: adminProcedure
     .input(updateOrderingChoiceDetailSchema)
     .mutation(async ({ input }) => {
@@ -554,8 +704,8 @@ export const lessonActions = {
           );
           if (realIdsToDelete.length > 0) {
             await tx
-              .delete(quizAnswerOption)
-              .where(inArray(quizAnswerOption.id, realIdsToDelete));
+              .delete(quizOrderingItem)
+              .where(inArray(quizOrderingItem.id, realIdsToDelete));
           }
         }
         const insertedChoices: { tempId: string; realId: string }[] = [];
@@ -686,7 +836,38 @@ export const lessonActions = {
     )
     .mutation(async ({ input }) => {
       const { id } = input;
+      await db.transaction(async (tx) => {
+        // 1. Get the question details first (to know quizId and current order)
+        const [questionToDelete] = await tx
+          .select({
+            quizId: quizQuestion.quizId,
+            orderIndex: quizQuestion.orderIndex,
+          })
+          .from(quizQuestion)
+          .where(eq(quizQuestion.id, id));
 
-      await db.delete(quizQuestion).where(eq(quizQuestion.id, id));
+        if (!questionToDelete) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Question not found",
+          });
+        }
+
+        // 2. Delete the question
+        await tx.delete(quizQuestion).where(eq(quizQuestion.id, id));
+
+        // 3. Decrement orderIndex for all questions that came after the deleted one
+        await tx
+          .update(quizQuestion)
+          .set({
+            orderIndex: sql`${quizQuestion.orderIndex} - 1`,
+          })
+          .where(
+            and(
+              eq(quizQuestion.quizId, questionToDelete.quizId),
+              gt(quizQuestion.orderIndex, questionToDelete.orderIndex),
+            ),
+          );
+      });
     }),
 };

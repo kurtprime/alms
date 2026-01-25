@@ -30,11 +30,13 @@ interface TrueOrFalseQuestionInterface {
   initialData: AdminGetTrueOrFalseQuizQuestions;
   setDeleteQuestion: (arg: boolean) => void;
   mutate: ({ id }: { id: number }) => void;
+  orderIndex: number;
 }
 
 export default function TrueOrFalseQuestion({
   initialData,
   setDeleteQuestion,
+  orderIndex,
   mutate: deleteQuestion,
 }: TrueOrFalseQuestionInterface) {
   const form = useForm<z.infer<typeof updateTrueOrFalseQuestionDetailsSchema>>({
@@ -89,7 +91,7 @@ export default function TrueOrFalseQuestion({
         >
           <div className="flex flex-row  gap-4 justify-between items-center">
             <Badge className="text-sm h-8">
-              Question {(initialData?.orderIndex ?? 0) + 1} - True or False
+              Question {(orderIndex ?? 0) + 1} - True or False
             </Badge>
             <div className="flex gap-4 ">
               <FormField

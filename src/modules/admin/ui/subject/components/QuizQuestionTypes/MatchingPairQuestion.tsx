@@ -1,13 +1,13 @@
 import {
-  AdminGetOrderingQuizQuestion,
-  updateOrderingChoiceDetailSchema,
+  AdminGetMatchingPairQuestion,
+  updateMatchingPairDetailSchema,
 } from "@/modules/admin/server/adminSchema";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { nanoid } from "nanoid";
 import React, { useState } from "react";
 import { useFieldArray, useForm, useWatch } from "react-hook-form";
 import z from "zod";
-import { useAutoSaveOrderingQuestion } from "../../hooks/use-auto-save";
+import { useAutoSaveMatchingPairQuestion } from "../../hooks/use-auto-save";
 import { toast } from "sonner";
 import {
   closestCenter,
@@ -37,116 +37,110 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { ImageIcon, Plus, Trash2, X } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { SaveStatusBadge } from "./MultipleChoiceQuestion";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { ImageCropper } from "@/components/image-cropper";
+import { SaveStatusBadge } from "./MultipleChoiceQuestion";
 import { CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import OrderedAnswersSortableItem from "./_OrderedAnswersSortableItem";
+import MatchingPairsSortableItem from "./_MatchingPairsSortableItem";
 
 interface OrderingQuestionInterface {
   questionId: number;
-  initialData: AdminGetOrderingQuizQuestion;
-  orderIndex?: number;
+  initialData: AdminGetMatchingPairQuestion;
+  orderIndex: number;
   setDeleteQuestion: (arg: boolean) => void;
   mutate: ({ id }: { id: number }) => void;
 }
 
-export default function OrderingQuestion({
+type MatchingPairData = z.infer<typeof updateMatchingPairDetailSchema>;
+
+export default function MatchingPairQuestion({
   questionId,
   initialData,
-  orderIndex,
   setDeleteQuestion,
+  orderIndex,
   mutate: deleteQuestion,
 }: OrderingQuestionInterface) {
-  type OrderingQuestionData = z.infer<typeof updateOrderingChoiceDetailSchema>;
-
-  const form = useForm<OrderingQuestionData>({
-    resolver: zodResolver(updateOrderingChoiceDetailSchema),
+  const form = useForm<MatchingPairData>({
+    resolver: zodResolver(updateMatchingPairDetailSchema),
     defaultValues: {
       question: initialData?.question ?? "",
       points: initialData?.points ?? 1,
       required: initialData?.required ?? false,
       imageBase64Jpg: initialData?.imageBase64Jpg ?? undefined,
-      orderingOptions:
-        initialData?.orderingOptions.length === 0
+      deletedChoiceIds: [],
+      matchingOptions:
+        initialData?.matchingOptions.length === 0
           ? [
               {
-                orderingOptionId: `temp_${nanoid(8)}`,
-                itemText: "",
+                matchingPairId: `temp_${nanoid(8)}`,
+                leftItem: "",
+                rightItem: "",
                 questionId,
-                correctPosition: 0,
+                orderIndex: 0,
                 points: 1,
-                imageBase64Jpg: null,
+                leftImageBase64Jpg: null,
+                rightImageBase64Jpg: null,
               },
               {
-                orderingOptionId: `temp_${nanoid(8)}`,
-                itemText: "",
+                matchingPairId: `temp_${nanoid(8)}`,
+                leftItem: "",
+                rightItem: "",
                 questionId,
-                correctPosition: 1,
+                orderIndex: 1,
                 points: 1,
-                imageBase64Jpg: null,
+                leftImageBase64Jpg: null,
+                rightImageBase64Jpg: null,
               },
             ]
-          : initialData?.orderingOptions,
-      deletedChoiceIds: [],
+          : initialData?.matchingOptions,
     },
   });
-
   const [openCropImage, setOpenCropImag] = useState(false);
 
-  const { fields, append, remove, move } = useFieldArray<OrderingQuestionData>({
+  const { fields, append, remove, move } = useFieldArray<MatchingPairData>({
     control: form.control,
-    name: "orderingOptions",
+    name: "matchingOptions",
   });
-
   const formValues = useWatch({ control: form.control });
   const isDirty = form.formState.isDirty;
 
-  //computes for the total points of the ordering question
   function compute() {
-    const choices = form.getValues("orderingOptions");
+    const choices = form.getValues("matchingOptions");
     const totalPoints = choices.reduce(
       (acc, choice) => acc + (Number(choice.points) || 0),
       0,
     );
-
     return totalPoints;
   }
 
-  const { isSaving, errorMessage } = useAutoSaveOrderingQuestion({
+  const { isSaving, errorMessage } = useAutoSaveMatchingPairQuestion({
     data: {
       ...formValues,
       points: compute(),
       id: initialData.id,
-    } as OrderingQuestionData,
-    interval: 1,
-    enabled: isDirty,
+    } as MatchingPairData,
     onError: (e) => {
       toast.error(e);
     },
-
     onSuccess: (insertedChoices) => {
       if (insertedChoices.length > 0) {
-        const currentChoices = form.getValues("orderingOptions");
+        const currentChoices = form.getValues("matchingOptions");
 
-        // Replace temp IDs with real IDs
         const updatedChoices = currentChoices.map((choice) => {
           const mapping = insertedChoices.find(
-            (m) => m.tempId === choice.orderingOptionId,
+            (m) => m.tempId === choice.matchingPairId,
           );
           return mapping
-            ? { ...choice, orderingOptionId: mapping.realId }
+            ? { ...choice, matchingPairId: mapping.realId }
             : choice;
         });
 
         // Update form without marking as dirty
-        form.setValue("orderingOptions", updatedChoices, {
+        form.setValue("matchingOptions", updatedChoices, {
           shouldDirty: false,
         });
         console.log("Success: ", updatedChoices);
       }
-
-      // ✅ Clear deleted IDs
       form.setValue("deletedChoiceIds", [], { shouldDirty: false });
       form.reset(form.getValues(), {
         keepValues: true,
@@ -182,9 +176,9 @@ export default function OrderingQuestion({
     move(oldIndex, newIndex);
 
     // Update orderIndex values
-    const choices = form.getValues("orderingOptions");
+    const choices = form.getValues("matchingOptions");
     choices.forEach((choice, index) => {
-      form.setValue(`orderingOptions.${index}.correctPosition`, index);
+      form.setValue(`matchingOptions.${index}.orderIndex`, index);
     });
 
     // Mark form as dirty
@@ -192,19 +186,21 @@ export default function OrderingQuestion({
       shouldDirty: true,
     });
   };
-  const addChoice = () => {
+
+  const addMatchingPairs = () => {
     console.log("ADD CHOICE", fields);
     append({
-      orderingOptionId: `temp_${nanoid(8)}`,
-      itemText: "",
+      matchingPairId: `temp_${nanoid(8)}`,
       questionId,
-      correctPosition: fields.length,
+      leftItem: "",
+      rightItem: "",
+      orderIndex: fields.length,
       points: 1,
-      imageBase64Jpg: null,
+      leftImageBase64Jpg: null,
+      rightImageBase64Jpg: null,
     });
   };
-
-  const onSubmit = async (data: OrderingQuestionData) => {
+  const onSubmit = async (data: MatchingPairData) => {
     console.log(data);
   };
 
@@ -212,12 +208,12 @@ export default function OrderingQuestion({
     <>
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit(onSubmit)}
           className="space-y-6 w-full mx-auto px-5"
+          onSubmit={form.handleSubmit(onSubmit)}
         >
           <div className="flex flex-row  gap-4 justify-between items-center">
             <Badge className="text-sm h-8">
-              Question {(orderIndex ?? 0) + 1} - Ordering
+              Question {(orderIndex ?? 0) + 1} - Matching
             </Badge>
             <div className="flex gap-4">
               <FormField
@@ -304,8 +300,6 @@ export default function OrderingQuestion({
               </FormItem>
             )}
           />
-
-          {/* Order of answers */}
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               Answer Choices
@@ -313,13 +307,14 @@ export default function OrderingQuestion({
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={addChoice}
+                onClick={addMatchingPairs}
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Ordered Answers
+                Add More Matching Pairs
               </Button>
             </CardTitle>
           </CardHeader>
+
           <CardContent className="p-0">
             <DndContext
               sensors={sensors}
@@ -331,23 +326,24 @@ export default function OrderingQuestion({
                 strategy={verticalListSortingStrategy}
               >
                 <div className="space-y-1">
-                  {fields.map((field, index) => {
-                    return (
-                      <OrderedAnswersSortableItem
-                        key={field.id}
-                        field={field}
-                        fields={fields}
-                        index={index}
-                        form={form}
-                        remove={remove}
-                      />
-                    );
-                  })}
+                  {fields
+                    .filter((e) => e.orderIndex != null)
+                    .map((field, index) => {
+                      return (
+                        <MatchingPairsSortableItem
+                          key={field.id}
+                          field={field}
+                          fields={fields}
+                          index={index}
+                          form={form}
+                          remove={remove}
+                        />
+                      );
+                    })}
                 </div>
               </SortableContext>
             </DndContext>
           </CardContent>
-
           <div className="flex justify-end">
             <SaveStatusBadge
               isSaving={isSaving}
