@@ -149,7 +149,6 @@ export default function MultipleChoiceQuestionForm({
             ? { ...choice, multipleChoiceId: mapping.realId }
             : choice;
         });
-        console.log("Updated Choices", updatedChoices);
         // Update form without marking as dirty
         form.setValue("multipleChoices", updatedChoices, {
           shouldDirty: false,
@@ -169,7 +168,6 @@ export default function MultipleChoiceQuestionForm({
     form.setValue("imageBase64", baseImage64, {
       shouldDirty: true,
     });
-    console.log(baseImage64);
     setOpenCropImag(false);
   };
 
@@ -204,7 +202,6 @@ export default function MultipleChoiceQuestionForm({
   };
 
   const addChoice = () => {
-    console.log("ADD CHOICE", fields);
     append({
       multipleChoiceId: `temp_${nanoid(8)}`,
       optionText: "",
@@ -219,9 +216,7 @@ export default function MultipleChoiceQuestionForm({
 
   const onSubmit = async (
     data: z.infer<typeof updateMultipleChoiceQuestionDetailsSchema>,
-  ) => {
-    console.log(data);
-  };
+  ) => {};
 
   return (
     <>

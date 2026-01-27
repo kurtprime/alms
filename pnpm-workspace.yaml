@@ -1,7 +1,11 @@
 ignoredBuiltDependencies:
   - '@tailwindcss/oxide'
+  - canvas
+  - core-js
+  - es5-ext
   - esbuild
   - msgpackr-extract
+  - protobufjs
   - sharp
   - unrs-resolver
 

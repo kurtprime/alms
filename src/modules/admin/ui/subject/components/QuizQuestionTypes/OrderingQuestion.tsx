@@ -143,7 +143,6 @@ export default function OrderingQuestion({
         form.setValue("orderingOptions", updatedChoices, {
           shouldDirty: false,
         });
-        console.log("Success: ", updatedChoices);
       }
 
       // ✅ Clear deleted IDs
@@ -159,7 +158,6 @@ export default function OrderingQuestion({
     form.setValue("imageBase64Jpg", baseImage64, {
       shouldDirty: true,
     });
-    console.log(baseImage64);
     setOpenCropImag(false);
   };
 
@@ -193,7 +191,6 @@ export default function OrderingQuestion({
     });
   };
   const addChoice = () => {
-    console.log("ADD CHOICE", fields);
     append({
       orderingOptionId: `temp_${nanoid(8)}`,
       itemText: "",
@@ -204,9 +201,7 @@ export default function OrderingQuestion({
     });
   };
 
-  const onSubmit = async (data: OrderingQuestionData) => {
-    console.log(data);
-  };
+  const onSubmit = async (data: OrderingQuestionData) => {};
 
   return (
     <>

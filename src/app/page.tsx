@@ -1,6 +1,6 @@
-import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import SidebarUserButton from "@/components/SidebarUserButton";
+import { getCurrentUser } from "@/lib/auth-server";
 
 export default async function Home() {
   const { user } = await getCurrentUser();

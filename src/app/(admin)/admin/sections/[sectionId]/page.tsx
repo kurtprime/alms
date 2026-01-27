@@ -1,4 +1,4 @@
-import { getCurrentAdmin } from "@/lib/auth";
+import { getCurrentAdmin } from "@/lib/auth-server";
 import React from "react";
 
 export default async function page() {

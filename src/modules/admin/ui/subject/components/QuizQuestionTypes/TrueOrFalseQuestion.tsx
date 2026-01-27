@@ -58,7 +58,6 @@ export default function TrueOrFalseQuestion({
     form.setValue("imageBase64Jpg", baseImage64, {
       shouldDirty: true,
     });
-    console.log(baseImage64);
     setOpenCropImag(false);
   };
   const { isSaving, errorMessage } = useAutoSaveTrueOrFalseQuestion({
@@ -78,9 +77,7 @@ export default function TrueOrFalseQuestion({
 
   function onSubmit(
     data: z.infer<typeof updateTrueOrFalseQuestionDetailsSchema>,
-  ) {
-    console.log(data);
-  }
+  ) {}
 
   return (
     <>

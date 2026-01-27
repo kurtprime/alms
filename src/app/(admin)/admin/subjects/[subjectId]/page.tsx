@@ -1,12 +1,9 @@
 import { Tabs } from "@/components/ui/tabs";
 import { classSubjects } from "@/db/schema";
 import { db } from "@/index";
-import { getCurrentAdmin } from "@/lib/auth";
+import { getCurrentAdmin } from "@/lib/auth-server";
 import SubjectIdHeader from "@/modules/admin/ui/subject/components/SubjectIdHeader";
-import {
-  loadUseLessonTypeParams,
-  loadUseTabParams,
-} from "@/modules/admin/ui/subject/hooks/useSubjectSearchParamServer";
+import { loadUseTabParams } from "@/modules/admin/ui/subject/hooks/useSubjectSearchParamServer";
 import AdminSubjectIdView from "@/modules/admin/ui/subject/views/AdminSubjectIdView";
 import { eq } from "drizzle-orm";
 import { SearchParams } from "nuqs/server";

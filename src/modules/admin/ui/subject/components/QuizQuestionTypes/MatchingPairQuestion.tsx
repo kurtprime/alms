@@ -139,7 +139,6 @@ export default function MatchingPairQuestion({
         form.setValue("matchingOptions", updatedChoices, {
           shouldDirty: false,
         });
-        console.log("Success: ", updatedChoices);
       }
       form.setValue("deletedChoiceIds", [], { shouldDirty: false });
       form.reset(form.getValues(), {
@@ -153,7 +152,6 @@ export default function MatchingPairQuestion({
     form.setValue("imageBase64Jpg", baseImage64, {
       shouldDirty: true,
     });
-    console.log(baseImage64);
     setOpenCropImag(false);
   };
 
@@ -188,7 +186,6 @@ export default function MatchingPairQuestion({
   };
 
   const addMatchingPairs = () => {
-    console.log("ADD CHOICE", fields);
     append({
       matchingPairId: `temp_${nanoid(8)}`,
       questionId,
@@ -200,9 +197,7 @@ export default function MatchingPairQuestion({
       rightImageBase64Jpg: null,
     });
   };
-  const onSubmit = async (data: MatchingPairData) => {
-    console.log(data);
-  };
+  const onSubmit = async (data: MatchingPairData) => {};
 
   return (
     <>

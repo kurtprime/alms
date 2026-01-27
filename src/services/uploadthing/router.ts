@@ -1,9 +1,9 @@
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
-import { getCurrentUser } from "@/lib/auth";
 import z from "zod";
 import { db } from "@/index";
 import { lessonDocument, mdxEditorImageUpload } from "@/db/schema";
+import { getCurrentUser } from "@/lib/auth-server";
 
 const f = createUploadthing();
 
@@ -32,7 +32,7 @@ export const customFileRouter = {
     .input(
       z.object({
         lessonId: z.int(),
-      })
+      }),
     )
     .middleware(async ({ input, files }) => {
       const { lessonId } = input;

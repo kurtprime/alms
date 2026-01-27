@@ -1,4 +1,4 @@
-import { getCurrentAdmin } from "@/lib/auth";
+import { getCurrentAdmin } from "@/lib/auth-server";
 import SectionHeader from "@/modules/admin/ui/section/components/SectionHeader";
 import SectionView from "@/modules/admin/ui/section/views/SectionView";
 import { getQueryClient, trpc } from "@/trpc/server";

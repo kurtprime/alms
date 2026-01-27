@@ -50,7 +50,6 @@ export function useAutoSaveMultipleQuestion({
   const { mutate, isPending, error } = useMutation(
     trpc.admin.updateMultipleChoiceQuestionDetails.mutationOptions({
       onSuccess: (result: AdminUpdateMultipleChoiceQuizQuestions) => {
-        console.log(result);
         onSuccess?.(result.insertedChoices || []);
         queryClient.invalidateQueries(
           trpc.admin.getMultipleChoiceQuestionDetails.queryOptions({

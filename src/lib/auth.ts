@@ -5,8 +5,6 @@ import * as schema from "../db/schema";
 import { admin as adminPlugin } from "better-auth/plugins/admin";
 import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { ac, admin, student, teacher, user } from "./permission";
 import { username } from "better-auth/plugins/username";
 
@@ -30,7 +28,17 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  
+  rateLimit: {
+    enabled: true,
+    window: 10, // time window in seconds
+    max: 100, // max requests in the window
+  },
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // Cache duration in seconds
+    },
+  },
   plugins: [
     adminPlugin({
       ac,
@@ -47,38 +55,19 @@ export const auth = betterAuth({
         admin,
         student,
         teacher,
-      }
+      },
     }),
     username(),
+    // customSession(async ({ user, session }) => {
+    //   // Enrich session with custom data (e.g., user preferences, roles, etc.)
+    //   return {
+    //     ...session,
+    //     ...user,
+    //     // Add custom fields
+    //     preferences: user.preferences || {},
+    //     // You can fetch additional data from your database here
+    //   };
+    // }),
     nextCookies(),
   ],
 });
-
-export async function getCurrentAdmin() {
-  const session = await auth.api.getSession({
-    headers: await headers(), // you need to pass the headers object.
-  });
-
-  // const errorMessage = {
-  //   error: true,
-  //   message: "You are not authorized to access this page",
-  // };
-
-  if (!session?.user) {
-    redirect("/sign-in");
-  }
-  if (session.user?.role !== "admin") {
-    if (session.user.role === "students") redirect("/students");
-    if (session.user.role === "teacher") redirect("/teacher");
-    redirect("/");
-  }
-
-  return { ...session };
-}
-
-export async function getCurrentUser() {
-  const session = await auth.api.getSession({
-    headers: await headers(), // you need to pass the headers object.
-  });
-  return { ...session };
-}

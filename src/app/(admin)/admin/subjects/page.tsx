@@ -1,4 +1,4 @@
-import { getCurrentAdmin } from "@/lib/auth";
+import { getCurrentAdmin } from "@/lib/auth-server";
 import SubjectHeader from "@/modules/admin/ui/subject/components/SubjectHeader";
 import AdminSubjectViews from "@/modules/admin/ui/subject/views/AdminSubjectViews";
 import React from "react";

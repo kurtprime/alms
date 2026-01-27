@@ -1,5 +1,5 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { getCurrentAdmin } from "@/lib/auth";
+import { getCurrentAdmin } from "@/lib/auth-server";
 import AdminSidebar from "@/modules/admin/ui/admin/components/AdminSidebar";
 import React from "react";
 
