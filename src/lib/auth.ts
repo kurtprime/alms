@@ -28,17 +28,7 @@ export const auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
     },
   },
-  rateLimit: {
-    enabled: true,
-    window: 10, // time window in seconds
-    max: 100, // max requests in the window
-  },
-  session: {
-    cookieCache: {
-      enabled: true,
-      maxAge: 5 * 60, // Cache duration in seconds
-    },
-  },
+
   plugins: [
     adminPlugin({
       ac,
@@ -58,13 +48,18 @@ export const auth = betterAuth({
       },
     }),
     username(),
-    // customSession(async ({ user, session }) => {
+    // customSession(async ({ user, session }: {
+    //   user: AuthUser;
+    //   session: Session
+    // }) => {
     //   // Enrich session with custom data (e.g., user preferences, roles, etc.)
     //   return {
-    //     ...session,
-    //     ...user,
+    //     session,
+    //     user: {
+    //       ...user,
+    //       onBoarded: "on_boarded",
+    //     },
     //     // Add custom fields
-    //     preferences: user.preferences || {},
     //     // You can fetch additional data from your database here
     //   };
     // }),

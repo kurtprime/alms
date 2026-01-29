@@ -44,6 +44,7 @@ export const user = pgTable(
     index("user_role_created_idx").on(table.role, table.createdAt),
   ],
 );
+export type AuthUser = typeof user.$inferSelect;
 
 export const session = pgTable(
   "session",
@@ -67,6 +68,7 @@ export const session = pgTable(
   },
   (table) => [index("session_userId_idx").on(table.userId)],
 );
+export type Session = typeof session.$inferSelect;
 
 export const account = pgTable(
   "account",

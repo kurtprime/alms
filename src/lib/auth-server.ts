@@ -2,6 +2,13 @@
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { redirect } from "next/navigation";
+import { Session } from "./auth-client";
+import { AuthUser } from "@/db/schema";
+
+interface CustomSession {
+  session: Session;
+  user: AuthUser;
+}
 
 export async function getCurrentAdmin() {
   const session = await auth.api.getSession({
@@ -13,12 +20,10 @@ export async function getCurrentAdmin() {
   //   message: "You are not authorized to access this page",
   // };
 
-  if (!session?.user) {
+  if (!session) {
     redirect("/sign-in");
   }
   if (session.user?.role !== "admin") {
-    if (session.user.role === "students") redirect("/students");
-    if (session.user.role === "teacher") redirect("/teacher");
     redirect("/");
   }
 

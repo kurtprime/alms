@@ -34,7 +34,6 @@ export default function OrderedAnswersSortableItem({
   const [openCropImage, setOpenCropImag] = useState(false);
 
   const onCropComplete = (base64: string) => {
-    console.log(base64);
     form.setValue(`orderingOptions.${index}.imageBase64Jpg`, base64, {
       shouldDirty: true,
     });

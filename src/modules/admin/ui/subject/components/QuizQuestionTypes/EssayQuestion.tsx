@@ -63,7 +63,6 @@ export default function EssayQuestion({
     form.setValue("imageBase64Jpg", baseImage64, {
       shouldDirty: true,
     });
-    console.log(baseImage64);
     setOpenCropImag(false);
   };
   const { isSaving, errorMessage } = useAutoSaveEssayQuestion({
@@ -80,9 +79,7 @@ export default function EssayQuestion({
       });
     },
   });
-  function onSubmit(data: EssayData) {
-    console.log(data);
-  }
+  function onSubmit(data: EssayData) {}
 
   return (
     <>

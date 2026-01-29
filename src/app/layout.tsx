@@ -7,6 +7,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import { extractRouterConfig } from "uploadthing/server";
 import { customFileRouter } from "@/services/uploadthing/router";
+import UserNavigation from "@/modules/user/ui/UserNavigation";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
