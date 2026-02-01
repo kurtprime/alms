@@ -22,20 +22,24 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { authClient } from "@/lib/auth-client";
+import { useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, LogOutIcon, Settings } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React from "react";
 
 export default function SidebarUserButton() {
   const { data, isPending } = authClient.useSession();
+  const queryClient = useQueryClient();
   const isMobile = useIsMobile();
   const router = useRouter();
   //todo
-  const onLogOut = () => {
+  const onLogOut = async () => {
     authClient.signOut({
       fetchOptions: {
-        onSuccess: () => {
+        onSuccess: async () => {
+          await authClient.revokeSessions();
           router.push("/sign-in");
+          queryClient.clear();
         },
       },
     });

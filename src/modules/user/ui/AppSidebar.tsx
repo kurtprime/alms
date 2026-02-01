@@ -1,14 +1,5 @@
 "use client";
-import {
-  ArchiveIcon,
-  Calendar,
-  FolderClosed,
-  Home,
-  Inbox,
-  Search,
-  Settings,
-  Users,
-} from "lucide-react";
+import { Calendar, FolderClosed, Home, Users } from "lucide-react";
 
 import {
   Sidebar,
@@ -60,9 +51,9 @@ export function AppSidebar() {
             <SidebarMenu>
               {items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton className="p-5" asChild>
+                  <SidebarMenuButton className="p-5 " asChild>
                     <a className="text-2xl" href={item.url}>
-                      <item.icon />
+                      <item.icon className="size-10" />
                       <span>{item.title}</span>
                     </a>
                   </SidebarMenuButton>
