@@ -29,7 +29,7 @@ type Props = {
       teacherId: string;
       classId: string;
       description?: string | undefined;
-      status?: "draft" | "published" | "archived" | undefined;
+      status: "draft" | "published" | "archived";
     },
     "teacherId"
   >;
@@ -41,7 +41,7 @@ export default function SelectTeacher({ field, setCreateNewTeacher }: Props) {
   //const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery(
-    trpc.admin.getManyTeachers.queryOptions({})
+    trpc.admin.getManyTeachers.queryOptions({}),
   );
 
   return (

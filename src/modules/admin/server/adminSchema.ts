@@ -90,7 +90,7 @@ export const createSubjectSchema = z.object({
   description: z.string().optional(),
   teacherId: z.string().min(1, { message: "Teacher is required" }),
   classId: z.string().min(1, { message: "Class is required" }),
-  status: z.enum(statusEnumValues).default("draft"),
+  status: z.enum(statusEnumValues),
 });
 
 export const createLessonSchema = z.object({

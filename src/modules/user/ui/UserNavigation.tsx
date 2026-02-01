@@ -1,28 +1,32 @@
 "use client";
 
 import { GeneratedAvatar } from "@/components/generatedAvatar";
+import ResponsiveDialog from "@/components/responsive-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { SidebarSeparator, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Spinner } from "@/components/ui/spinner";
 import { authClient } from "@/lib/auth-client";
-import {
-  Building2,
-  ChevronRight,
-  LogOut,
-  Settings,
-  Shield,
-  User,
-} from "lucide-react";
+import { LogOut, Plus, Settings, Shield } from "lucide-react";
 import Link from "next/link";
 import React from "react";
+import TeacherAddClassForm from "./components/Teacher/TeacherAddClassForm";
+import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function UserNavigation() {
   return (
@@ -32,13 +36,61 @@ export default function UserNavigation() {
         <Separator orientation="vertical" className="bg-black" />
         <Button variant={"link"}>LMS</Button>
       </div>
-      <ProfilePopUp />
+      <div className="flex gap-4 justify-between items-center">
+        <AddClassroomButton />
+        <ProfilePopUp />
+      </div>
     </div>
+  );
+}
+
+function AddClassroomButton() {
+  const { data: session } = authClient.useSession();
+  const [open, setOpen] = React.useState(false);
+
+  if (!session || session.user.role !== "teacher") {
+    return null;
+  }
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant={"ghost"} className="rounded-full w-9">
+            <Plus className="size-5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={8}>
+          <DropdownMenuGroup>
+            <DropdownMenuItem asChild>
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-2"
+                onClick={() => setOpen(true)}
+              >
+                <Plus className="size-4 " />
+                Create Class
+              </Button>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ResponsiveDialog
+        onOpenChange={setOpen}
+        open={open}
+        title="Create New Class"
+        description="Create a new class to start teaching"
+      >
+        <TeacherAddClassForm setOpen={setOpen} />
+      </ResponsiveDialog>
+    </>
   );
 }
 
 function ProfilePopUp() {
   const { data: session } = authClient.useSession();
+  const router = useRouter();
+  const queryClient = useQueryClient();
 
   if (!session) {
     return <Spinner />;
@@ -56,7 +108,9 @@ function ProfilePopUp() {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          window.location.href = "/sign-in";
+          router.refresh();
+          router.push("/sign-in");
+          queryClient.clear();
         },
       },
     });
@@ -134,17 +188,6 @@ function ProfilePopUp() {
         {/* Navigation Links */}
         <div className="p-2">
           <nav className="flex flex-col gap-1">
-            <Link href="/profile">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 h-9 px-2 text-sm font-normal"
-              >
-                <User className="h-4 w-4 text-muted-foreground" />
-                Profile
-                <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100" />
-              </Button>
-            </Link>
-
             <Link href="/settings">
               <Button
                 variant="ghost"
@@ -154,18 +197,6 @@ function ProfilePopUp() {
                 Settings
               </Button>
             </Link>
-
-            {session.session.activeOrganizationId && (
-              <Link href="/organization">
-                <Button
-                  variant="ghost"
-                  className="w-full justify-start gap-2 h-9 px-2 text-sm font-normal"
-                >
-                  <Building2 className="h-4 w-4 text-muted-foreground" />
-                  Organization
-                </Button>
-              </Link>
-            )}
           </nav>
         </div>
 
@@ -179,14 +210,14 @@ function ProfilePopUp() {
             className="w-full justify-start gap-2 h-9 px-2 text-sm font-normal text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
           >
             <LogOut className="h-4 w-4" />
-            Sign out
+            Log out
           </Button>
         </div>
 
         {/* Footer Info */}
         <div className="bg-muted/50 p-3 text-center">
           <p className="text-[11px] text-muted-foreground">
-            Signed in as{" "}
+            Signed in as
             <span className="font-medium text-foreground">{user.email}</span>
           </p>
         </div>

@@ -20,6 +20,7 @@ import { ControllerRenderProps } from "react-hook-form";
 import { useTRPC } from "@/trpc/client";
 import { useQuery } from "@tanstack/react-query";
 import { PlusIcon } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 
 type Props = {
   field: ControllerRenderProps<
@@ -29,7 +30,7 @@ type Props = {
       teacherId: string;
       classId: string;
       description?: string | undefined;
-      status?: "published" | "draft" | "archived" | undefined;
+      status: "draft" | "published" | "archived";
     },
     "name"
   >;
@@ -41,47 +42,93 @@ export default function SelectSubjectName({
   setCreateNewSubjectName,
 }: Props) {
   const trpc = useTRPC();
-  //const queryClient = useQueryClient();
+  const { data: session } = authClient.useSession();
 
   const { data, isLoading } = useQuery(
-    trpc.admin.getAllSubjectNames.queryOptions()
+    session?.user.role === "admin"
+      ? trpc.admin.getAllSubjectNames.queryOptions()
+      : trpc.user.getAllSubjectNames.queryOptions(),
   );
 
+  const { data: currentSubjects, isLoading: isCurrentSubjectsLoading } =
+    useQuery(trpc.user.getCurrentSubjectName.queryOptions());
+
+  // Deduplication setup
+  const currentSubjectIds = new Set(currentSubjects?.map((c) => c.id) || []);
+  const availableSubjects =
+    data?.filter((subject) => !currentSubjectIds.has(subject.id)) || [];
+
   return (
-    <Select onValueChange={field.onChange} defaultValue={`${field.value}`}>
+    <Select
+      onValueChange={field.onChange}
+      value={field.value} // Use value (controlled), not defaultValue
+    >
       <SelectTrigger className="w-full">
-        <SelectValue placeholder="Select a subject" {...field} />
+        <SelectValue placeholder="Select a subject" />
       </SelectTrigger>
       <SelectContent>
         <Command>
-          <CommandInput placeholder="search for subject" />
-          <CommandList>
-            <CommandEmpty>No subject found.</CommandEmpty>
-            <CommandGroup heading="Subjects">
-              {isLoading ? (
-                <CommandItem disabled>
-                  <Spinner /> Loading...
-                </CommandItem>
-              ) : (
-                data?.map((subject) => (
-                  <CommandItem key={subject.id}>
-                    <SelectItem value={`${subject.id}`}>
-                      {subject.name}
-                    </SelectItem>
+          <CommandInput placeholder="Search for subject" />
+
+          {/* Current Subjects (Priority) */}
+          {currentSubjects && currentSubjects.length > 0 && (
+            <CommandList>
+              <CommandGroup heading="Current Subjects">
+                {isCurrentSubjectsLoading ? (
+                  <CommandItem disabled>
+                    <Spinner className="mr-2" /> Loading...
                   </CommandItem>
-                ))
+                ) : (
+                  currentSubjects.map((subject) => (
+                    <CommandItem key={`current-${subject.id}`}>
+                      <SelectItem value={`${subject.id}`}>
+                        {subject.name}
+                      </SelectItem>
+                    </CommandItem>
+                  ))
+                )}
+              </CommandGroup>
+            </CommandList>
+          )}
+
+          {/* Available Subjects (Filtered duplicates) */}
+          <CommandList>
+            {availableSubjects.length > 0 && (
+              <CommandGroup heading="Available Subjects">
+                {isLoading ? (
+                  <CommandItem disabled>
+                    <Spinner className="mr-2" /> Loading...
+                  </CommandItem>
+                ) : (
+                  availableSubjects.map((subject) => (
+                    <CommandItem key={subject.id}>
+                      <SelectItem value={`${subject.id}`}>
+                        {subject.name}
+                      </SelectItem>
+                    </CommandItem>
+                  ))
+                )}
+              </CommandGroup>
+            )}
+
+            {/* Empty state when both lists are empty */}
+            {availableSubjects.length === 0 &&
+              currentSubjects?.length === 0 && (
+                <CommandEmpty>No subject found.</CommandEmpty>
               )}
-            </CommandGroup>
           </CommandList>
         </Command>
+
         <SelectGroup>
           <Button
+            type="button" // Prevent form submission
             onClick={() => setCreateNewSubjectName(true)}
             className="my-2 w-full"
             variant="ghost"
             size="sm"
           >
-            <PlusIcon /> Create New Subject
+            <PlusIcon className="mr-2 h-4 w-4" />
+            Create New Subject
           </Button>
         </SelectGroup>
       </SelectContent>

@@ -1,14 +1,6 @@
-"use server";
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { redirect } from "next/navigation";
-import { Session } from "./auth-client";
-import { AuthUser } from "@/db/schema";
-
-interface CustomSession {
-  session: Session;
-  user: AuthUser;
-}
 
 export async function getCurrentAdmin() {
   const session = await auth.api.getSession({
@@ -23,6 +15,9 @@ export async function getCurrentAdmin() {
   if (!session) {
     redirect("/sign-in");
   }
+
+  console.log(session);
+
   if (session.user?.role !== "admin") {
     redirect("/");
   }
@@ -48,5 +43,11 @@ export async function getCurrentUser() {
   const session = await auth.api.getSession({
     headers: await headers(), // you need to pass the headers object.
   });
+  if (!session) {
+    redirect("/sign-in");
+  }
+  if (session.user.role === "admin") {
+    redirect("/admin/users");
+  }
   return { ...session };
 }
