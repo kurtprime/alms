@@ -10,6 +10,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import z from "zod";
 import { toast } from "sonner";
 import { AddSubjectForm } from "@/modules/formComponents/AddSubjectForm";
+import { authClient } from "@/lib/auth-client";
 
 type Props = {
   setOpen: (open: boolean) => void;
@@ -19,6 +20,7 @@ export default function AdminAddSubjectForm({ setOpen }: Props) {
   const [createNewSubjectName, setCreateNewSubjectName] = useState(false);
   const [createNewTeacher, setCreateNewTeacher] = useState(false);
   const [createNewSection, setCreateNewSection] = useState(false);
+  const { data: session, isPending } = authClient.useSession();
 
   const trpc = useTRPC();
   const queryClient = useQueryClient();
@@ -59,6 +61,10 @@ export default function AdminAddSubjectForm({ setOpen }: Props) {
     await createNewSubject.mutateAsync(values);
   }
 
+  if (isPending || !session) {
+    return <div>Loading...</div>;
+  }
+
   return (
     <AddSubjectForm
       form={form}
@@ -70,6 +76,7 @@ export default function AdminAddSubjectForm({ setOpen }: Props) {
       setCreateNewSubjectName={setCreateNewSubjectName}
       setCreateNewTeacher={setCreateNewTeacher}
       setCreateNewSection={setCreateNewSection}
+      session={session}
     />
   );
 }

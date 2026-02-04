@@ -1,6 +1,4 @@
-"use client";
-import { Calendar, FolderClosed, Home, Users } from "lucide-react";
-
+import { Calendar, Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -11,35 +9,16 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { authClient } from "@/lib/auth-client";
 import { Spinner } from "@/components/ui/spinner";
-
-// Menu items.
-const items = [
-  {
-    title: "Home",
-    url: "#",
-    icon: Home,
-  },
-  {
-    title: "Calendar",
-    url: "#",
-    icon: Calendar,
-  },
-];
-
-const teacherItems = [
-  {
-    title: "Classes",
-    url: "#",
-    icon: Users,
-  },
-  {
-    title: "To Check",
-    url: "#",
-    icon: FolderClosed,
-  },
-];
+import { getCurrentUser } from "@/lib/auth-server";
+import { Accordion } from "@/components/ui/accordion";
+import { getQueryClient, trpc } from "@/trpc/server";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
+import { Suspense } from "react";
+import { ErrorBoundary } from "react-error-boundary";
+import SidebarAccordion from "./components/Teacher/SidebarAccordion";
+import SidebarMenuItemsParams from "./components/SidebarMenuItemsParams";
+import StudentSideBarAccordion from "./components/Student/StudentSidebarAccordion";
 
 export function AppSidebar() {
   return (
@@ -49,16 +28,7 @@ export function AppSidebar() {
           <SidebarGroupLabel>Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton className="p-5 " asChild>
-                    <a className="text-2xl" href={item.url}>
-                      <item.icon className="size-10" />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              <SidebarMenuItemsParams />
               <DynamicSideBar />
             </SidebarMenu>
           </SidebarGroupContent>
@@ -68,23 +38,43 @@ export function AppSidebar() {
   );
 }
 
-function DynamicSideBar() {
-  const { data: session } = authClient.useSession();
+async function DynamicSideBar() {
+  const session = await getCurrentUser();
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.user.getCurrentSectionInfo.queryOptions(),
+  );
 
-  if (!session) {
-    return <Spinner />;
+  if (session.user.role === "teacher") {
+    return (
+      <>
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <Suspense fallback={<div>Loading...</div>}>
+            <ErrorBoundary fallback={<div>Something went wrong</div>}>
+              <Accordion type="multiple">
+                <SidebarAccordion session={session} />
+              </Accordion>
+            </ErrorBoundary>
+          </Suspense>
+        </HydrationBoundary>
+      </>
+    );
   }
 
-  if (session.user.role === "teacher")
-    return teacherItems.map((item) => (
-      <SidebarMenuItem key={item.title}>
-        <SidebarMenuButton className="p-5" asChild>
-          <a className="text-2xl" href={item.url}>
-            <item.icon />
-            <span>{item.title}</span>
-          </a>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
-    ));
-  if (session.user.role === "student") return <div>student</div>;
+  if (session.user.role === "student")
+    return (
+      <>
+        <HydrationBoundary state={dehydrate(queryClient)}>
+          <Suspense fallback={<div>Loading...</div>}>
+            <ErrorBoundary fallback={<div>Something went wrong</div>}>
+              <Accordion type="multiple">
+                <StudentSideBarAccordion session={session} />
+              </Accordion>
+            </ErrorBoundary>
+          </Suspense>
+        </HydrationBoundary>
+      </>
+    );
+
+  return null;
 }

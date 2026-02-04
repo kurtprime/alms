@@ -30,7 +30,7 @@ import { AdminCreateTeacherForm } from "../admin/ui/users/components/AdminCreate
 import SectionForm from "../admin/ui/section/components/SectionForm";
 import SelectTeacher from "../admin/ui/subject/components/SelectTeacher";
 import SelectSection from "../admin/ui/subject/components/SelectSection";
-import { authClient } from "@/lib/auth-client";
+import { authClient, Session } from "@/lib/auth-client";
 
 // Define the schema type
 type SubjectFormValues = z.infer<typeof createSubjectSchema>;
@@ -70,6 +70,7 @@ interface SubjectFormProps {
   createSubjectNameComponent?: React.ReactNode;
   createTeacherComponent?: React.ReactNode;
   createSectionComponent?: React.ReactNode;
+  session: Session;
 }
 
 // Status values - import from your schema or define here
@@ -94,8 +95,8 @@ export function AddSubjectForm({
     <AdminCreateTeacherForm setOpen={setCreateNewTeacher} />
   ),
   createSectionComponent = <SectionForm setOpen={setCreateNewSection} />,
+  session,
 }: SubjectFormProps) {
-  const { data: session } = authClient.useSession();
   const handleSubmit = form.handleSubmit(onSubmit);
 
   const isTeacher = session?.user.role === "teacher";

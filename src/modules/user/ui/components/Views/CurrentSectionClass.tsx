@@ -4,20 +4,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import {
-  FolderOpen,
-  MoreVertical,
-  TrendingUp,
-  Users,
-  BookOpen,
-} from "lucide-react";
+import { MoreVertical, TrendingUp, Users, BookOpen } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { authClient } from "@/lib/auth-client";
+import { Badge } from "@/components/ui/badge";
+import { useRouter } from "next/navigation";
 
 // Google Classroom-style header colors using OKLCH for proper theming
 const getHeaderGradient = (index: number) => {
@@ -37,11 +32,13 @@ export default function CurrentSectionClass() {
   const { data } = useSuspenseQuery(
     trpc.user.getCurrentSectionInfo.queryOptions(),
   );
+  const router = useRouter();
 
   // TODO: Replace console.log with actual navigation or modal opening
   const handleCardClick = (classId: string) => {
     console.log("Selected class ID:", classId);
     // TODO: Implement navigation or action here
+    router.push(`/class/${classId}`);
     // TODO: Example: router.push(`/class/${classId}`);
     // TODO: Example: setSelectedClass(classId);
     // TODO: Example: openClassModal(classId);
@@ -64,6 +61,9 @@ export default function CurrentSectionClass() {
               <div className="absolute top-0 right-0 w-32 h-32 bg-background rounded-full -mr-10 -mt-10" />
               <div className="absolute bottom-0 left-0 w-24 h-24 bg-foreground rounded-full -ml-10 -mb-10" />
             </div>
+            <Badge className="absolute right-2 top-2 text-background ">
+              {classItem.subjectCode}
+            </Badge>
 
             {/* Title Section */}
             <div className="relative z-10 h-full flex flex-col justify-center pr-10">
