@@ -1,4 +1,5 @@
-import { authClient } from "@/lib/auth-client";
+"use client";
+import { authClient, Session } from "@/lib/auth-client";
 import { createSubjectSchema } from "@/modules/admin/server/adminSchema";
 import { AddSubjectForm } from "@/modules/formComponents/AddSubjectForm";
 import { useTRPC } from "@/trpc/client";
@@ -11,13 +12,16 @@ import z from "zod";
 
 export default function TeacherAddClassForm({
   setOpen,
+  session,
+  isPending,
 }: {
   setOpen: (open: boolean) => void;
+  session: Session;
+  isPending: boolean;
 }) {
   const [createNewSubjectName, setCreateNewSubjectName] = useState(false);
   const [createNewTeacher, setCreateNewTeacher] = useState(false);
   const [createNewSection, setCreateNewSection] = useState(false);
-  const { data: session } = authClient.useSession();
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -79,6 +83,9 @@ export default function TeacherAddClassForm({
   async function onSubmitSubject(values: z.infer<typeof createSubjectSchema>) {
     await createNewSubject.mutateAsync(values);
   }
+  if (isPending) {
+    return <div>Loading...</div>;
+  }
   return (
     <AddSubjectForm
       form={form}
@@ -90,6 +97,7 @@ export default function TeacherAddClassForm({
       setCreateNewSubjectName={setCreateNewSubjectName}
       setCreateNewTeacher={setCreateNewTeacher}
       setCreateNewSection={setCreateNewSection}
+      session={session}
     />
   );
 }

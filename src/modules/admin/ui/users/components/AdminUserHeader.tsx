@@ -14,7 +14,7 @@ export default function AdminUserHeader() {
           User List
         </h2>
         <div className="flex justify-center md:justify-end">
-          <TabsList className="bg-background/50 border-b border-border py-4 md:py-6 flex ">
+          <TabsList className="bg-background/50 border-b border-border  flex ">
             {UserItems.map((item) => (
               <TabsTrigger
                 className="p-3 md:p-5 font-semibold text-sm md:text-md flex-shrink-0"
