@@ -9,7 +9,7 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { mdxEditorSchema } from "@/modules/admin/server/adminSchema";
-import { MdxEditor } from "@/services/mdxEditor/MdxEditor";
+import { MdxEditor } from "@/services/mdxEditor";
 import { zodResolver } from "@hookform/resolvers/zod";
 import React from "react";
 import { useForm } from "react-hook-form";
@@ -36,10 +36,10 @@ export default function MdxEditorForm({
       onSuccess: () => {
         toast.success("Save");
         queryClient.invalidateQueries(
-          trpc.admin.getMarkUp.queryOptions({ id: lessonTypeId })
+          trpc.admin.getMarkUp.queryOptions({ id: lessonTypeId }),
         );
       },
-    })
+    }),
   );
 
   const form = useForm({

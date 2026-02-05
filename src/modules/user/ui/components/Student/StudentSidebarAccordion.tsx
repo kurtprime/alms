@@ -48,7 +48,7 @@ function SidebarAccordionItem({
         </span>
       </AccordionTrigger>
       <AccordionContent className="p-0 ml-6 w-[calc(100%-1rem)] mt-0 mb-4 border-l">
-        {item.content(session)}
+        {item.content(session)}s
       </AccordionContent>
     </AccordionItem>
   );

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
+import { authClient } from "@/lib/auth-client";
 
 // Google Classroom-style header colors using OKLCH for proper theming
 const getHeaderGradient = (index: number) => {
@@ -29,6 +30,7 @@ const getHeaderGradient = (index: number) => {
 
 export default function CurrentSectionClass() {
   const trpc = useTRPC();
+  const { data: session, isPending } = authClient.useSession();
   const { data } = useSuspenseQuery(
     trpc.user.getCurrentSectionInfo.queryOptions(),
   );
@@ -130,7 +132,7 @@ export default function CurrentSectionClass() {
             className="h-14 px-0 pb-5 border-t border-border flex justify-end gap-1 bg-card"
             onClick={(e) => e.stopPropagation()} // TODO: Prevent card click when using footer actions
           >
-            {classItem.role === "teacher" && (
+            {!isPending && session?.user.role === "teacher" && (
               <Button
                 variant="ghost"
                 size="icon"
@@ -141,28 +143,30 @@ export default function CurrentSectionClass() {
               </Button>
             )}
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full hover:bg-muted hover:text-foreground text-muted-foreground mr-1"
+            {!isPending && session?.user.role === "teacher" && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-full hover:bg-muted hover:text-foreground text-muted-foreground mr-1"
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="bg-popover text-popover-foreground border-border"
                 >
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                align="end"
-                className="bg-popover text-popover-foreground border-border"
-              >
-                <DropdownMenuItem>Copy invite link</DropdownMenuItem>
-                <DropdownMenuItem>Move</DropdownMenuItem>
-                <DropdownMenuItem>Edit</DropdownMenuItem>
-                <DropdownMenuItem className="text-destructive focus:text-destructive">
-                  Archive {classItem.role}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem>Copy invite link sss </DropdownMenuItem>
+                  <DropdownMenuItem>Move</DropdownMenuItem>
+                  <DropdownMenuItem>Edit</DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive focus:text-destructive">
+                    Archive {classItem.role}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </CardFooter>
         </Card>
       ))}

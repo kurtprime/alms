@@ -1,6 +1,7 @@
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getCurrentAdmin } from "@/lib/auth-server";
 import AdminSidebar from "@/modules/admin/ui/admin/components/AdminSidebar";
+import { TRPCReactProvider } from "@/trpc/client";
 import React from "react";
 
 export default async function layout({
@@ -10,11 +11,13 @@ export default async function layout({
 }) {
   await getCurrentAdmin();
   return (
-    <SidebarProvider>
-      <AdminSidebar />
-      <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-screen w-full">
-        {children}
-      </main>
-    </SidebarProvider>
+    <TRPCReactProvider>
+      <SidebarProvider>
+        <AdminSidebar />
+        <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-screen w-full">
+          {children}
+        </main>
+      </SidebarProvider>
+    </TRPCReactProvider>
   );
 }

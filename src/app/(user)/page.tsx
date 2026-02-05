@@ -1,5 +1,5 @@
 import { getCurrentUser } from "@/lib/auth-server";
-import CurrentSectionClass from "@/modules/user/ui/components/Views/CurrentSectionClass";
+import CurrentSectionClass from "@/modules/user/ui/Views/CurrentSectionClass";
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import React, { Suspense } from "react";

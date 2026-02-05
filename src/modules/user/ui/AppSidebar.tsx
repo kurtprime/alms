@@ -1,4 +1,3 @@
-import { Calendar, Home } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
@@ -6,10 +5,7 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
 import { getCurrentUser } from "@/lib/auth-server";
 import { Accordion } from "@/components/ui/accordion";
 import { getQueryClient, trpc } from "@/trpc/server";

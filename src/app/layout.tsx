@@ -20,16 +20,14 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <TRPCReactProvider>
-      <html lang="en">
-        <body
-          className={`${GeistSans.variable} ${GeistMono.variable} antialiased `}
-        >
-          <NextSSRPlugin routerConfig={extractRouterConfig(customFileRouter)} />
-          <NuqsAdapter>{children}</NuqsAdapter>
-          <Toaster />
-        </body>
-      </html>
-    </TRPCReactProvider>
+    <html lang="en">
+      <body
+        className={`${GeistSans.variable} ${GeistMono.variable} antialiased `}
+      >
+        <NextSSRPlugin routerConfig={extractRouterConfig(customFileRouter)} />
+        <NuqsAdapter>{children}</NuqsAdapter>
+        <Toaster />
+      </body>
+    </html>
   );
 }
