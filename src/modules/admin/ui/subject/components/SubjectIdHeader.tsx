@@ -25,7 +25,7 @@ type Props = {
 export default function SubjectIdHeader({ subjectId }: Props) {
   const trpc = useTRPC();
   const { data, isLoading } = useQuery(
-    trpc.admin.getAllSubjectInfo.queryOptions({ id: subjectId })
+    trpc.admin.getAllSubjectInfo.queryOptions({ id: subjectId }),
   );
   const [, setTab] = useTabParams();
 
@@ -71,7 +71,7 @@ export default function SubjectIdHeader({ subjectId }: Props) {
           </Breadcrumb>
         </h2>
         <div className="flex justify-center md:justify-end">
-          <TabsList className="bg-background/50 border border-border py-4 md:py-6 flex ">
+          <TabsList className="bg-background/50 border border-border flex ">
             {SubjectItems.map((item) => (
               <TabsTrigger
                 className="p-3 md:p-5 font-semibold text-sm md:text-md flex-shrink-0"

@@ -1,4 +1,6 @@
 // components/mdx-editor/add-image.tsx
+// This file stays as-is BUT is dynamically imported in mdx-editor-impl.tsx
+
 "use client";
 
 import { useState } from "react";
@@ -6,8 +8,7 @@ import {
   Button,
   insertImage$,
   usePublisher,
-  useCellValues,
-  markdown$,
+  // Removed unused: useCellValues, markdown$
 } from "@mdxeditor/editor";
 import {
   Dialog,
@@ -17,14 +18,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { ImageIcon, Upload, X, Loader2 } from "lucide-react"; // ✅ Added Loader2
+import { ImageIcon, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useLessonTypeParams } from "@/modules/admin/ui/subject/hooks/useSubjectSearchParamClient";
 import { useUploadThing } from "../uploadthing/uploadthing";
 
-export const AddImage = () => {
+export const CustomAddImage = () => {
   const insertImage = usePublisher(insertImage$);
-  const [markdown] = useCellValues(markdown$); // ✅ Fixed: pass array, not single value
   const [open, setOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState({ src: "", alt: "" });
   const [isUploading, setIsUploading] = useState(false);
@@ -35,7 +35,7 @@ export const AddImage = () => {
   const { startUpload } = useUploadThing("mdxImageUploader");
 
   const handleFileUpload = async () => {
-    if (!selectedFile) return; // ✅ Removed undefined `editor` check
+    if (!selectedFile) return;
 
     setIsUploading(true);
     try {
@@ -62,18 +62,18 @@ export const AddImage = () => {
   };
 
   const handleUrlSubmit = async () => {
-    if (!imageUrl.src.trim() || !imageUrl.alt.trim()) return; // ✅ Removed undefined `editor` check
+    if (!imageUrl.src.trim() || !imageUrl.alt.trim()) return;
 
     try {
       setIsUploading(true);
-      await insertImage({
+      insertImage({
         src: imageUrl.src,
         altText: imageUrl.alt,
         title: imageUrl.alt,
       });
       toast.success("Image added from URL");
       setOpen(false);
-      resetForm(); // ✅ Added missing reset
+      resetForm();
     } catch {
       toast.error("Failed to add image. Check the URL.");
     } finally {
@@ -109,7 +109,6 @@ export const AddImage = () => {
           </DialogHeader>
 
           <div className="grid gap-4 py-4">
-            {/* Upload Section */}
             <div className="space-y-4">
               {!selectedFile ? (
                 <div
@@ -171,7 +170,6 @@ export const AddImage = () => {
               <Separator className="flex-1" />
             </div>
 
-            {/* URL Input Section */}
             <div className="space-y-3">
               <div>
                 <label htmlFor="image-source" className="text-sm font-medium">
@@ -214,7 +212,6 @@ export const AddImage = () => {
               Cancel
             </Button>
 
-            {/* Upload Button (shows when file is selected) */}
             {selectedFile && (
               <Button onClick={handleFileUpload} disabled={isUploading}>
                 {isUploading ? (
@@ -228,7 +225,6 @@ export const AddImage = () => {
               </Button>
             )}
 
-            {/* URL Button (shows when no file, but URL is filled) */}
             {!selectedFile && imageUrl.src.trim() && (
               <Button
                 onClick={handleUrlSubmit}

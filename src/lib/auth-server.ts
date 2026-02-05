@@ -1,6 +1,7 @@
 import { headers } from "next/headers";
 import { auth } from "./auth";
 import { redirect } from "next/navigation";
+import { waitFor } from "@/services/waitFor";
 
 export async function getCurrentAdmin() {
   const session = await auth.api.getSession({

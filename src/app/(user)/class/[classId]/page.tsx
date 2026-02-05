@@ -1,4 +1,5 @@
-import ClassIdView from "@/modules/user/ui/components/Views/ClassIdView";
+import { getCurrentUser } from "@/lib/auth-server";
+import ClassIdView from "@/modules/user/ui/Views/ClassIdView";
 import React from "react";
 
 export default async function page({

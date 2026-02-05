@@ -1,6 +1,8 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getCurrentUser } from "@/lib/auth-server";
 import React from "react";
+import StudentTab from "../components/StudentTab";
+import ClassOverview from "../components/ClassOverview";
 
 export default async function ClassIdView({ classId }: { classId: string }) {
   const session = await getCurrentUser();
@@ -28,10 +30,10 @@ export default async function ClassIdView({ classId }: { classId: string }) {
         <div>Class Announcement Content for classId: {classId}</div>
       </TabsContent>
       <TabsContent value="overview">
-        <div>Class Overview Content for classId: {classId}</div>
+        <ClassOverview session={session} classId={classId} />
       </TabsContent>
       <TabsContent value="students">
-        <div>Students Content for classId: {classId}</div>
+        <StudentTab classId={classId} />
       </TabsContent>
       {isTeacher && (
         <TabsContent value="gradebook">

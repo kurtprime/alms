@@ -27,6 +27,7 @@ export const organizationMemberRole = pgEnum("organization_member_role", [
   "advisor",
 ]);
 export type OrganizationMemberRole = typeof organizationMemberRole;
+
 export const organizationMemberStrand = pgEnum("organization_member_strand", [
   "Not Specified",
   "Accountancy, Business and Management",
@@ -56,7 +57,7 @@ export const member = pgTable(
     index("member_organization_idx").on(table.organizationId),
     index("member_user_idx").on(table.userId),
     index("member_org_role_idx").on(table.organizationId, table.role),
-  ]
+  ],
 );
 
 export const invitation = pgTable("invitation", {
