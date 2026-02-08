@@ -1,13 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem } from "@/components/ui/form";
 import { mdxEditorSchema } from "@/modules/admin/server/adminSchema";
 import { MdxEditor } from "@/services/mdxEditor";
 import { zodResolver } from "@hookform/resolvers/zod";

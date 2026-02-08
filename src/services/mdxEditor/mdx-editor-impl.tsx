@@ -80,7 +80,7 @@ export function MdxEditorImpl({ value, onChange, className }: MdxEditorProps) {
       <MDXEditor
         className={cn(
           "mdxeditor-custom",
-          "prose prose-sm sm:prose-base dark:prose-invert",
+          "prose prose-sm gap-2 dark:prose-invert",
           "max-w-full h-full p-0",
         )}
         markdown={value}

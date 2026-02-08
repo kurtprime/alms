@@ -84,7 +84,7 @@ export const lessonActions = {
           })
           .returning({ id: lessonType.id });
 
-        if (type === "assignment")
+        if (type === "quiz")
           await tx.insert(quiz).values({
             lessonTypeId: lessonTypeResult.id,
             createdBy: ctx.auth.user.id,

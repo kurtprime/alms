@@ -6,7 +6,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import AddLessonHeader from "./Teacher/AddLessonHeader";
 import { Session } from "@/lib/auth-client";
 
-export default function ClassOverview({
+export default async function ClassOverview({
   classId,
   session,
 }: {
@@ -15,17 +15,18 @@ export default function ClassOverview({
 }) {
   const queryClient = getQueryClient();
   void queryClient.prefetchQuery(
-    trpc.user.getAllLessonsInClass.queryOptions({
+    trpc.user.getAllLessonsWithContentsInClass.queryOptions({
       classId,
     }),
   );
+
   return (
     <>
       <AddLessonHeader classId={classId} session={session} />
       <HydrationBoundary state={dehydrate(queryClient)}>
-        <Suspense fallback={<div>Loading...</div>}>
+        <Suspense fallback={<div>Loading Suspense...</div>}>
           <ErrorBoundary fallback={<div>Something went wrong</div>}>
-            <ClassOverviewClient classId={classId} />
+            <ClassOverviewClient classId={classId} session={session} />
           </ErrorBoundary>
         </Suspense>
       </HydrationBoundary>

@@ -1,7 +1,6 @@
 import { Session } from "@/lib/auth-client";
-import { getCurrentUser } from "@/lib/auth-server";
 import React from "react";
-import AddLessonBtn from "./AddLessonBtn";
+import AddLessonBtn from "./AddLesson";
 
 export default async function AddLessonHeader({
   classId,

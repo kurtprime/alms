@@ -38,17 +38,23 @@ export default function SectionForm({ setOpen }: SectionFormProps) {
       onSuccess: () => {
         setOpen(false);
         queryClient.invalidateQueries(
-          trpc.admin.getManySections.queryOptions({})
+          trpc.admin.getManySections.queryOptions({}),
+        );
+        queryClient.invalidateQueries(
+          trpc.user.getManySections.queryOptions({}),
+        );
+        queryClient.invalidateQueries(
+          trpc.user.getTheCurrentJoinedSections.queryOptions({}),
         );
       },
       onError: (error) => {
         toast.error(
           error.message === "slug is taken"
             ? "Section name already created"
-            : error.message
+            : error.message,
         );
       },
-    })
+    }),
   );
   async function onSubmit(values: z.infer<typeof createSectionFormSchema>) {
     createSection.mutate(values);

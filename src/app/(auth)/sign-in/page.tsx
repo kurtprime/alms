@@ -126,9 +126,9 @@ function SignInForm() {
             name="username"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>UserId</FormLabel>
+                <FormLabel>Username</FormLabel>
                 <FormControl>
-                  <Input placeholder="enter userId" {...field} />
+                  <Input placeholder="enter username" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

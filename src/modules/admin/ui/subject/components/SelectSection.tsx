@@ -119,7 +119,7 @@ export default function SelectSection({ field, setCreateNewSection }: Props) {
             size="sm"
           >
             <PlusIcon className="mr-2 h-4 w-4" />
-            Create New Subject
+            Create New Class
           </Button>
         </SelectGroup>
       </SelectContent>
