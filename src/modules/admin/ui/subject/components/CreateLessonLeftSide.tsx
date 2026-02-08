@@ -35,9 +35,11 @@ import { Spinner } from "@/components/ui/spinner";
 export default function CreateLessonLeftSide({
   onOpen,
   initialValues,
+  classId,
 }: {
   onOpen: (open: boolean) => void;
   initialValues?: AdminGetLessonsPerClass[number];
+  classId?: string;
 }) {
   const params: { subjectId: string } = useParams();
   const form = useForm({
@@ -45,7 +47,7 @@ export default function CreateLessonLeftSide({
     defaultValues: {
       name: initialValues?.name ?? "",
       terms: initialValues?.terms ?? "prelims",
-      classId: initialValues?.classSubjectId ?? params.subjectId,
+      classId: initialValues?.classSubjectId ?? params.subjectId ?? classId,
     },
   });
   const queryClient = useQueryClient();
@@ -58,14 +60,19 @@ export default function CreateLessonLeftSide({
         queryClient.invalidateQueries(
           trpc.admin.getLessonsPerClass.queryOptions({
             classId: params.subjectId,
-          })
+          }),
+        );
+        queryClient.invalidateQueries(
+          trpc.user.getAllLessonsInClass.queryOptions({
+            classId: params.subjectId ?? classId,
+          }),
         );
         onOpen(false);
       },
       onError: () => {
         toast.error("Failed to create Lesson");
       },
-    })
+    }),
   );
 
   const updateLesson = useMutation(
@@ -75,14 +82,14 @@ export default function CreateLessonLeftSide({
         queryClient.invalidateQueries(
           trpc.admin.getLessonsPerClass.queryOptions({
             classId: params.subjectId,
-          })
+          }),
         );
         onOpen(false);
       },
       onError: () => {
         toast.error("Failed to create Lesson");
       },
-    })
+    }),
   );
   const onSubmit = (data: z.infer<typeof createLessonSchema>) => {
     if (!initialValues) {
@@ -90,6 +97,7 @@ export default function CreateLessonLeftSide({
     } else {
       updateLesson.mutate({ ...data, id: initialValues.id });
     }
+    console.log(data);
   };
 
   return (
@@ -140,7 +148,11 @@ export default function CreateLessonLeftSide({
                       <SelectGroup>
                         <SelectLabel>Select Terms</SelectLabel>
                         {lessonTerm.enumValues.map((term) => (
-                          <SelectItem key={term} value={term}>
+                          <SelectItem
+                            className="hover:bg-accent! cursor-pointer"
+                            key={term}
+                            value={term}
+                          >
                             {term}
                           </SelectItem>
                         ))}

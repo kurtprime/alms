@@ -9,7 +9,7 @@ export default function LessonRightSide() {
   switch (lessonTypeParams.type) {
     case "handout":
       return <LessonTopic key={lessonTypeParams.id} />;
-    case "assignment":
+    case "quiz":
       return <Assignments key={lessonTypeParams.id} />;
     default:
       return <div>Not selected</div>;

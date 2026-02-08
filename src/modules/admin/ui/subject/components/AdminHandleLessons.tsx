@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/resizable";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import LessonRightSide from "./LessonRightSide";
+import { DisplayLessons } from "./DisplayLesson";
 
 export default function AdminHandleLessons() {
   return (
@@ -17,7 +18,8 @@ export default function AdminHandleLessons() {
         className="bg-background rounded-bl-2xl"
       >
         <ScrollArea className="h-[calc(100vh-130px)] px-3 pt-2">
-          <LessonCreate />
+          <LessonCreate className="w-full" />
+          <DisplayLessons />
         </ScrollArea>
       </ResizablePanel>
       <ResizableHandle />

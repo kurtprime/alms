@@ -41,17 +41,23 @@ export default function CreateNewSubjectName({
       //TODO
       onSuccess: () => {
         queryClient.invalidateQueries(
-          trpc.admin.getAllSubjectNames.queryOptions()
+          trpc.admin.getAllSubjectNames.queryOptions(),
         );
         queryClient.invalidateQueries(
-          trpc.admin.getAllAdminSubject.queryOptions({})
+          trpc.admin.getAllAdminSubject.queryOptions({}),
+        );
+        queryClient.invalidateQueries(
+          trpc.user.getAllSubjectNames.queryOptions(),
+        );
+        queryClient.invalidateQueries(
+          trpc.user.getCurrentSubjectName.queryOptions(),
         );
         onOpenChange(false);
       },
       onError: (error) => {
         toast.error(error.message);
       },
-    })
+    }),
   );
 
   const onSubmit = async (values: z.infer<typeof newSubjectNameSchema>) => {

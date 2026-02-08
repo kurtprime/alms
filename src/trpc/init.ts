@@ -35,7 +35,7 @@ export const protectedProcedure = baseProcedure.use(async ({ ctx, next }) => {
   return next({ ctx: { ...ctx, auth: session } });
 });
 export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  const data = await auth.api.userHasPermission({
+  const isAdmin = await auth.api.userHasPermission({
     body: {
       userId: ctx.auth.user.id,
       role: "admin",
@@ -44,8 +44,17 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
       },
     },
   });
+  const isTeacher = await auth.api.userHasPermission({
+    body: {
+      userId: ctx.auth.user.id,
+      role: "teacher",
+      permission: {
+        setUser: ["create", "update"],
+      },
+    },
+  });
 
-  if (data.success === false) {
+  if (isAdmin.success === false && isTeacher.success === false) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Forbidden" });
   }
 

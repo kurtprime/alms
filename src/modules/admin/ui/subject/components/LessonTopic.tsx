@@ -36,7 +36,7 @@ export default function LessonTopic() {
   const trpc = useTRPC();
 
   const { data, isPending, isError } = useQuery(
-    trpc.admin.getMarkUp.queryOptions({ id: lessonTypeParams.id ?? -1 })
+    trpc.admin.getMarkUp.queryOptions({ id: lessonTypeParams.id ?? -1 }),
   );
 
   if (isError) {
@@ -45,10 +45,6 @@ export default function LessonTopic() {
 
   return (
     <div className="flex flex-col gap-2 pr-3 pt-2 pl-1 ">
-      <Button className="ml-auto" onClick={() => setOpenDropZone(true)}>
-        Add File
-      </Button>
-      <DocumentViewer />
       <Card className="p-2 bg-background">
         {isPending ? (
           <div className="flex items-center justify-center h-48">
@@ -58,6 +54,10 @@ export default function LessonTopic() {
           <MdxEditorForm key={lessonTypeParams.id} markup={data} />
         )}
       </Card>
+      <Button className="w-full" onClick={() => setOpenDropZone(true)}>
+        Add File
+      </Button>
+      <DocumentViewer />
       <ResponsiveDialog
         title=""
         description=""
@@ -92,7 +92,7 @@ export function CustomDocumentDropzone({
         queryClient.invalidateQueries(
           trpc.admin.getLessonDocument.queryOptions({
             lessonId: lessonTypeParams.id ?? -1,
-          })
+          }),
         );
         setFiles([]);
         setError(null);
@@ -101,7 +101,7 @@ export function CustomDocumentDropzone({
         console.error("Upload failed:", error);
         setError(error.message);
       },
-    }
+    },
   );
 
   const accept: Accept = {
@@ -164,13 +164,13 @@ export function CustomDocumentDropzone({
 
       if (validFiles.length > maxFiles) {
         setError(
-          `Maximum ${maxFiles} files allowed. Only first ${maxFiles} were selected.`
+          `Maximum ${maxFiles} files allowed. Only first ${maxFiles} were selected.`,
         );
       }
 
       setFiles(finalFiles);
     },
-    []
+    [],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({

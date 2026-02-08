@@ -22,7 +22,7 @@ export const lesson = pgTable(
   {
     id: serial("id").primaryKey(),
     name: varchar("name", { length: 50 }).notNull(),
-    terms: lessonTerm("terms").notNull(),
+    terms: lessonTerm("terms"),
     classSubjectId: varchar("class_subject_id", { length: 255 })
       .references(() => classSubjects.id, {
         onDelete: "cascade",
@@ -38,13 +38,17 @@ export const lesson = pgTable(
   (table) => [
     index("lesson_class_subject_term_unique").on(
       table.classSubjectId,
-      table.terms
+      table.terms,
     ),
     index("lesson_class_subject_idx").on(table.classSubjectId),
     index("lesson_status_idx").on(table.status, table.classSubjectId),
-  ]
+  ],
 );
-export const lessonTypeEnum = pgEnum("lesson_types", ["handout", "assignment"]);
+export const lessonTypeEnum = pgEnum("lesson_types", [
+  "handout",
+  "quiz",
+  "assignment",
+]);
 export const lessonType = pgTable(
   "lesson_type",
   {
@@ -62,5 +66,5 @@ export const lessonType = pgTable(
       .$defaultFn(() => new Date())
       .notNull(),
   },
-  (table) => [index("lesson_lesson_id_idx").on(table.lessonId)]
+  (table) => [index("lesson_lesson_id_idx").on(table.lessonId)],
 );
