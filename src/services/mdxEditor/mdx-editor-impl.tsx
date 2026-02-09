@@ -33,8 +33,9 @@ import { Loader2 } from "lucide-react";
 import { useLessonTypeParams } from "@/modules/admin/ui/subject/hooks/useSubjectSearchParamClient";
 import { AddImage } from "./";
 import type { MdxEditorProps } from "./index";
+import { CustomAddImage } from "./custom-image-dialog";
 
-const toolbarContents = () => (
+const toolbarContents = (lessonTypeId?: number) => (
   <div className="w-full overflow-x-auto">
     <div className="flex items-center flex-nowrap gap-1 px-2 py-2 min-w-max">
       <UndoRedo />
@@ -51,7 +52,7 @@ const toolbarContents = () => (
       <Separator className="hidden sm:block" />
       <BlockTypeSelect />
       <CreateLink />
-      <AddImage />
+      <CustomAddImage lessonTypeId={lessonTypeId} />
       <Separator className="hidden sm:block" />
       <div className="hidden lg:flex items-center gap-1">
         <InsertTable />
@@ -64,7 +65,12 @@ const toolbarContents = () => (
   </div>
 );
 
-export function MdxEditorImpl({ value, onChange, className }: MdxEditorProps) {
+export function MdxEditorImpl({
+  value,
+  onChange,
+  className,
+  lessonTypeId,
+}: MdxEditorProps) {
   const isMobile = useIsMobile();
   const [lessonTypeParams] = useLessonTypeParams();
   const { startUpload } = useUploadThing("mdxImageUploader");
@@ -98,20 +104,29 @@ export function MdxEditorImpl({ value, onChange, className }: MdxEditorProps) {
           imagePlugin({
             imageUploadHandler: async (image) => {
               setUploadingImage(true);
+              let uploadedUrl: string;
+
               try {
                 const uploadedFiles = await startUpload([image], {
-                  lessonTypeId: lessonTypeParams.id,
+                  lessonTypeId: lessonTypeId ?? lessonTypeParams.id,
                 });
+
                 if (!uploadedFiles || uploadedFiles.length === 0) {
                   throw new Error("Upload failed");
                 }
-                return uploadedFiles[0].ufsUrl;
+
+                uploadedUrl = uploadedFiles[0].ufsUrl;
+              } catch (error) {
+                // Re-throw so MDXEditor knows it failed
+                throw error;
               } finally {
                 setUploadingImage(false);
               }
+
+              return uploadedUrl!;
             },
           }),
-          toolbarPlugin({ toolbarContents }),
+          toolbarPlugin({toolbarContents: () => toolbarContents(lessonTypeId)}),
           codeMirrorPlugin({
             codeBlockLanguages: {
               js: "JavaScript",

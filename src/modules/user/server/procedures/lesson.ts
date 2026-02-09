@@ -1,9 +1,16 @@
-import { lesson, lessonType, lessonTypeEnum } from "@/db/schema";
+import {
+  lesson,
+  lessonType,
+  lessonTypeEnum,
+  publishStatusEnum,
+} from "@/db/schema";
 import { db } from "@/index";
 import { protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
 import z from "zod";
+import { addLessonTeacherSchema } from "../userSchema";
+import { inngest } from "@/services/inngest/client";
 
 export const lessonActions = {
   createLessonType: protectedProcedure
@@ -48,7 +55,7 @@ export const lessonActions = {
         return newLesson[0];
       });
 
-      const lessonTypeData = await db
+      const [lessonTypeData] = await db
         .insert(lessonType)
         .values({
           lessonId: lessonData.id,
@@ -58,10 +65,35 @@ export const lessonActions = {
 
       return { lessonData, lessonTypeData };
     }),
+  updateLessonType: protectedProcedure
+    .input(
+      addLessonTeacherSchema.extend({
+        status: z.enum(publishStatusEnum.enumValues).nullish(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { lessonId, title, markDownDescription, lessonTypeId, status } =
+        input;
+
+      const updatedData = await db
+        .update(lessonType)
+        .set({
+          name: title,
+          markup: markDownDescription,
+          lessonId: +lessonId,
+          status: status ? status : undefined,
+        })
+        .where(eq(lessonType.id, lessonTypeId));
+
+      await inngest.send({
+        name: "uploadthing/markup.image.upload",
+        data: { lessonTypeId, markup: markDownDescription },
+      });
+    }),
   deleteLessonType: protectedProcedure
     .input(
       z.object({
-        lessonId: z.string(),
+        lessonTypeId: z.number(),
       }),
     )
     .mutation(async ({ input, ctx }) => {
@@ -69,8 +101,8 @@ export const lessonActions = {
         throw new TRPCError({ code: "FORBIDDEN", message: "Not Authorize" });
       }
 
-      const { lessonId } = input;
+      const { lessonTypeId } = input;
 
-      await db.delete(lesson).where(eq(lesson.id, +lessonId));
+      await db.delete(lessonType).where(eq(lessonType.id, lessonTypeId));
     }),
 };
