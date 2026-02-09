@@ -17,8 +17,6 @@ export async function getCurrentAdmin() {
     redirect("/sign-in");
   }
 
-  console.log(session);
-
   if (session.user?.role !== "admin") {
     redirect("/");
   }
@@ -46,9 +44,6 @@ export async function getCurrentUser() {
   });
   if (!session) {
     redirect("/sign-in");
-  }
-  if (session.user.role === "admin") {
-    redirect("/admin/users");
   }
   return { ...session };
 }

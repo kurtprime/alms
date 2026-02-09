@@ -1,15 +1,7 @@
-// components/mdx-editor/add-image.tsx
-// This file stays as-is BUT is dynamically imported in mdx-editor-impl.tsx
-
 "use client";
 
 import { useState } from "react";
-import {
-  Button,
-  insertImage$,
-  usePublisher,
-  // Removed unused: useCellValues, markdown$
-} from "@mdxeditor/editor";
+import { Button, insertImage$, usePublisher } from "@mdxeditor/editor";
 import {
   Dialog,
   DialogContent,
@@ -23,16 +15,32 @@ import { toast } from "sonner";
 import { useLessonTypeParams } from "@/modules/admin/ui/subject/hooks/useSubjectSearchParamClient";
 import { useUploadThing } from "../uploadthing/uploadthing";
 
-export const CustomAddImage = () => {
+export const CustomAddImage = ({ lessonTypeId }: { lessonTypeId?: number }) => {
   const insertImage = usePublisher(insertImage$);
   const [open, setOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState({ src: "", alt: "" });
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null); // Track preview URL
 
   const [lessonTypeParams] = useLessonTypeParams();
   const { startUpload } = useUploadThing("mdxImageUploader");
+
+  const resetForm = () => {
+    setImageUrl({ src: "", alt: "" });
+    setSelectedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl); // Clean up object URL
+      setPreviewUrl(null);
+    }
+    setIsDragging(false);
+  };
+
+  const handleFileSelect = (file: File) => {
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
 
   const handleFileUpload = async () => {
     if (!selectedFile) return;
@@ -40,7 +48,7 @@ export const CustomAddImage = () => {
     setIsUploading(true);
     try {
       const uploadedFiles = await startUpload([selectedFile], {
-        lessonTypeId: lessonTypeParams.id,
+        lessonTypeId: lessonTypeId ?? lessonTypeParams.id,
       });
 
       if (uploadedFiles?.[0]) {
@@ -52,6 +60,8 @@ export const CustomAddImage = () => {
         toast.success(`Image uploaded successfully`);
         setOpen(false);
         resetForm();
+      } else {
+        throw new Error("No files returned from upload");
       }
     } catch (error) {
       console.error(error);
@@ -74,17 +84,12 @@ export const CustomAddImage = () => {
       toast.success("Image added from URL");
       setOpen(false);
       resetForm();
-    } catch {
+    } catch (error) {
+      console.error(error);
       toast.error("Failed to add image. Check the URL.");
     } finally {
       setIsUploading(false);
     }
-  };
-
-  const resetForm = () => {
-    setImageUrl({ src: "", alt: "" });
-    setSelectedFile(null);
-    setIsDragging(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -92,9 +97,16 @@ export const CustomAddImage = () => {
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file?.type.startsWith("image/")) {
-      setSelectedFile(file);
+      handleFileSelect(file);
     }
   };
+
+  // Cleanup on unmount
+  useState(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  });
 
   return (
     <>
@@ -102,7 +114,13 @@ export const CustomAddImage = () => {
         <ImageIcon className="h-4 w-4" />
       </Button>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog
+        open={open}
+        onOpenChange={(open) => {
+          if (!open) resetForm();
+          setOpen(open);
+        }}
+      >
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Insert Image</DialogTitle>
@@ -138,15 +156,16 @@ export const CustomAddImage = () => {
                     className="hidden"
                     onChange={(e) => {
                       const file = e.target.files?.[0];
-                      if (file) setSelectedFile(file);
+                      if (file) handleFileSelect(file);
                     }}
                   />
                 </div>
               ) : (
                 <div className="space-y-2">
                   <div className="relative">
+                    {/* Use previewUrl state instead of creating new object URL */}
                     <img
-                      src={URL.createObjectURL(selectedFile)}
+                      src={previewUrl || ""}
                       alt="Preview"
                       className="max-h-48 mx-auto rounded-lg"
                     />

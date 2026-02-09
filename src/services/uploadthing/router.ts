@@ -85,32 +85,29 @@ export const customFileRouter = {
   mdxImageUploader: f({
     image: {
       maxFileSize: "4MB",
-      maxFileCount: 20,
+      maxFileCount: 1,
     },
   })
     .input(z.object({ lessonTypeId: z.int() }))
     .middleware(async ({ input }) => {
       const user = await getCurrentUser();
-      if (user.session == undefined)
-        throw new UploadThingError({
-          message: "not currently login",
-          code: "FORBIDDEN",
-        });
+
       return { lessonTypeId: input.lessonTypeId };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      // Store in database with userId for tracking
       const { key, ufsUrl } = file;
+      console.log("inserting " + metadata.lessonTypeId);
       await db.insert(mdxEditorImageUpload).values({
         lessonTypeId: metadata.lessonTypeId,
         fileKey: key,
         fileUrl: ufsUrl,
       });
+      console.log("SUCCESS");
 
       return {
         success: true,
         key: file.key,
-        url: file.ufsUrl,
+        url: ufsUrl,
         name: file.name,
       };
     }),

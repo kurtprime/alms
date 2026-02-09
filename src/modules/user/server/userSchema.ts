@@ -3,7 +3,8 @@ import { inferRouterOutputs } from "@trpc/server";
 import z from "zod";
 
 export const addLessonTeacherSchema = z.object({
-  lessonId: z.string().nullable(),
+  lessonId: z.string(),
+  lessonTypeId: z.int(),
   title: z.string(),
   markDownDescription: z.string(),
 });

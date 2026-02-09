@@ -17,4 +17,5 @@ export interface MdxEditorProps {
   value: string;
   onChange: (value: string) => void;
   className?: string;
+  lessonTypeId?: number;
 }

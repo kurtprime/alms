@@ -15,15 +15,10 @@ import {
 } from "@/modules/user/server/userSchema";
 import { useTRPC } from "@/trpc/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookCopy, Plus } from "lucide-react";
 import React, { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
 import LessonSelect from "./LessonSelect";
 import CreateLessonLeftSide from "@/modules/admin/ui/subject/components/CreateLessonLeftSide";
@@ -39,10 +34,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { SaveStatusBadge } from "@/modules/admin/ui/subject/components/QuizQuestionTypes/MultipleChoiceQuestion";
+import { useAutoSaveLesson } from "@/modules/user/hooks/use-auto-save";
+
+type LessonTeacherData = z.infer<typeof addLessonTeacherSchema>;
 
 export default function AddLessonBtn({ classId }: { classId: string }) {
   const [open, setOpen] = useState(false);
-  const [initialData, setInitialData] = useState<UserAddLessonType>();
+  const [initialData, setInitialData] = useState<LessonTeacherData>();
+  const [lessonType, setLessonType] = useState("");
   const trpc = useTRPC();
   const queryClient = useQueryClient();
   const lessonCreateType = useMutation(
@@ -54,7 +54,13 @@ export default function AddLessonBtn({ classId }: { classId: string }) {
             classId: variables.classId,
           }),
         );
-        setInitialData(data);
+        setLessonType(data.lessonTypeData.type);
+        setInitialData({
+          lessonId: `${data.lessonData.id}`,
+          lessonTypeId: data.lessonTypeData.id,
+          title: data.lessonTypeData.name ?? "",
+          markDownDescription: data.lessonTypeData.markup ?? "",
+        });
         setOpen(true);
       },
     }),
@@ -93,39 +99,73 @@ export default function AddLessonBtn({ classId }: { classId: string }) {
       </DropdownMenu>
 
       <ResponsiveDialog
-        title="Add Lesson"
+        title={"Add " + lessonType}
         description=""
         open={open}
         className="min-w-[90vw] max-w-[90vw] min-h-[90vh] max-h-[90vh] flex flex-col justify-stretch items-stretch gap-3"
         onOpenChange={setOpen}
       >
-        <AddLessonDialog classId={classId} initialData={initialData} />
+        <AddLessonDialog
+          setOpen={setOpen}
+          classId={classId}
+          initialData={initialData!}
+        />
       </ResponsiveDialog>
     </>
   );
 }
 
-function AddLessonDialog({
+export function AddLessonDialog({
   classId,
   initialData,
+  setOpen,
 }: {
   classId: string;
-  initialData?: UserAddLessonType;
+  initialData: LessonTeacherData;
+  setOpen: (arg: boolean) => void;
 }) {
-  type LessonTeacherData = z.infer<typeof addLessonTeacherSchema>;
+  const trpc = useTRPC();
+  const { lessonId, lessonTypeId, title, markDownDescription } = initialData;
   const form = useForm({
     resolver: zodResolver(addLessonTeacherSchema),
     defaultValues: {
-      lessonId: "",
-      title: "",
-      markDownDescription: "",
+      lessonId: `${lessonId}`,
+      lessonTypeId: lessonTypeId,
+      title: title ?? "",
+      markDownDescription: markDownDescription ?? "",
+    },
+  });
+
+  const { mutate, isPending } = useMutation(
+    trpc.user.updateLessonType.mutationOptions({
+      onSuccess: function (data, variablestext) {
+        setOpen(false);
+      },
+    }),
+  );
+
+  const formValues = useWatch({
+    control: form.control,
+  });
+  const isDirty = form.formState.isDirty;
+
+  const { isSaving, errorMessage } = useAutoSaveLesson({
+    data: {
+      ...formValues,
+    } as LessonTeacherData,
+    enabled: isDirty,
+    onSuccess: () => {
+      form.reset(form.getValues(), {
+        keepValues: true,
+        keepDirty: false,
+      });
     },
   });
 
   const [openAddNewLesson, setOpenAddNewLesson] = useState(false);
 
   function onSubmit(data: LessonTeacherData) {
-    console.log(data);
+    mutate({ ...data, status: "published" });
   }
 
   return (
@@ -159,7 +199,7 @@ function AddLessonDialog({
               control={form.control}
               name="markDownDescription"
               render={({ field }) => (
-                <FormItem className="flex-1">
+                <FormItem className="flex-1 ">
                   <FormLabel className="text-sm text-muted-foreground font-normal">
                     Instructions (optional)
                   </FormLabel>
@@ -169,6 +209,7 @@ function AddLessonDialog({
                         className="min-h-[300px] border rounded-md  lg:prose-sm!"
                         value={field.value}
                         onChange={field.onChange}
+                        lessonTypeId={formValues.lessonTypeId}
                       />
                     </ScrollArea>
                   </FormControl>
@@ -189,7 +230,9 @@ function AddLessonDialog({
                   name="lessonId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-sm font-medium">For</FormLabel>
+                      <FormLabel className="text-sm font-medium">
+                        Lesson
+                      </FormLabel>
                       <FormControl>
                         <LessonSelect
                           classId={classId}
@@ -211,15 +254,25 @@ function AddLessonDialog({
 
       {/* Submit button fixed at bottom */}
       <div className="flex justify-end gap-2 mt-4 pt-4 border-t">
-        <Button type="button" variant="outline" onClick={() => form.reset()}>
+        <SaveStatusBadge
+          isSaving={isSaving}
+          isDirty={isDirty}
+          error={errorMessage}
+        />
+        <Button
+          type="button"
+          disabled={isPending}
+          variant="outline"
+          onClick={() => form.reset()}
+        >
           Cancel
         </Button>
         <Button
           type="submit"
           onClick={form.handleSubmit(onSubmit)}
-          disabled={!form.formState.isValid}
+          disabled={!form.formState.isValid || isPending}
         >
-          Create
+          Published
         </Button>
       </div>
 
