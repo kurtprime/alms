@@ -26,7 +26,7 @@ export const uploadThingMarkup = inngest.createFunction(
       return storedImages.map((img) => img.fileKey);
     });
     const unusedKeys = storedKeys.filter(
-      (key) => !referencedKeys.includes(key)
+      (key) => !referencedKeys.includes(key),
     );
     if (unusedKeys.length === 0) {
       return { deleted: 0, keys: [] };
@@ -40,11 +40,30 @@ export const uploadThingMarkup = inngest.createFunction(
         .where(
           and(
             eq(mdxEditorImageUpload.lessonTypeId, lessonTypeId),
-            inArray(mdxEditorImageUpload.fileKey, unusedKeys)
-          )
+            inArray(mdxEditorImageUpload.fileKey, unusedKeys),
+          ),
         );
     });
 
     return { deleted: unusedKeys.length, keys: unusedKeys };
-  }
+  },
+);
+
+export const testConnection = inngest.createFunction(
+  { id: "test-connection" },
+  { event: "test/connection" },
+  async ({ event, step }) => {
+    console.log("✅ Inngest function executed!", event);
+
+    await step.run("test-step", async () => {
+      console.log("✅ Step executed successfully");
+      return { status: "ok", timestamp: new Date().toISOString() };
+    });
+
+    return {
+      message: "Connection successful",
+      receivedData: event.data,
+      functionId: "test-connection",
+    };
+  },
 );

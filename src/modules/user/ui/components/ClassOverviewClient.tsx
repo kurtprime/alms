@@ -18,9 +18,6 @@ import {
   Copy,
   Pencil,
   Calendar,
-  Clock,
-  AlertCircle,
-  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -116,19 +113,78 @@ function LessonTypeRow({
 
   return (
     <>
-      <AccordionItem value={`${item.id} + ${item.name}`}>
-        <AccordionTrigger
+      <AccordionItem
+        className="relative border-none group/item"
+        value={`${item.id}-${item.name}`}
+      >
+        {/* Actions - outside trigger, hover reveal */}
+        <div
           className={cn(
-            "group flex items-center gap-3 py-2.5 px-3 rounded-lg",
-            "hover:bg-slate-50 transition-colors",
-            "border border-transparent hover:border-slate-200",
-            "cursor-pointer",
+            "absolute right-2 top-2.5 z-10 flex items-center gap-1",
+            "opacity-0 group-hover/item:opacity-100",
+            "transition-opacity duration-200",
           )}
         >
-          {/* Icon - compact */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-slate-600 hover:text-slate-900 bg-white/80 backdrop-blur-sm"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenEdit(true);
+            }}
+          >
+            <Pencil className="w-3.5 h-3.5" />
+          </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 text-slate-600 bg-white/80 backdrop-blur-sm"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-40">
+              <DropdownMenuItem
+                onClick={(e) => e.stopPropagation()}
+                className="text-xs"
+              >
+                <Copy className="w-3.5 h-3.5 mr-2" />
+                Duplicate
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setOpenDelete(true);
+                }}
+                className="text-xs text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="w-3.5 h-3.5 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+
+        {/* Trigger - clean, no nested buttons */}
+        <AccordionTrigger
+          className={cn(
+            "flex items-center gap-3 py-2.5 px-3 rounded-lg w-full",
+            "hover:bg-slate-50 transition-colors",
+            "border border-transparent hover:border-slate-200",
+            "hover:no-underline",
+            "[&[data-state=open]>svg:last-child]:rotate-180",
+          )}
+        >
+          {/* Icon */}
           <Tooltip>
             <TooltipTrigger asChild>
-              <div className={cn("p-1.5 rounded-md flex-shrink-0", config.bg)}>
+              <div className={cn("p-1.5 rounded-md shrink-0", config.bg)}>
                 <Icon className={cn("w-4 h-4", config.color)} />
               </div>
             </TooltipTrigger>
@@ -137,7 +193,7 @@ function LessonTypeRow({
             </TooltipContent>
           </Tooltip>
 
-          {/* Content - single line layout */}
+          {/* Content */}
           <div className="flex-1 min-w-0 flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
@@ -158,8 +214,8 @@ function LessonTypeRow({
               </div>
             </div>
 
-            {/* Metadata - compact, secondary */}
-            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-500 flex-shrink-0">
+            {/* Metadata - reserve space for actions with pr-20 */}
+            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-500 shrink-0 pr-20">
               <span className="flex items-center gap-1">
                 <Calendar className="w-3 h-3" />
                 {new Date(item.createdAt).toLocaleDateString("en-US", {
@@ -169,58 +225,11 @@ function LessonTypeRow({
               </span>
             </div>
           </div>
-
-          {/* Actions - inline, visible on hover */}
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 text-slate-600 hover:text-slate-900"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpenEdit(true);
-              }}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </Button>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-7 w-7 text-slate-600"
-                >
-                  <MoreHorizontal className="w-4 h-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // Duplicate logic
-                  }}
-                  className="text-xs"
-                >
-                  <Copy className="w-3.5 h-3.5 mr-2" />
-                  Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenDelete(true);
-                  }}
-                  className="text-xs text-red-600 focus:text-red-600"
-                >
-                  <Trash2 className="w-3.5 h-3.5 mr-2" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
         </AccordionTrigger>
-        <AccordionContent>TEST TEST</AccordionContent>
+
+        <AccordionContent className="pt-1 pb-2">
+          <div className="pl-9 pr-3 text-sm text-slate-600">TEST TEST</div>
+        </AccordionContent>
       </AccordionItem>
 
       {/* Delete Dialog */}
