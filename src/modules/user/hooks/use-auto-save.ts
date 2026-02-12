@@ -2,7 +2,7 @@
 "use client";
 
 import { useTRPC } from "@/trpc/client";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
 import { useDebounce } from "use-debounce";
 import { toast } from "sonner";
@@ -28,12 +28,10 @@ export function useAutoSaveLesson({
   const [debouncedData] = useDebounce(data, interval * 1000);
   const previousDataRef = useRef(data);
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const { mutate, isPending, error } = useMutation(
     trpc.user.updateLessonType.mutationOptions({
       onSuccess: () => {
         // Invalidate to refresh data
-        queryClient.invalidateQueries();
         onSuccess?.();
       },
       onError: (e) => {

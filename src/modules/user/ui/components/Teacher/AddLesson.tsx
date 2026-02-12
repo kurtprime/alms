@@ -125,6 +125,7 @@ export function AddLessonDialog({
   setOpen: (arg: boolean) => void;
 }) {
   const trpc = useTRPC();
+  const queryClient = useQueryClient();
   const { lessonId, lessonTypeId, title, markDownDescription } = initialData;
   const form = useForm({
     resolver: zodResolver(addLessonTeacherSchema),
@@ -138,7 +139,12 @@ export function AddLessonDialog({
 
   const { mutate, isPending } = useMutation(
     trpc.user.updateLessonType.mutationOptions({
-      onSuccess: function (data, variablestext) {
+      onSuccess: () => {
+        queryClient.invalidateQueries(
+          trpc.user.getAllLessonsWithContentsInClass.queryOptions({
+            classId,
+          }),
+        );
         setOpen(false);
       },
     }),
@@ -155,6 +161,11 @@ export function AddLessonDialog({
     } as LessonTeacherData,
     enabled: isDirty,
     onSuccess: () => {
+      queryClient.invalidateQueries(
+        trpc.user.getAllLessonsWithContentsInClass.queryOptions({
+          classId,
+        }),
+      );
       form.reset(form.getValues(), {
         keepValues: true,
         keepDirty: false,

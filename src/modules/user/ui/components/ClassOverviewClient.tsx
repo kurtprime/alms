@@ -9,54 +9,91 @@ import {
 import React, { useState } from "react";
 import {
   ChevronDown,
-  ChevronUp,
-  MoreVertical,
+  MoreHorizontal,
   FileText,
   HelpCircle,
   ClipboardList,
   Plus,
+  Trash2,
+  Copy,
+  Pencil,
+  Calendar,
+  Clock,
+  AlertCircle,
+  GripVertical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 import { Session } from "@/lib/auth-client";
 import AddLessonBtn, { AddLessonDialog } from "./Teacher/AddLesson";
 import { UserGetAllLessonsWithContentsInClass } from "../../server/userSchema";
 import ResponsiveDialog from "@/components/responsive-dialog";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 type Lesson = UserGetAllLessonsWithContentsInClass;
 type LessonType = Lesson[number]["lessonTypes"];
 
-const typeIcons = {
-  handout: FileText,
-  quiz: HelpCircle,
-  assignment: ClipboardList,
+const typeConfig = {
+  handout: {
+    icon: FileText,
+    color: "text-blue-600",
+    bg: "bg-blue-50",
+    label: "Handout",
+  },
+  quiz: {
+    icon: HelpCircle,
+    color: "text-purple-600",
+    bg: "bg-purple-50",
+    label: "Quiz",
+  },
+  assignment: {
+    icon: ClipboardList,
+    color: "text-emerald-600",
+    bg: "bg-emerald-50",
+    label: "Assignment",
+  },
+} as const;
+
+const statusConfig = {
+  draft: {
+    className: "bg-amber-50 text-amber-700 border-amber-200",
+    label: "Draft",
+  },
+  published: {
+    className: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    label: "Live",
+  },
+  archived: {
+    className: "bg-slate-100 text-slate-600 border-slate-200",
+    label: "Archived",
+  },
 };
 
-const typeColors = {
-  handout: "text-blue-600 bg-blue-50",
-  quiz: "text-purple-600 bg-purple-50",
-  assignment: "text-green-600 bg-green-50",
-};
-
-const statusColors = {
-  draft: "bg-yellow-100 text-yellow-800",
-  published: "bg-green-100 text-green-800",
-  archived: "bg-gray-100 text-gray-800",
-};
-
-function LessonTypeCard({
+function LessonTypeRow({
   item,
   classId,
 }: {
-  item: LessonType[number];
+  item: LessonType[number] & { lessonName?: string };
   classId: string;
 }) {
   const trpc = useTRPC();
@@ -65,104 +102,161 @@ function LessonTypeCard({
     trpc.user.deleteLessonType.mutationOptions({
       onSuccess: () => {
         queryClient.invalidateQueries(
-          trpc.user.getAllLessonsWithContentsInClass.queryOptions({
-            classId,
-          }),
+          trpc.user.getAllLessonsWithContentsInClass.queryOptions({ classId }),
         );
       },
     }),
   );
-  const [openDeleteLessonType, setOpenDeleteLessonType] = useState(false);
-  const [openEditLessonType, setEditLessonType] = useState(false);
-  const Icon = typeIcons[item.type];
+
+  const [openDelete, setOpenDelete] = useState(false);
+  const [openEdit, setOpenEdit] = useState(false);
+
+  const config = typeConfig[item.type];
+  const Icon = config.icon;
 
   return (
     <>
-      <Card className="group hover:shadow-md transition-shadow border-l-4 border-l-transparent hover:border-l-blue-500">
-        <CardContent className="">
-          <div className="flex items-start gap-4">
-            <div className={` rounded-full ${typeColors[item.type]}`}>
-              <Icon className="w-5 h-5" />
-            </div>
+      <AccordionItem value={`${item.id} + ${item.name}`}>
+        <AccordionTrigger
+          className={cn(
+            "group flex items-center gap-3 py-2.5 px-3 rounded-lg",
+            "hover:bg-slate-50 transition-colors",
+            "border border-transparent hover:border-slate-200",
+            "cursor-pointer",
+          )}
+        >
+          {/* Icon - compact */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className={cn("p-1.5 rounded-md flex-shrink-0", config.bg)}>
+                <Icon className={cn("w-4 h-4", config.color)} />
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="text-xs">
+              {config.label}
+            </TooltipContent>
+          </Tooltip>
 
+          {/* Content - single line layout */}
+          <div className="flex-1 min-w-0 flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <h4 className="font-medium text-gray-900 truncate">
+              <div className="flex items-center gap-2">
+                <h4 className="font-medium text-slate-900 truncate text-sm">
                   {item.name || `Untitled ${item.type}`}
                 </h4>
                 {item.status && (
                   <Badge
-                    variant="secondary"
-                    className={`text-xs ${statusColors[item.status]}`}
+                    variant="outline"
+                    className={cn(
+                      "text-[10px] px-1.5 py-0 h-5 font-medium",
+                      statusConfig[item.status].className,
+                    )}
                   >
-                    {item.status}
+                    {statusConfig[item.status].label}
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-gray-500">
+            </div>
+
+            {/* Metadata - compact, secondary */}
+            <div className="hidden sm:flex items-center gap-3 text-xs text-slate-500 flex-shrink-0">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3 h-3" />
                 {new Date(item.createdAt).toLocaleDateString("en-US", {
                   month: "short",
                   day: "numeric",
                 })}
-              </p>
+              </span>
             </div>
+          </div>
+
+          {/* Actions - inline, visible on hover */}
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-slate-600 hover:text-slate-900"
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenEdit(true);
+              }}
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </Button>
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-7 w-7 text-slate-600"
                 >
-                  <MoreVertical className="w-4 h-4" />
+                  <MoreHorizontal className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setEditLessonType(true)}>
-                  Edit
-                </DropdownMenuItem>
-                <DropdownMenuItem>Duplicate</DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-40">
                 <DropdownMenuItem
-                  onClick={() => setOpenDeleteLessonType(true)}
-                  className="text-red-600"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Duplicate logic
+                  }}
+                  className="text-xs"
                 >
+                  <Copy className="w-3.5 h-3.5 mr-2" />
+                  Duplicate
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenDelete(true);
+                  }}
+                  className="text-xs text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="w-3.5 h-3.5 mr-2" />
                   Delete
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardContent>
-      </Card>
+        </AccordionTrigger>
+        <AccordionContent>TEST TEST</AccordionContent>
+      </AccordionItem>
+
+      {/* Delete Dialog */}
       <ResponsiveDialog
-        title={`Delete document`}
-        description="This Action cannot be undone"
-        onOpenChange={setOpenDeleteLessonType}
-        open={openDeleteLessonType}
+        title="Delete Item"
+        description={`Delete "${item.name || "Untitled"}"? This cannot be undone.`}
+        onOpenChange={setOpenDelete}
+        open={openDelete}
       >
-        <div className="flex justify-stretch gap-2">
+        <div className="flex justify-end gap-2">
           <Button
-            className="flex-1"
+            variant="outline"
+            size="sm"
+            onClick={() => setOpenDelete(false)}
             disabled={isPending}
-            onClick={() => setOpenDeleteLessonType(false)}
-            variant={"outline"}
           >
-            No
+            Cancel
           </Button>
           <Button
+            variant="destructive"
+            size="sm"
             onClick={() => deleteLessonType({ lessonTypeId: item.id })}
-            className="flex-1"
             disabled={isPending}
           >
-            Delete Document
+            {isPending ? "Deleting..." : "Delete"}
           </Button>
         </div>
       </ResponsiveDialog>
+
+      {/* Edit Dialog */}
       <ResponsiveDialog
-        title={"Edit " + item.type}
+        title={`Edit ${config.label}`}
+        open={openEdit}
         description=""
-        open={openEditLessonType}
-        className="min-w-[90vw] max-w-[90vw] min-h-[90vh] max-h-[90vh] flex flex-col justify-stretch items-stretch gap-3"
-        onOpenChange={setEditLessonType}
+        className="min-w-[90vw] max-w-[90vw] max-h-[85vh]"
+        onOpenChange={setOpenEdit}
       >
         <AddLessonDialog
           initialData={{
@@ -172,7 +266,7 @@ function LessonTypeCard({
             markDownDescription: item.markup ?? "",
           }}
           classId={classId}
-          setOpen={setEditLessonType}
+          setOpen={setOpenEdit}
         />
       </ResponsiveDialog>
     </>
@@ -195,13 +289,11 @@ function TopicSection({
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const isTeacher = session.user.role === "teacher";
 
-  // Get all lesson types for this topic
-  const allLessonTypes = lessons
+  const items = lessons
     .flatMap((lesson) =>
       lesson.lessonTypes.map((lt) => ({
         ...lt,
         lessonName: lesson.name,
-        term: lesson.term,
       })),
     )
     .sort(
@@ -209,51 +301,83 @@ function TopicSection({
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
 
-  if (allLessonTypes.length === 0 && !isTeacher) return null;
+  if (items.length === 0 && !isTeacher) return null;
 
   return (
-    <div className="mb-6">
+    <div className="mb-4">
+      {/* Section Header - compact */}
       <div
-        className="w-full flex items-center lg:w-180 mx-auto justify-between py-3 px-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors group cursor-pointer"
+        className={cn(
+          "flex items-center justify-between py-2 px-2 rounded-md",
+          "hover:bg-slate-100/50 transition-colors cursor-pointer",
+        )}
         onClick={() => setIsOpen(!isOpen)}
       >
-        <div className="flex items-center gap-3">
-          <h3 className="font-medium text-gray-700">{title}</h3>
-          <Badge variant="secondary" className="text-xs">
-            {allLessonTypes.length}
-          </Badge>
+        <div className="flex items-center gap-2 min-w-0">
+          <ChevronDown
+            className={cn(
+              "w-4 h-4 text-slate-500 transition-transform duration-200",
+              !isOpen && "-rotate-90",
+            )}
+          />
+          <h3 className="font-semibold text-slate-800 text-sm truncate">
+            {title}
+          </h3>
+          <span className="text-xs text-slate-500 font-medium">
+            {items.length}
+          </span>
         </div>
-        <div className="flex items-center gap-2 ">
-          {isTeacher && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={(e) => {
-                e.stopPropagation();
-                // Add create handler
-              }}
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Add
-            </Button>
-          )}
 
-          {isOpen ? (
-            <ChevronUp className="w-5 h-5 text-gray-400" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-gray-400" />
-          )}
-        </div>
+        {isTeacher && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 px-2 text-xs opacity-0 group-hover:opacity-100 hover:bg-white"
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
+          >
+            <Plus className="w-3.5 h-3.5 mr-1" />
+            Add
+          </Button>
+        )}
       </div>
 
+      {/* Items - dense list */}
       {isOpen && (
-        <div className="mt-3 space-y-2 lg:w-180 mx-auto">
-          {allLessonTypes.map((item) => (
-            <LessonTypeCard classId={classId} key={item.id} item={item} />
-          ))}
+        <div className="mt-1 ml-6 space-y-0.5">
+          <Accordion type="multiple">
+            {items.map((item) => (
+              <LessonTypeRow key={item.id} item={item} classId={classId} />
+            ))}
+          </Accordion>
         </div>
       )}
+    </div>
+  );
+}
+
+function EmptyState({
+  isTeacher,
+  classId,
+}: {
+  isTeacher: boolean;
+  classId: string;
+}) {
+  return (
+    <div className="text-center py-12">
+      <div className="w-12 h-12 mx-auto mb-3 rounded-lg bg-slate-100 flex items-center justify-center">
+        <ClipboardList className="w-5 h-5 text-slate-400" />
+      </div>
+      <h3 className="text-sm font-medium text-slate-900 mb-1">
+        No content yet
+      </h3>
+      <p className="text-xs text-slate-500 mb-4">
+        {isTeacher
+          ? "Add your first handout, quiz, or assignment"
+          : "Check back later for new content"}
+      </p>
+      {isTeacher && <AddLessonBtn classId={classId} />}
     </div>
   );
 }
@@ -266,51 +390,36 @@ export default function ClassOverviewClient({
   session: Session;
 }) {
   const trpc = useTRPC();
-
   const { data } = useSuspenseQuery(
-    trpc.user.getAllLessonsWithContentsInClass.queryOptions({
-      classId,
-    }),
+    trpc.user.getAllLessonsWithContentsInClass.queryOptions({ classId }),
   );
 
-  // Use lessons directly without grouping by term
   const lessons = data as Lesson;
   const isTeacher = session.user.role === "teacher";
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Main Content */}
-      <div className="max-w-5xl mx-auto px-4 py-6">
-        {/* Topic Sections - Render each lesson as its own topic */}
-        <div className="space-y-2">
-          {lessons.map((lesson) => (
-            <TopicSection
-              classId={classId}
-              key={lesson.id}
-              session={session}
-              title={
-                lesson.term ? `${lesson.name} - ${lesson.term}` : "No Topic"
-              }
-              lessons={[lesson]}
-            />
-          ))}
-        </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="min-h-screen bg-white">
+        <div className="max-w-3xl mx-auto px-4 py-6">
+          {/* Optional: Class header here */}
 
-        {lessons.length === 0 && (
-          <div className="text-center py-20 flex flex-col justify-center items-center">
-            <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
-              <ClipboardList className="w-10 h-10 text-gray-400" />
-            </div>
-            <h3 className="text-lg font-medium text-gray-700 mb-2">
-              No classwork yet
-            </h3>
-            <p className="text-gray-500 mb-4">
-              Create your first assignment or announcement
-            </p>
-            {isTeacher && <AddLessonBtn classId={classId} />}
+          <div className="space-y-1">
+            {lessons.map((lesson) => (
+              <TopicSection
+                key={lesson.id}
+                classId={classId}
+                session={session}
+                title={lesson.name}
+                lessons={[lesson]}
+              />
+            ))}
           </div>
-        )}
+
+          {lessons.length === 0 && (
+            <EmptyState isTeacher={isTeacher} classId={classId} />
+          )}
+        </div>
       </div>
-    </div>
+    </TooltipProvider>
   );
 }
