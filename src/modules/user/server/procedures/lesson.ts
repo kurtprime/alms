@@ -75,6 +75,8 @@ export const lessonActions = {
       const { lessonId, title, markDownDescription, lessonTypeId, status } =
         input;
 
+      console.log(input);
+
       const updatedData = await db
         .update(lessonType)
         .set({
@@ -84,6 +86,7 @@ export const lessonActions = {
           status: status ? status : undefined,
         })
         .where(eq(lessonType.id, lessonTypeId));
+      console.log("success update data");
 
       await inngest.send({
         name: "uploadthing/markup.image.upload",

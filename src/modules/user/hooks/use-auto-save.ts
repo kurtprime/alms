@@ -62,10 +62,10 @@ export function useAutoSaveLesson({
     });
 
     previousDataRef.current = debouncedData;
-  }, [debouncedData, enabled, lessonTypeId, mutate]);
+  }, [debouncedData, enabled, lessonTypeId, mutate, data]);
 
   return {
-    errorMessage: error ? JSON.parse(error.message)[0].message : null,
+    errorMessage: error ? error.toString() : null,
     isSaving: isPending,
     lastSaved: isPending ? null : new Date(),
   };

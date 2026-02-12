@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionCookie } from "better-auth/cookies"; // Import the helper
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Check for the existence of the session cookie
   const session = getSessionCookie(request);
 

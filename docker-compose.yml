@@ -1,0 +1,91 @@
+# Docker Compose for ALMS (Learning Management System)
+
+services:
+  # ============================================
+  # APP SERVICE - Next.js Application
+  # ============================================
+  app:
+    build:
+      context: .
+    container_name: lms-app
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      INNGEST_BASE_URL: http://inngest:8288
+    ports:
+      - 3000:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lms-network
+    env_file:
+      - .env
+
+  # ============================================
+  # INNGEST SERVICE - Background Job Processing
+  # ============================================
+  inngest:
+    image: inngest/inngest:latest
+    container_name: inngest-server
+    ports:
+      - 8288:8288
+    environment:
+      - INNGEST_DEV=true
+    command: inngest dev -u http://app:3000/api/inngest
+    depends_on:
+      - app
+    networks:
+      - lms-network
+    restart: on-failure
+
+  # ============================================
+  # POSTGRES SERVICE - Database
+  # ============================================
+  postgres:
+    image: postgres:15
+    container_name: lms-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+    networks:
+      - lms-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # DRIZZLE STUDIO - Database GUI
+  # ============================================
+  studio:
+    image: node:20-alpine
+    container_name: lms-studio
+    working_dir: /app
+    ports:
+      - 4983:4983
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+    volumes:
+      - ./drizzle.config.ts:/app/drizzle.config.ts
+      - ./src/db:/app/src/db
+    command: sh -c "npx drizzle-kit studio --port 4983 --host 0.0.0.0"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
