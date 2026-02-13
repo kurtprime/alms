@@ -228,7 +228,7 @@ function LessonTypeRow({
         </AccordionTrigger>
 
         <AccordionContent className="pt-1 pb-2">
-          <div className="pl-9 pr-3 text-sm text-slate-600">TEST TEST</div>
+          <div className="pl-9 pr-3 text-sm text-slate-600">{item.markup}</div>
         </AccordionContent>
       </AccordionItem>
 
