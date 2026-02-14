@@ -1,0 +1,13 @@
+_format_version: "2.1"
+_transform: true
+
+services:
+  - name: storage-v1
+    url: http://storage:5000
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1/
+    plugins:
+      - name: cors

@@ -1,10 +1,16 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { useTRPC } from "@/trpc/client";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { MoreVertical, TrendingUp, Users, BookOpen } from "lucide-react";
+import {
+  MoreVertical,
+  Users,
+  BookOpen,
+  Clock,
+  ChevronRight,
+} from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,161 +20,288 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { cn } from "@/lib/utils";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-// Google Classroom-style header colors using OKLCH for proper theming
-const getHeaderGradient = (index: number) => {
-  const gradients = [
-    "from-blue-600 to-blue-800", // Classic blue
-    "from-orange-400 to-orange-600", // Orange/Coral
-    "from-green-600 to-green-800", // Green
-    "from-purple-600 to-purple-800", // Purple
-    "from-red-500 to-red-700", // Red
-    "from-teal-500 to-teal-700", // Teal
-  ];
-  return gradients[index % gradients.length];
-};
+// Types
+interface ClassItem {
+  id: string;
+  subjectName: string;
+  subjectCode: string;
+  teacher: string;
+  studentCount: number;
+  role: string;
+  enrolledClass: {
+    name: string;
+  };
+}
 
-export default function CurrentSectionClass() {
-  const trpc = useTRPC();
-  const { data: session, isPending } = authClient.useSession();
-  const { data } = useSuspenseQuery(
-    trpc.user.getCurrentSectionInfo.queryOptions(),
-  );
-  const router = useRouter();
+interface ClassCardProps {
+  classItem: ClassItem;
+  index: number;
+  onNavigate: (classId: string) => void;
+  isTeacher: boolean;
+}
 
-  // TODO: Replace console.log with actual navigation or modal opening
-  const handleCardClick = (classId: string) => {
-    console.log("Selected class ID:", classId);
-    // TODO: Implement navigation or action here
-    router.push(`/class/${classId}`);
-    // TODO: Example: router.push(`/class/${classId}`);
-    // TODO: Example: setSelectedClass(classId);
-    // TODO: Example: openClassModal(classId);
+// Modern color palette - vibrant but not overwhelming
+const cardThemes = [
+  {
+    accent: "bg-violet-500",
+    accentLight: "bg-violet-100 dark:bg-violet-950/50",
+    text: "text-violet-600 dark:text-violet-400",
+    gradient: "from-violet-500/10 to-transparent",
+  },
+  {
+    accent: "bg-sky-500",
+    accentLight: "bg-sky-100 dark:bg-sky-950/50",
+    text: "text-sky-600 dark:text-sky-400",
+    gradient: "from-sky-500/10 to-transparent",
+  },
+  {
+    accent: "bg-emerald-500",
+    accentLight: "bg-emerald-100 dark:bg-emerald-950/50",
+    text: "text-emerald-600 dark:text-emerald-400",
+    gradient: "from-emerald-500/10 to-transparent",
+  },
+  {
+    accent: "bg-amber-500",
+    accentLight: "bg-amber-100 dark:bg-amber-950/50",
+    text: "text-amber-600 dark:text-amber-400",
+    gradient: "from-amber-500/10 to-transparent",
+  },
+  {
+    accent: "bg-rose-500",
+    accentLight: "bg-rose-100 dark:bg-rose-950/50",
+    text: "text-rose-600 dark:text-rose-400",
+    gradient: "from-rose-500/10 to-transparent",
+  },
+  {
+    accent: "bg-cyan-500",
+    accentLight: "bg-cyan-100 dark:bg-cyan-950/50",
+    text: "text-cyan-600 dark:text-cyan-400",
+    gradient: "from-cyan-500/10 to-transparent",
+  },
+] as const;
+
+function ClassCard({
+  classItem,
+  index,
+  onNavigate,
+  isTeacher,
+}: ClassCardProps) {
+  const theme = cardThemes[index % cardThemes.length];
+
+  const handleAction = (action: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    switch (action) {
+      case "copy-link":
+        navigator.clipboard.writeText(
+          `${window.location.origin}/join/${classItem.id}`,
+        );
+        break;
+      default:
+        break;
+    }
   };
 
   return (
-    <div className="flex flex-row flex-wrap gap-6 p-6">
-      {data.map((classItem, index) => (
-        <Card
-          key={`${classItem.id}-${index}`}
-          onClick={() => handleCardClick(classItem.id)}
-          className="group w-80 h-100 flex flex-col overflow-hidden border border-border bg-card text-card-foreground shadow-sm hover:shadow-md hover:border-accent hover:-translate-y-0.1 transition-all duration-300 cursor-pointer py-0 pb-5 relative"
-        >
-          {/* Google Classroom Style Header */}
-          <div
-            className={`relative h-32 bg-gradient-to-r ${getHeaderGradient(index)} p-4`}
-          >
-            {/* Subtle pattern overlay */}
-            <div className="absolute inset-0 opacity-10 pointer-events-none">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-background rounded-full -mr-10 -mt-10" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-foreground rounded-full -ml-10 -mb-10" />
-            </div>
-            <Badge className="absolute right-2 top-2 text-background ">
-              {classItem.subjectCode}
-            </Badge>
+    <Card
+      className={cn(
+        // Base styles
+        "group relative w-full max-w-sm overflow-hidden",
+        "bg-card/50 backdrop-blur-sm",
+        "border border-border/50",
+        // Hover effects
+        "hover:border-border hover:bg-card",
+        "hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-black/20",
+        "hover:-translate-y-0.3",
+        "transition-all duration-300 ease-out",
+        "cursor-pointer",
+      )}
+      onClick={() => onNavigate(classItem.id)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onNavigate(classItem.id);
+        }
+      }}
+    >
+      {/* Accent bar at top */}
+      <div className={cn("h-1 w-full", theme.accent)} />
 
-            {/* Title Section */}
-            <div className="relative z-10 h-full flex flex-col justify-center pr-10">
-              <h3 className="text-background text-2xl font-normal tracking-tight truncate">
-                {classItem.subjectName}
-              </h3>
-              <div className="mt-1 border-b-2 border-background/30 pb-1">
-                <span className="text-background/90 text-sm font-light">
-                  {classItem.enrolledClass.name}
-                </span>
-              </div>
+      {/* Background gradient */}
+      <div
+        className={cn(
+          "absolute inset-0 bg-linear-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-300",
+          theme.gradient,
+        )}
+      />
+
+      {/* Content */}
+      <div className="relative p-5">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge
+                variant="secondary"
+                className={cn("font-medium", theme.accentLight, theme.text)}
+              >
+                {classItem.subjectCode}
+              </Badge>
             </div>
+            <h3 className="text-lg font-semibold tracking-tight truncate mb-0.5">
+              {classItem.subjectName}
+            </h3>
+            <p className="text-sm text-muted-foreground truncate">
+              {classItem.enrolledClass.name}
+            </p>
           </div>
 
-          {/* Content Area */}
-          <CardContent className="flex-1 p-0 bg-card">
-            <div className="h-full flex flex-col">
-              {/* Teacher Info Bar - shadcn styled */}
-              <div className="px-4 pb-1 border-b border-border flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-                  {classItem.teacher.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs text-muted-foreground">Teacher</p>
-                  <p className="text-sm text-foreground truncate">
-                    {classItem.teacher}
-                  </p>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                  <Users className="h-3 w-3" />
-                  {classItem.studentCount}
-                </div>
-              </div>
-
-              {/* Space for Future Data (Announcements, Assignments, etc.) */}
-              <div className="flex-1 p-4 space-y-3">
-                {/* Placeholder for future content - remove when you add real data */}
-                <div className="text-center py-8 text-muted-foreground">
-                  <BookOpen className="h-8 w-8 mx-auto mb-2 opacity-20" />
-                  <p className="text-sm">No recent announcements</p>
-                </div>
-
-                {/* TODO: Add real announcements here when API is ready
-                <div className="space-y-3">
-                  <div className="flex gap-3 p-3 rounded-lg hover:bg-accent hover:text-accent-foreground border border-transparent hover:border-border transition-colors cursor-pointer">
-                    <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                      <FileText className="h-4 w-4 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">
-                        New assignment posted
-                      </p>
-                      <p className="text-xs text-muted-foreground">2 days ago</p>
-                    </div>
-                  </div>
-                </div>
-                */}
-              </div>
-            </div>
-          </CardContent>
-
-          {/* Google Classroom Style Footer */}
-          <CardFooter
-            className="h-14 px-0 pb-5 border-t border-border flex justify-end gap-1 bg-card"
-            onClick={(e) => e.stopPropagation()} // TODO: Prevent card click when using footer actions
-          >
-            {!isPending && session?.user.role === "teacher" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-10 w-10 rounded-full hover:bg-muted hover:text-foreground text-muted-foreground"
-                title="Grade Book"
-              >
-                <TrendingUp className="h-5 w-5" />
-              </Button>
-            )}
-
-            {!isPending && session?.user.role === "teacher" && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 rounded-full hover:bg-muted hover:text-foreground text-muted-foreground mr-1"
-                  >
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="end"
-                  className="bg-popover text-popover-foreground border-border"
+          {/* Actions dropdown */}
+          {isTeacher && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 -mr-2 -mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <DropdownMenuItem>Copy invite link sss </DropdownMenuItem>
-                  <DropdownMenuItem>Move</DropdownMenuItem>
-                  <DropdownMenuItem>Edit</DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive focus:text-destructive">
-                    Archive {classItem.role}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onClick={(e) => handleAction("copy-link", e)}>
+                  Copy invite link
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => handleAction("edit", e)}>
+                  Edit class
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={(e) => handleAction("archive", e)}
+                >
+                  Archive
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </div>
+
+        {/* Teacher info */}
+        <div className="flex items-center gap-3 py-3 border-t border-border/50">
+          <Avatar className="h-9 w-9">
+            <AvatarFallback
+              className={cn(
+                "text-xs font-medium",
+                theme.accentLight,
+                theme.text,
+              )}
+            >
+              {classItem.teacher.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium truncate">{classItem.teacher}</p>
+            <p className="text-xs text-muted-foreground">Teacher</p>
+          </div>
+        </div>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 pt-3 border-t border-border/50">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Users className="h-4 w-4" />
+            <span>{classItem.studentCount} students</span>
+          </div>
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <BookOpen className="h-4 w-4" />
+            <span>0 lessons</span>
+          </div>
+        </div>
+
+        {/* Quick action hint */}
+        <div className="flex items-center justify-end mt-4 pt-3 border-t border-border/50">
+          <span className="text-xs text-muted-foreground mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            Click to open
+          </span>
+          <div
+            className={cn(
+              "h-7 w-7 rounded-full flex items-center justify-center",
+              "opacity-0 group-hover:opacity-100 transition-all duration-300",
+              "transform translate-x-2 group-hover:translate-x-0",
+              theme.accentLight,
             )}
-          </CardFooter>
-        </Card>
+          >
+            <ChevronRight className={cn("h-4 w-4", theme.text)} />
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Loading skeleton
+function ClassCardSkeleton() {
+  return (
+    <Card className="w-full max-w-sm overflow-hidden border border-border/50">
+      <div className="h-1 w-full bg-muted animate-pulse" />
+      <div className="p-5 space-y-4">
+        <div className="space-y-2">
+          <div className="h-5 w-16 bg-muted rounded animate-pulse" />
+          <div className="h-6 w-3/4 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-1/2 bg-muted rounded animate-pulse" />
+        </div>
+        <div className="flex items-center gap-3 py-3 border-t border-border/50">
+          <div className="h-9 w-9 rounded-full bg-muted animate-pulse" />
+          <div className="space-y-1 flex-1">
+            <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+            <div className="h-3 w-16 bg-muted rounded animate-pulse" />
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
+// Page Component
+export default function CurrentSectionClass() {
+  const trpc = useTRPC();
+  const router = useRouter();
+  const { data: session, isPending: isSessionPending } =
+    authClient.useSession();
+  const { data: classes, isPending } = useSuspenseQuery(
+    trpc.user.getCurrentSectionInfo.queryOptions(),
+  );
+
+  const handleNavigate = (classId: string) => {
+    router.push(`/class/${classId}`);
+  };
+
+  const isTeacher = !isSessionPending && session?.user.role === "teacher";
+
+  if (isPending) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
+        {[...Array(4)].map((_, i) => (
+          <ClassCardSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 p-6">
+      {classes.map((classItem, index) => (
+        <ClassCard
+          key={classItem.id}
+          classItem={classItem}
+          index={index}
+          onNavigate={handleNavigate}
+          isTeacher={isTeacher}
+        />
       ))}
     </div>
   );

@@ -1,16 +1,16 @@
 import {
   classSubjects,
   lesson,
+  lessonDocument,
   lessonType,
   member,
   organization,
   user,
 } from "@/db/schema";
 import { db } from "@/index";
-import { waitFor } from "@/services/waitFor";
+import { serializeMDX } from "@/lib/mdx";
 import { protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { id } from "date-fns/locale";
 import {
   and,
   eq,
@@ -81,72 +81,83 @@ export const classActions = {
   getAllLessonsWithContentsInClass: protectedProcedure
     .input(z.object({ classId: z.string() }))
     .query(async ({ input, ctx }) => {
-      if (ctx.auth.user.role === "teacher") {
-        const { classId } = input;
-        const lessons = await db
-          .select({
-            id: lesson.id,
-            name: lesson.name,
-            term: lesson.terms,
-            classSubjectId: lesson.classSubjectId,
-            status: lesson.status,
-            createdAt: lesson.createdAt,
-          })
-          .from(lesson)
-          .where(eq(lesson.classSubjectId, classId));
+      const { classId } = input;
+      const isTeacher = ctx.auth.user.role === "teacher";
 
-        // 2. Get all lesson types for these lessons
-        const lessonIds = lessons.map((l) => l.id);
+      // 1. Get lessons based on role
+      const lessons = await db
+        .select({
+          id: lesson.id,
+          name: lesson.name,
+          term: lesson.terms,
+          classSubjectId: lesson.classSubjectId,
+          status: lesson.status,
+          createdAt: lesson.createdAt,
+        })
+        .from(lesson)
+        .where(
+          isTeacher
+            ? eq(lesson.classSubjectId, classId)
+            : and(eq(lesson.classSubjectId, classId), isNotNull(lesson.terms)),
+        );
 
-        const allLessonTypes = await db
-          .select()
-          .from(lessonType)
-          .where(inArray(lessonType.lessonId, lessonIds)); // Assuming lessonType has lessonId FK
+      if (lessons.length === 0) return [];
 
-        // 3. Map them together
-        const lessonsWithTypes = lessons.map((l) => ({
+      // 2. Get all lesson type IDs for these lessons
+      const lessonIds = lessons.map((l) => l.id);
+
+      const allLessonTypes = await db
+        .select()
+        .from(lessonType)
+        .where(
+          isTeacher
+            ? inArray(lessonType.lessonId, lessonIds)
+            : and(
+                inArray(lessonType.lessonId, lessonIds),
+                eq(lessonType.status, "published"),
+              ),
+        );
+
+      if (allLessonTypes.length === 0) {
+        // Return lessons with empty lessonTypes
+        return lessons.map((l) => ({
           ...l,
-          lessonTypes: allLessonTypes.filter((lt) => lt.lessonId === l.id),
+          lessonTypes: [],
         }));
+      }
 
-        return lessonsWithTypes;
-      } else {
-        const { classId } = input;
-        const lessons = await db
-          .select({
-            id: lesson.id,
-            name: lesson.name,
-            term: lesson.terms,
-            classSubjectId: lesson.classSubjectId,
-            status: lesson.status,
-            createdAt: lesson.createdAt,
-          })
-          .from(lesson)
-          .where(
-            and(eq(lesson.classSubjectId, classId), isNotNull(lesson.terms)),
+      // 3. Get all documents for these lesson types
+      const lessonTypeIds = allLessonTypes.map((lt) => lt.id);
+
+      const allDocuments = await db
+        .select()
+        .from(lessonDocument)
+        .where(inArray(lessonDocument.lessonTypeId, lessonTypeIds));
+
+      // 4. Serialize MDX and attach documents to each lesson type
+      const lessonTypesWithSerializedMDXAndDocs = await Promise.all(
+        allLessonTypes.map(async (item) => {
+          const documents = allDocuments.filter(
+            (doc) => doc.lessonTypeId === item.id,
           );
 
-        // 2. Get all lesson types for these lessons
-        const lessonIds = lessons.map((l) => l.id);
+          return {
+            ...item,
+            serializedMarkup: await serializeMDX(item.markup ?? ""),
+            documents,
+          };
+        }),
+      );
 
-        const allLessonTypes = await db
-          .select()
-          .from(lessonType)
-          .where(
-            and(
-              inArray(lessonType.lessonId, lessonIds),
-              eq(lessonType.status, "published"),
-            ),
-          ); // Assuming lessonType has lessonId FK
+      // 5. Map lessons with their lesson types (which now include documents)
+      const lessonsWithTypes = lessons.map((l) => ({
+        ...l,
+        lessonTypes: lessonTypesWithSerializedMDXAndDocs.filter(
+          (lt) => lt.lessonId === l.id,
+        ),
+      }));
 
-        // 3. Map them together
-        const lessonsWithTypes = lessons.map((l) => ({
-          ...l,
-          lessonTypes: allLessonTypes.filter((lt) => lt.lessonId === l.id),
-        }));
-
-        return lessonsWithTypes;
-      }
+      return lessonsWithTypes;
     }),
   getAllLessonsInClass: protectedProcedure
     .input(

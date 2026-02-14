@@ -13,7 +13,7 @@ type InngestEvents = {
 
 export const inngest = new Inngest({
   id: "learning-management-system",
-  eventKey: process.env.INNGEST_EVENT_KEY, // Your generated event key
-  signingKey: process.env.INNGEST_SIGNING_KEY,
+  // eventKey: process.env.INNGEST_EVENT_KEY, // Your generated event key
+  // signingKey: process.env.INNGEST_SIGNING_KEY,
   schemas: new EventSchemas().fromRecord<InngestEvents>(),
 });

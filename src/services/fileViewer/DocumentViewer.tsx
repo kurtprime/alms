@@ -14,19 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { toast } from "sonner";
-
-interface LessonDocument {
-  fileUrl: string;
-  id: number;
-  name: string | null;
-  lessonTypeId: number;
-  fileHash: string | null;
-  size: number | null;
-  fileKey: string;
-  fileUfsUrl: string | null;
-  fileType: string | null;
-  uploadedAt: string;
-}
+import { LessonDocument } from "@/modules/user/types/addLesson";
 
 export function DocumentViewer() {
   const trpc = useTRPC();
@@ -37,7 +25,7 @@ export function DocumentViewer() {
   const { data, isPending } = useQuery(
     trpc.admin.getLessonDocument.queryOptions({
       lessonId: lessonTypeParams.id ?? -1,
-    })
+    }),
   );
 
   if (isPending) {
@@ -64,7 +52,7 @@ export function DocumentViewer() {
 
   // Check if it's an office document that needs iframe height fix
   const isOfficeDoc = docs[currentIndex]?.fileType?.match(
-    /^(doc|docx|ppt|pptx|xls|xlsx)$/i
+    /^(doc|docx|ppt|pptx|xls|xlsx)$/i,
   );
 
   return (
@@ -181,12 +169,12 @@ function AreYouSure({
         queryClient.invalidateQueries(
           trpc.admin.getLessonDocument.queryOptions({
             lessonId: lessonTypeParams.id ?? -1,
-          })
+          }),
         );
         onChange(false);
         toast.success("Deleted Successfully");
       },
-    })
+    }),
   );
 
   const disabled = deleteFile.isPending;

@@ -1,8 +1,6 @@
-# Docker Compose for ALMS (Learning Management System)
-
 services:
   # ============================================
-  # APP SERVICE - Next.js Application
+  # APP SERVICE - Next.js + Better Auth
   # ============================================
   app:
     build:
@@ -10,20 +8,25 @@ services:
     container_name: lms-app
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/postgres
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/postgres
       INNGEST_BASE_URL: http://inngest:8288
+      # Supabase Storage only
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
     ports:
       - 3000:3000
     depends_on:
-      postgres:
-        condition: service_healthy
+      - db
+      - inngest
+      - kong
     networks:
       - lms-network
     env_file:
       - .env
 
   # ============================================
-  # INNGEST SERVICE - Background Job Processing
+  # INNGEST SERVICE
   # ============================================
   inngest:
     image: inngest/inngest:latest
@@ -33,53 +36,103 @@ services:
     environment:
       - INNGEST_DEV=true
     command: inngest dev -u http://app:3000/api/inngest
-    depends_on:
-      - app
     networks:
       - lms-network
     restart: on-failure
 
   # ============================================
-  # POSTGRES SERVICE - Database
+  # SUPABASE STORAGE ONLY
   # ============================================
-  postgres:
-    image: postgres:15
-    container_name: lms-postgres
-    restart: always
+
+  # PostgreSQL (shared with your app)
+  db:
+    image: supabase/postgres:15.1.1.78
+    container_name: supabase-db
+    healthcheck:
+      test: pg_isready -U postgres -h localhost
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - 5432:5432
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: postgres
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     networks:
       - lms-network
+
+  # Supabase Storage
+  storage:
+    image: supabase/storage-api:v1.11.7
+    container_name: supabase-storage
+    depends_on:
+      db:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:5000/status",
+        ]
       interval: 5s
       timeout: 5s
-      retries: 5
-
-  # ============================================
-  # DRIZZLE STUDIO - Database GUI
-  # ============================================
-  studio:
-    image: node:20-alpine
-    container_name: lms-studio
-    working_dir: /app
-    ports:
-      - 4983:4983
+      retries: 10
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/postgres
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://postgres:postgres@db:5432/postgres?sslmode=disable
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
     volumes:
-      - ./drizzle.config.ts:/app/drizzle.config.ts
-      - ./src/db:/app/src/db
-    command: sh -c "npx drizzle-kit studio --port 4983 --host 0.0.0.0"
+      - storage_data:/var/lib/storage
+    networks:
+      - lms-network
+
+  # PostgREST (for storage API)
+  rest:
+    image: postgrest/postgrest:v12.2.0
+    container_name: supabase-rest
     depends_on:
-      postgres:
+      db:
         condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://postgres:postgres@db:5432/postgres?sslmode=disable
+      PGRST_DB_SCHEMAS: public,storage
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+    networks:
+      - lms-network
+
+  # Kong (API Gateway for storage)
+  kong:
+    image: kong:2.8.1
+    container_name: supabase-kong
+    restart: unless-stopped
+    ports:
+      - 8000:8000/tcp
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /var/lib/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
+    depends_on:
+      - storage
+      - rest
+    volumes:
+      - ./kong.yml:/var/lib/kong/kong.yml:ro
     networks:
       - lms-network
 
@@ -89,3 +142,4 @@ networks:
 
 volumes:
   postgres_data:
+  storage_data:
