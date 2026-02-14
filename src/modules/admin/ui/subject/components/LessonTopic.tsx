@@ -75,8 +75,10 @@ type FileKey = keyof typeof FILE_CONFIG;
 
 export function CustomDocumentDropzone({
   setOpenChange,
+  lessonTypeId,
 }: {
   setOpenChange: (arg0: boolean) => void;
+  lessonTypeId?: number;
 }) {
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -91,7 +93,7 @@ export function CustomDocumentDropzone({
         setOpenChange(false);
         queryClient.invalidateQueries(
           trpc.admin.getLessonDocument.queryOptions({
-            lessonId: lessonTypeParams.id ?? -1,
+            lessonId: lessonTypeId ?? lessonTypeParams.id ?? -1,
           }),
         );
         setFiles([]);
@@ -182,8 +184,9 @@ export function CustomDocumentDropzone({
 
   const handleUpload = async () => {
     if (files.length === 0) return;
-    if (!lessonTypeParams?.id) return toast.error("Cannot do this action");
-    await startUpload(files, { lessonId: lessonTypeParams.id });
+    if (!lessonTypeId || !lessonTypeParams?.id)
+      return toast.error("Cannot do this action");
+    await startUpload(files, { lessonId: lessonTypeId ?? lessonTypeParams.id });
   };
 
   const removeFile = (index: number) => {

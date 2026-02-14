@@ -9,19 +9,22 @@ export default async function ClassIdView({ classId }: { classId: string }) {
 
   const isTeacher = session.user.role === "teacher";
   return (
-    <Tabs defaultValue="overview" className="bg-background h-screen py-3 pb-3">
-      <TabsList variant="line" className="gap-4 w-full border-b">
-        <TabsTrigger className={"text-md"} value={"announcement"}>
+    <Tabs
+      defaultValue="overview"
+      className="bg-background h-screen py-3 pb-3 m-0"
+    >
+      <TabsList variant="line" className="md:gap-4 flex w-full border-b">
+        <TabsTrigger className={"text-xs sm:text-md"} value={"announcement"}>
           Announcement
         </TabsTrigger>
-        <TabsTrigger className={"text-md"} value="overview">
+        <TabsTrigger className={"text-xs sm:text-md"} value="overview">
           Class Overview
         </TabsTrigger>
-        <TabsTrigger className={"text-md"} value="students">
+        <TabsTrigger className={"text-xs sm:text-md"} value="students">
           Students
         </TabsTrigger>
         {isTeacher && (
-          <TabsTrigger className={"text-md"} value="gradebook">
+          <TabsTrigger className={"text-xs sm:text-md"} value="gradebook">
             Grade book
           </TabsTrigger>
         )}

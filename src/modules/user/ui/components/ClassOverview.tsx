@@ -21,7 +21,7 @@ export default async function ClassOverview({
   );
 
   return (
-    <>
+    <div className="relative">
       <AddLessonHeader classId={classId} session={session} />
       <HydrationBoundary state={dehydrate(queryClient)}>
         <Suspense fallback={<div>Loading Suspense...</div>}>
@@ -30,6 +30,6 @@ export default async function ClassOverview({
           </ErrorBoundary>
         </Suspense>
       </HydrationBoundary>
-    </>
+    </div>
   );
 }
