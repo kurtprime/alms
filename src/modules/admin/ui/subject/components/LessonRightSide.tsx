@@ -11,6 +11,8 @@ export default function LessonRightSide() {
       return <LessonTopic key={lessonTypeParams.id} />;
     case "quiz":
       return <Assignments key={lessonTypeParams.id} />;
+    case "assignment":
+      return <div>Assignment</div>;
     default:
       return <div>Not selected</div>;
   }

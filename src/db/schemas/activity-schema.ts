@@ -40,6 +40,7 @@ export const quiz = pgTable(
       false,
     ),
     showCorrectAnswers: boolean("show_correct_answers").default(false),
+    score: integer("score"),
     status: varchar("status", { length: 20 }).$default(() => "draft"),
     startDate: timestamp("start_date"),
     endDate: timestamp("end_date"),

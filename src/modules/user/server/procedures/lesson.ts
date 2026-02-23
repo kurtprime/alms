@@ -3,13 +3,19 @@ import {
   lessonType,
   lessonTypeEnum,
   publishStatusEnum,
+  quiz,
 } from "@/db/schema";
 import { db } from "@/index";
 import { protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
 import z from "zod";
-import { addLessonTeacherSchema } from "../userSchema";
+import {
+  addLessonTeacherSchema,
+  AssignmentSettings,
+  defaultAssignmentSettings,
+  defaultQuizSettings,
+} from "../userSchema";
 import { inngest } from "@/services/inngest/client";
 
 export const lessonActions = {
@@ -22,12 +28,14 @@ export const lessonActions = {
     )
     .mutation(async ({ input, ctx }) => {
       if (ctx.auth.user.role !== "teacher") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "not Authorize" });
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not authorized" });
       }
-      const { classId, lessonTypeEnum } = input;
 
-      const lessonData = await db.transaction(async (tx) => {
-        // Check if draft exists for this classId
+      const { classId, lessonTypeEnum } = input;
+      const { auth } = ctx;
+
+      const result = await db.transaction(async (tx) => {
+        // 1. Get or create lesson
         const existingDraft = await tx
           .select()
           .from(lesson)
@@ -36,48 +44,106 @@ export const lessonActions = {
           )
           .limit(1);
 
-        if (existingDraft.length > 0) {
-          // Return existing draft
-          return existingDraft[0];
-        }
+        const lessonData =
+          existingDraft.length > 0
+            ? existingDraft[0]
+            : (
+                await tx
+                  .insert(lesson)
+                  .values({
+                    classSubjectId: classId,
+                    status: "draft",
+                    terms: null,
+                    name: "",
+                  })
+                  .returning()
+              )[0];
 
-        // Create new draft
-        const newLesson = await tx
-          .insert(lesson)
+        // 2. Create lesson type
+        const [lessonTypeData] = await tx
+          .insert(lessonType)
           .values({
-            classSubjectId: classId,
-            status: "draft",
-            terms: null,
-            name: "",
+            lessonId: lessonData.id,
+            type: lessonTypeEnum,
           })
           .returning();
 
-        return newLesson[0];
+        // 3. Create settings based on type
+        switch (lessonTypeEnum) {
+          case "handout":
+            return {
+              lessonData,
+              lessonTypeData,
+            } as const;
+
+          case "assignment": {
+            const [quizData] = await tx
+              .insert(quiz)
+              .values({
+                lessonTypeId: lessonTypeData.id,
+                score: 100,
+                createdBy: auth.user.id,
+              })
+              .returning();
+
+            return {
+              lessonData,
+              lessonTypeData,
+              quizSetting: defaultAssignmentSettings,
+              quizData,
+            } as const;
+          }
+
+          case "quiz": {
+            const [quizData] = await tx
+              .insert(quiz)
+              .values({
+                lessonTypeId: lessonTypeData.id,
+                createdBy: auth.user.id,
+              })
+              .returning();
+
+            return {
+              lessonData,
+              lessonTypeData,
+              quizSetting: defaultQuizSettings,
+              quizData,
+            } as const;
+          }
+
+          default:
+            // Exhaustive check
+            const _exhaustive: never = lessonTypeEnum;
+            throw new Error(`Unknown lesson type: ${_exhaustive}`);
+        }
       });
 
-      const [lessonTypeData] = await db
-        .insert(lessonType)
-        .values({
-          lessonId: lessonData.id,
-          type: lessonTypeEnum,
-        })
-        .returning();
-
-      return { lessonData, lessonTypeData };
+      return result;
     }),
   updateLessonType: protectedProcedure
     .input(
-      addLessonTeacherSchema.extend({
-        status: z.enum(publishStatusEnum.enumValues).nullish(),
-      }),
+      addLessonTeacherSchema.and(
+        z.object({
+          status: z.enum(publishStatusEnum.enumValues).nullish(),
+        }),
+      ),
     )
-    .mutation(async ({ input }) => {
-      const { lessonId, title, markDownDescription, lessonTypeId, status } =
-        input;
+    .mutation(async ({ input, ctx }) => {
+      const {
+        lessonId,
+        title,
+        markDownDescription,
+        lessonTypeId,
+        status,
+        lessonType: lessonTypeEnum,
+      } = input;
+
+      if (ctx.auth.user.role !== "teacher")
+        throw new TRPCError({ code: "FORBIDDEN", message: "Not Authorize" });
 
       console.log(input);
 
-      const updatedData = await db
+      const updatedData = db
         .update(lessonType)
         .set({
           name: title,
@@ -87,6 +153,41 @@ export const lessonActions = {
         })
         .where(eq(lessonType.id, lessonTypeId));
       console.log("success update data");
+
+      const updateQuizSetting = db
+        .update(quiz)
+        .set(
+          lessonTypeEnum === "quiz"
+            ? {
+                timeLimit: input.quizSettings.timeLimit,
+                maxAttempts: input.quizSettings.maxAttempts,
+                shuffleQuestions: input.quizSettings.shuffleQuestions,
+                showScoreAfterSubmission:
+                  input.quizSettings.showScoreAfterSubmission,
+                showCorrectAnswers: input.quizSettings.showCorrectAnswers,
+                startDate: input.quizSettings.startDate
+                  ? new Date(input.quizSettings.startDate)
+                  : undefined,
+                endDate: input.quizSettings.endDate
+                  ? new Date(input.quizSettings.endDate)
+                  : undefined,
+              }
+            : lessonTypeEnum === "assignment"
+              ? {
+                  maxAttempts: input.quizSettings.maxAttempts,
+                  score: input.quizSettings.scores,
+                  startDate: input.quizSettings.startDate
+                    ? new Date(input.quizSettings.startDate)
+                    : undefined,
+                  endDate: input.quizSettings.endDate
+                    ? new Date(input.quizSettings.endDate)
+                    : undefined,
+                }
+              : {},
+        )
+        .where(eq(quiz.lessonTypeId, lessonTypeId));
+
+      await Promise.all([updatedData, updateQuizSetting]);
 
       await inngest.send({
         name: "uploadthing/markup.image.upload",

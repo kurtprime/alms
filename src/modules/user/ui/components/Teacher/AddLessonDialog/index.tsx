@@ -9,16 +9,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  LESSON_TYPES,
-  LessonTeacherData,
-} from "@/modules/user/types/addLesson";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus } from "lucide-react";
 import { useState } from "react";
-import { AddLessonDialog } from "./AddLessonDialog";
-import { UserAddLessonType } from "@/modules/user/server/userSchema";
+import type { LessonTeacherData } from "./types";
+import { LESSON_TYPE_CONFIG } from "./types";
+import { AddLessonDialog } from "./add-lesson-dialog";
 
 interface AddLessonBtnProps {
   classId: string;
@@ -27,7 +24,9 @@ interface AddLessonBtnProps {
 export default function AddLessonBtn({ classId }: AddLessonBtnProps) {
   const [open, setOpen] = useState(false);
   const [initialData, setInitialData] = useState<LessonTeacherData>();
-  const [lessonType, setLessonType] = useState("");
+  const [lessonType, setLessonType] = useState<
+    "handout" | "assignment" | "quiz"
+  >("handout");
   const trpc = useTRPC();
   const queryClient = useQueryClient();
 
@@ -60,12 +59,15 @@ export default function AddLessonBtn({ classId }: AddLessonBtnProps) {
     }),
   );
 
-  const handleCreateLesson = (type: string) => {
+  const handleCreateLesson = (type: "handout" | "assignment" | "quiz") => {
     lessonCreateType.mutate({
       classId: classId,
-      lessonTypeEnum: type as "handout" | "assignment" | "quiz",
+      lessonTypeEnum: type,
     });
   };
+
+  // Get lesson types from config
+  const lessonTypes = Object.values(LESSON_TYPE_CONFIG);
 
   return (
     <>
@@ -73,7 +75,7 @@ export default function AddLessonBtn({ classId }: AddLessonBtnProps) {
         <DropdownMenuTrigger asChild>
           <Button
             size="lg"
-            className="gap-2  shadow-sm hover:shadow-md transition-shadow"
+            className="gap-2 shadow-sm hover:shadow-md transition-shadow"
             disabled={lessonCreateType.isPending}
           >
             {lessonCreateType.isPending ? (
@@ -86,43 +88,51 @@ export default function AddLessonBtn({ classId }: AddLessonBtnProps) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-64 p-2">
           <DropdownMenuGroup>
-            {LESSON_TYPES.map((item) => (
-              <DropdownMenuItem
-                key={item.type}
-                onClick={() => handleCreateLesson(item.type)}
-                className="flex items-center gap-3 p-3 cursor-pointer"
-              >
-                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                  <item.icon className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-medium">{item.label}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {item.description}
-                  </span>
-                </div>
-              </DropdownMenuItem>
-            ))}
+            {lessonTypes.map((item) => {
+              const Icon = item.icon;
+              return (
+                <DropdownMenuItem
+                  key={item.type}
+                  onClick={() => handleCreateLesson(item.type)}
+                  className="flex items-center gap-3 p-3 cursor-pointer"
+                >
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${item.bgColor}`}
+                  >
+                    <Icon className={`h-5 w-5 ${item.color}`} />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {item.description}
+                    </span>
+                  </div>
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <ResponsiveDialog
-        title={"Add " + lessonType}
-        description=""
-        open={open}
-        variant="fullscreen"
-        onOpenChange={setOpen}
-      >
-        <AddLessonDialog
-          setOpen={setOpen}
-          classId={classId}
-          initialData={initialData!}
-          lessonType={lessonType as UserAddLessonType["lessonTypeData"]["type"]}
-        />
-      </ResponsiveDialog>
+      {initialData && (
+        <ResponsiveDialog
+          title={"Add " + lessonType}
+          description=""
+          open={open}
+          variant="fullscreen"
+          onOpenChange={setOpen}
+        >
+          <AddLessonDialog
+            setOpen={setOpen}
+            classId={classId}
+            initialData={initialData}
+            lessonType={lessonType}
+          />
+        </ResponsiveDialog>
+      )}
     </>
   );
 }
 
-// Re-export the dialog for external use
+export { AddLessonDialog } from "./add-lesson-dialog";
+export * from "./types";

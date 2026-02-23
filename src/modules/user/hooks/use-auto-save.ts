@@ -43,7 +43,6 @@ export function useAutoSaveLesson({
 
   useEffect(() => {
     if (!enabled || !lessonTypeId) return;
-    console.log(data);
 
     // Skip if data hasn't changed
     if (
@@ -56,6 +55,8 @@ export function useAutoSaveLesson({
     if (!debouncedData.title && !debouncedData.markDownDescription) {
       return;
     }
+    console.log("AUTO SAVE (debounced): ", debouncedData);
+    console.log("AUTO SAVE: ", data);
 
     mutate({
       ...debouncedData,
