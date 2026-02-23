@@ -5,6 +5,7 @@ import {
   lessonType,
   member,
   organization,
+  quiz,
   user,
 } from "@/db/schema";
 import { db } from "@/index";
@@ -103,7 +104,7 @@ export const classActions = {
 
       if (lessons.length === 0) return [];
 
-      // 2. Get all lesson type IDs for these lessons
+      // 2. Get all lesson types for these lessons
       const lessonIds = lessons.map((l) => l.id);
 
       const allLessonTypes = await db
@@ -119,7 +120,6 @@ export const classActions = {
         );
 
       if (allLessonTypes.length === 0) {
-        // Return lessons with empty lessonTypes
         return lessons.map((l) => ({
           ...l,
           lessonTypes: [],
@@ -134,22 +134,81 @@ export const classActions = {
         .from(lessonDocument)
         .where(inArray(lessonDocument.lessonTypeId, lessonTypeIds));
 
-      // 4. Serialize MDX and attach documents to each lesson type
+      // 4. Separate quiz and assignment type IDs
+      const quizTypeIds = allLessonTypes
+        .filter((lt) => lt.type === "quiz")
+        .map((lt) => lt.id);
+
+      const assignmentTypeIds = allLessonTypes
+        .filter((lt) => lt.type === "assignment")
+        .map((lt) => lt.id);
+
+      // 5. Get quiz settings (quiz-specific fields)
+      const allQuizSettings =
+        quizTypeIds.length > 0
+          ? await db
+              .select({
+                lessonTypeId: quiz.lessonTypeId,
+                timeLimit: quiz.timeLimit,
+                maxAttempts: quiz.maxAttempts,
+                shuffleQuestions: quiz.shuffleQuestions,
+                showScoreAfterSubmission: quiz.showScoreAfterSubmission,
+                showCorrectAnswers: quiz.showCorrectAnswers,
+                startDate: quiz.startDate,
+                endDate: quiz.endDate,
+              })
+              .from(quiz)
+              .where(inArray(quiz.lessonTypeId, quizTypeIds))
+          : [];
+
+      // 6. Get assignment settings (assignment-specific fields)
+      const allAssignmentSettings =
+        assignmentTypeIds.length > 0
+          ? await db
+              .select({
+                lessonTypeId: quiz.lessonTypeId,
+                maxAttempts: quiz.maxAttempts,
+                score: quiz.score,
+                startDate: quiz.startDate,
+                endDate: quiz.endDate,
+              })
+              .from(quiz)
+              .where(inArray(quiz.lessonTypeId, assignmentTypeIds))
+          : [];
+
+      // 7. Serialize MDX and attach documents + settings
       const lessonTypesWithSerializedMDXAndDocs = await Promise.all(
         allLessonTypes.map(async (item) => {
           const documents = allDocuments.filter(
             (doc) => doc.lessonTypeId === item.id,
           );
 
+          // Get quiz settings if type is quiz
+          const quizSettings =
+            item.type === "quiz"
+              ? (allQuizSettings.find((qs) => qs.lessonTypeId === item.id) ??
+                null)
+              : null;
+
+          // Get assignment settings if type is assignment
+          const assignmentSettings =
+            item.type === "assignment"
+              ? (allAssignmentSettings.find(
+                  (as) => as.lessonTypeId === item.id,
+                ) ?? null)
+              : null;
+
           return {
             ...item,
             serializedMarkup: await serializeMDX(item.markup ?? ""),
             documents,
+            quizSettings,
+            assignmentSettings,
           };
         }),
       );
 
-      // 5. Map lessons with their lesson types (which now include documents)
+      // 8. Map lessons with their lesson types
       const lessonsWithTypes = lessons.map((l) => ({
         ...l,
         lessonTypes: lessonTypesWithSerializedMDXAndDocs.filter(

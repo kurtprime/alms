@@ -58,7 +58,10 @@ export default function LessonSelect({
       defaultValue={defaultValue ?? undefined}
       onValueChange={onLessonChange}
     >
-      <SelectTrigger className="w-full max-w-md g:max-w-lg xl:max-w-xl gap-2 border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus:ring-2 focus:ring-ring lg:h-16 lg:px-6 lg:py-4 lg:text-lg">
+      <SelectTrigger
+        className="w-full max-w-md g:max-w-lg xl:max-w-xl gap-2 border-input bg-background px-3 py-2 text-sm shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus:ring-2 focus:ring-ring lg:h-16 lg:px-6 lg:py-4 lg:text-lg"
+        type="button"
+      >
         <SelectValue
           placeholder={
             <span className="text-muted-foreground">Select a lesson</span>
@@ -87,7 +90,11 @@ export default function LessonSelect({
             </SelectItem>
           ))}
         </SelectGroup>
-        <Button onClick={() => setOpenAddNewLesson(true)} className="w-full">
+        <Button
+          type="button"
+          onClick={() => setOpenAddNewLesson(true)}
+          className="w-full"
+        >
           <Plus className="h-4 w-4 mr-2" />
           Lesson
         </Button>

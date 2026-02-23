@@ -1,10 +1,10 @@
 import { getQueryClient, trpc } from "@/trpc/server";
 import React, { Suspense } from "react";
-import ClassOverviewClient from "./ClassOverviewClient";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { ErrorBoundary } from "react-error-boundary";
 import AddLessonHeader from "./Teacher/AddLessonHeader";
 import { Session } from "@/lib/auth-client";
+import ClassOverviewClient from "./ClassOverviewClient";
 
 export default async function ClassOverview({
   classId,
