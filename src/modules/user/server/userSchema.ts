@@ -178,6 +178,11 @@ export function getDefaultLessonValues(
   }
 }
 
+export const lessonTypeOptionSchema = z.object({
+  classId: z.string(),
+  lessonTypeId: z.number(),
+});
+
 // ============================================
 // TRPC ROUTER TYPES
 // ============================================
@@ -191,3 +196,9 @@ export type UserAddLessonType =
   inferRouterOutputs<AppRouter>["user"]["createLessonType"];
 export type AdminLessonDocument =
   inferRouterOutputs<AppRouter>["admin"]["getLessonDocument"];
+export type UserViewLessonHandout =
+  inferRouterOutputs<AppRouter>["user"]["getLessonHandout"];
+export type UserCommentData =
+  inferRouterOutputs<AppRouter>["user"]["getCommentsInLessonType"];
+export type UserViewLessonAssignment =
+  inferRouterOutputs<AppRouter>["user"]["getLessonAssignment"];

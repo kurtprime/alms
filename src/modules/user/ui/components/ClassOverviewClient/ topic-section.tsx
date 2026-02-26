@@ -31,7 +31,7 @@ export function TopicSection({
     (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 
-  if (items.length === 0 && !isTeacher) return null;
+  if (items.length === 0) return null;
 
   return (
     <div className="mb-3">
@@ -59,7 +59,7 @@ export function TopicSection({
           </span>
         </div>
 
-        {isTeacher && items.length > 0 && (
+        {items.length > 0 && (
           <Button
             variant="ghost"
             size="sm"

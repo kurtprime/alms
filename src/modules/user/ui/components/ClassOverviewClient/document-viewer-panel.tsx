@@ -6,10 +6,7 @@ import React, { useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
   FileText,
-  HelpCircle,
-  ClipboardList,
   Trash2,
   Pencil,
   X,
@@ -18,17 +15,10 @@ import {
   File,
   Paperclip,
   ExternalLink,
-  Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
 import {
   Tooltip,
   TooltipContent,
@@ -45,19 +35,11 @@ import {
   typeConfig,
   statusConfig,
   type LessonTypeKey,
-  type ViewerItem,
   buildInitialData,
 } from "./types";
 import { useDocumentViewer } from "./context";
 import { AddLessonDialog } from "../Teacher/AddLessonDialog";
-import { _undefined } from "better-auth";
-
-// Icon mapping for dynamic icon rendering
-const iconMap = {
-  FileText,
-  HelpCircle,
-  ClipboardList,
-} as const;
+import Link from "next/link";
 
 // ============================================
 // DOCUMENT VIEWER PANEL
@@ -101,7 +83,7 @@ export function DocumentViewerPanel({
 
   if (!activeItem) {
     return (
-      <div className="hidden h-full lg:flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border-l border-slate-200">
+      <div className="hidden h-full lg:flex flex-col items-center justify-center bg-linear-to-br from-slate-50 to-slate-100 border-l border-slate-200">
         <div className="text-center p-8 max-w-xs">
           <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-white shadow-sm border border-slate-200 flex items-center justify-center">
             <File className="w-7 h-7 text-slate-300" />
@@ -285,7 +267,11 @@ export function DocumentViewerPanel({
                   </Button>
                 </>
               ) : (
-                <>hello</>
+                <>
+                  <Link href={`${classId}/${activeItem.type}/${activeItem.id}`}>
+                    <Button variant={"ghost"}>view more</Button>
+                  </Link>
+                </>
               )}
             </div>
           </div>

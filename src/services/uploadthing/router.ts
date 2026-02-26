@@ -2,7 +2,12 @@ import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 import z from "zod";
 import { db } from "@/index";
-import { lessonDocument, mdxEditorImageUpload } from "@/db/schema";
+import {
+  assignmentDocument,
+  lessonDocument,
+  mdxEditorImageUpload,
+  quizAttempt,
+} from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
 
 const f = createUploadthing();
@@ -25,6 +30,25 @@ const fileTypes = {
     maxFileSize: "16MB", // .ppt files (older PowerPoint format)
     maxFileCount: 10,
   },
+} as const;
+
+// Valid file types for Assignments (Documents, Images, Archives)
+const assignmentFileTypes = {
+  "application/pdf": { maxFileSize: "16MB", maxFileCount: 5 },
+  "image/png": { maxFileSize: "8MB", maxFileCount: 5 },
+  "image/jpeg": { maxFileSize: "8MB", maxFileCount: 5 },
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
+    maxFileSize: "8MB",
+    maxFileCount: 5,
+  }, // docx
+  "application/msword": { maxFileSize: "8MB", maxFileCount: 5 }, // doc
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
+    maxFileSize: "16MB",
+    maxFileCount: 5,
+  }, // pptx
+  "application/vnd.ms-powerpoint": { maxFileSize: "16MB", maxFileCount: 5 }, // ppt
+  "application/zip": { maxFileSize: "32MB", maxFileCount: 1 }, // For multiple files compressed
+  "application/x-zip-compressed": { maxFileSize: "32MB", maxFileCount: 1 },
 } as const;
 
 export const customFileRouter = {
@@ -90,7 +114,7 @@ export const customFileRouter = {
   })
     .input(z.object({ lessonTypeId: z.int() }))
     .middleware(async ({ input }) => {
-      const user = await getCurrentUser();
+      await getCurrentUser();
 
       return { lessonTypeId: input.lessonTypeId };
     })
@@ -110,6 +134,68 @@ export const customFileRouter = {
         url: ufsUrl,
         name: file.name,
       };
+    }),
+  assignmentSubmissionUploader: f(assignmentFileTypes)
+    .input(
+      z.object({
+        lessonTypeId: z.number(),
+        quizId: z.number(),
+        attemptNumber: z.number(),
+      }),
+    )
+    .middleware(async ({ input }) => {
+      const currentUser = await getCurrentUser();
+
+      if (!currentUser?.user?.id) {
+        throw new UploadThingError("Unauthorized user");
+      }
+
+      const userId = currentUser.user.id;
+      const { quizId, attemptNumber } = input;
+
+      // 1. Create the Quiz Attempt ONCE for this batch upload
+      // We use onConflictDoNothing or a check to prevent duplicates if retrying
+      // But here we assume attemptNumber is calculated correctly client-side or we create a new one.
+
+      // Simple approach: Insert new attempt for this batch
+      const [newAttempt] = await db
+        .insert(quizAttempt)
+        .values({
+          quizId: quizId,
+          studentId: userId,
+          attemptNumber: attemptNumber,
+          startedAt: new Date(),
+          submittedAt: new Date(), // Mark as submitted immediately on upload start
+          status: "submitted",
+        })
+        .returning({ id: quizAttempt.id });
+
+      if (!newAttempt) {
+        throw new UploadThingError("Failed to create attempt");
+      }
+
+      return {
+        userId,
+        lessonTypeId: input.lessonTypeId,
+        quizAttemptId: newAttempt.id, // Pass the ID to onUploadComplete
+      };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      const { name, ufsUrl, key, size, url, type } = file;
+
+      // 2. Link the file to the Attempt ID created in middleware
+      await db.insert(assignmentDocument).values({
+        quizAttemptId: metadata.quizAttemptId, // Use the ID from middleware
+        name: name,
+        fileHash: file.fileHash,
+        size: size,
+        fileKey: key,
+        fileUrl: url,
+        fileUfsUrl: ufsUrl,
+        fileType: type,
+      });
+
+      return { message: "File linked to attempt successfully" };
     }),
 } satisfies FileRouter;
 

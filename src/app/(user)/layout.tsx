@@ -9,7 +9,7 @@ export default function layout({ children }: { children: React.ReactNode }) {
     <TRPCReactProvider>
       <SidebarProvider>
         <AppSidebar />
-        <main className="flex justify-stretch items-stretch bg-background flex-col min-h-screen w-full">
+        <main className="flex justify-stretch items-stretch bg-background flex-col min-h-[calc(100vh)]  w-full">
           <UserNavigation />
           {children}
         </main>

@@ -1,26 +1,29 @@
-// src/components/mdx-renderer.tsx (Client Component)
+// src/components/mdx-renderer.tsx
 "use client";
 
-import { MDXRemote, MDXRemoteSerializeResult } from "next-mdx-remote";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-
-// Define your custom components
-const components = {
-  Button,
-  Alert,
-  AlertDescription,
-  // Add more components as needed
-};
+import { MDXClient } from "next-mdx-remote-client/csr";
+import type { SerializeResult } from "next-mdx-remote-client";
+import { useMDXComponents } from "./mdx-components";
 
 interface MDXRendererProps {
-  source: MDXRemoteSerializeResult;
+  source: SerializeResult;
 }
 
 export function MDXRenderer({ source }: MDXRendererProps) {
+  const components = useMDXComponents({});
+
+  // Handle compilation errors
+  if ("error" in source) {
+    return (
+      <div className="text-red-500 p-4 border border-red-200 rounded">
+        Failed to render content: {source.error.message}
+      </div>
+    );
+  }
+
   return (
     <div className="prose prose-slate dark:prose-invert max-w-none">
-      <MDXRemote {...source} components={components} />
+      <MDXClient {...source} components={components} />
     </div>
   );
 }

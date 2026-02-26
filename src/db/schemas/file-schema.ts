@@ -5,8 +5,11 @@ import {
   serial,
   text,
   timestamp,
+  varchar,
 } from "drizzle-orm/pg-core";
 import { lessonType } from "./lesson-schema";
+import { user } from "./auth-schema";
+import { quizAttempt } from "./activity-schema";
 
 export const lessonDocument = pgTable(
   "lesson_document",
@@ -28,6 +31,25 @@ export const lessonDocument = pgTable(
     index("file_key_idx").on(table.fileKey),
     index("lesson_id_idx").on(table.lessonTypeId),
   ],
+);
+
+export const assignmentDocument = pgTable(
+  "assignment_document",
+  {
+    id: serial("id").primaryKey(),
+    quizAttemptId: integer("quiz_attempt_id")
+      .notNull()
+      .references(() => quizAttempt.id, { onDelete: "cascade" }),
+    name: text("name"),
+    fileHash: text("file_hash"),
+    size: integer("size"),
+    fileKey: text("key").notNull().unique(),
+    fileUrl: text("url").notNull(),
+    fileUfsUrl: text("ufs_url"),
+    fileType: text("file_type"),
+    uploadedAt: timestamp("uploaded_at").notNull().defaultNow(),
+  },
+  (table) => [index("file_key_assignment_idx").on(table.fileKey)],
 );
 
 export const mdxEditorImageUpload = pgTable(
