@@ -108,3 +108,4 @@ export * from "./schemas/subject-schema";
 export * from "./schemas/lesson-schema";
 export * from "./schemas/file-schema";
 export * from "./schemas/activity-schema";
+export * from "./schemas/data-schema";

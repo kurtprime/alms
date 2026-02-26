@@ -19,7 +19,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { motion } from "framer-motion";
 import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { MDXRenderer } from "@/components/mdx-renderer";
@@ -32,10 +31,7 @@ import {
 } from "./types";
 import { useDocumentViewer } from "./context";
 import { AddLessonDialog } from "../Teacher/AddLessonDialog";
-import {
-  defaultAssignmentSettings,
-  defaultQuizSettings,
-} from "@/modules/user/server/userSchema";
+import Link from "next/link";
 
 // Icon mapping for dynamic icon rendering
 const iconMap = {
@@ -194,7 +190,11 @@ export function MobileDocumentSheet({
                 </Button>
               </>
             ) : (
-              <>hello</>
+              <>
+                <Link href={`${classId}/${activeItem.type}/${activeItem.id}`}>
+                  <Button variant={"ghost"}>view more</Button>
+                </Link>
+              </>
             )}
           </div>
         </div>

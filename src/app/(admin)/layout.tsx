@@ -14,7 +14,7 @@ export default async function layout({
     <TRPCReactProvider>
       <SidebarProvider>
         <AdminSidebar />
-        <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-screen w-full">
+        <main className="flex justify-stretch items-stretch bg-sidebar flex-col min-h-[calc(100vh)-100px] w-full">
           {children}
         </main>
       </SidebarProvider>
