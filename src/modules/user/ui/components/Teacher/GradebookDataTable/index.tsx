@@ -6,6 +6,7 @@ import {
   flexRender,
   getCoreRowModel,
   useReactTable,
+  getFilteredRowModel,
 } from "@tanstack/react-table";
 import {
   Table,
@@ -25,55 +26,89 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import {
   AssessmentColumn,
   StudentGradeRow,
 } from "@/modules/user/server/userSchema";
-import { Download, FileSpreadsheet } from "lucide-react";
-import * as XLSX from "xlsx"; // Import SheetJS
+import {
+  FileSpreadsheet,
+  MoreVertical,
+  ExternalLink,
+  Check,
+  Loader2,
+} from "lucide-react";
+import * as XLSX from "xlsx";
 import { GeneratedAvatar } from "@/components/generatedAvatar";
 import { separateFullName } from "@/hooks/separate-name";
+import { toast } from "sonner";
+import { useTRPC } from "@/trpc/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Link from "next/link";
 
 interface GradebookProps {
   data: {
     assessments: AssessmentColumn[];
     rows: StudentGradeRow[];
   };
+  classId: string;
+  isTeacher: boolean;
 }
 
-export function GradebookDataTable({ data }: GradebookProps) {
+export function GradebookDataTable({
+  data,
+  classId,
+  isTeacher,
+}: GradebookProps) {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+
+  // --- STATE ---
   const [globalFilter, setGlobalFilter] = React.useState("");
+  // We track which dropdown is open to manage the input value effectively
+  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
+  const [inputValue, setInputValue] = React.useState<string>("");
+
+  // --- MUTATION ---
+  const { mutate: updateScore, isPending: isUpdating } = useMutation(
+    trpc.user.updateGrade.mutationOptions({
+      onSuccess: () => {
+        toast.success("Score updated");
+        queryClient.invalidateQueries(
+          trpc.user.getGradebookData.queryOptions({ classId }),
+        );
+        setOpenDropdown(null);
+      },
+      onError: (e) => {
+        toast.error(e.message);
+      },
+    }),
+  );
 
   // --- EXPORT LOGIC ---
   const handleExport = () => {
     if (!data.rows.length) return;
-
-    // 1. Define Headers
     const headers = [
       "Student Name",
       ...data.assessments.map((a) => a.title || `Assessment ${a.id}`),
       "Average",
     ];
-
-    // 2. Map Data to Rows
     const rows = data.rows.map((row) => {
-      const rowData: (string | number)[] = [];
-
-      // A. Student Name
-      rowData.push(row.student.name || "N/A");
-
-      // B. Assessment Scores
+      const rowData: (string | number)[] = [row.student.name || "N/A"];
       let totalScore = 0;
       let totalMax = 0;
-
       data.assessments.forEach((assessment) => {
         const grade = row.grades[assessment.id.toString()];
         const score = grade?.score;
         const max = assessment.maxScore || 100;
-
         if (score != null && assessment.maxScore) {
-          // Format: "90/100"
           rowData.push(`${score}/${max}`);
           totalScore += score;
           totalMax += max;
@@ -81,42 +116,55 @@ export function GradebookDataTable({ data }: GradebookProps) {
           rowData.push("--");
         }
       });
-
-      // C. Calculate Average
       const avg = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
       rowData.push(`${avg}%`);
-
       return rowData;
     });
-
-    // 3. Create Workbook & Worksheet
     const worksheetData = [headers, ...rows];
     const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-
-    // Optional: Set Column Widths for better readability
     const colWidths = [
       { wch: 25 },
       ...data.assessments.map(() => ({ wch: 15 })),
       { wch: 10 },
     ];
     worksheet["!cols"] = colWidths;
-
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Gradebook");
-
-    // 4. Generate File
     XLSX.writeFile(
       workbook,
       `Gradebook_${new Date().toISOString().split("T")[0]}.xlsx`,
     );
   };
 
-  const columns: ColumnDef<StudentGradeRow>[] = React.useMemo(() => {
-    // ... (Previous column definitions remain exactly the same) ...
-    // (I am omitting the column definition code here for brevity,
-    // but it should be pasted here exactly as before)
+  // --- HANDLERS ---
+  const handleOpenChange = (
+    isOpen: boolean,
+    cellId: string,
+    currentScore: number | null,
+  ) => {
+    if (isOpen) {
+      setOpenDropdown(cellId);
+      setInputValue(currentScore !== null ? String(currentScore) : "");
+    } else {
+      setOpenDropdown(null);
+    }
+  };
 
-    // 1. Static Student Column
+  const handleSave = (lessonTypeId: number, studentId: string) => {
+    const newScore = inputValue === "" ? null : parseFloat(inputValue);
+    if (inputValue !== "" && isNaN(newScore as number)) {
+      toast.error("Invalid number");
+      return;
+    }
+    updateScore({
+      lessonTypeId,
+      studentId,
+      score: newScore,
+    });
+  };
+
+  const columns: ColumnDef<StudentGradeRow>[] = React.useMemo(() => {
+    // 1. Student Column
     const studentCol: ColumnDef<StudentGradeRow> = {
       id: "student",
       header: "Student",
@@ -126,10 +174,6 @@ export function GradebookDataTable({ data }: GradebookProps) {
         const student = row.original.student;
         return (
           <div className="flex items-center gap-2 min-w-[180px]">
-            {/* <Avatar className="h-8 w-8">
-              <AvatarImage src={student.image || ""} />
-              <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
-            </Avatar> */}
             {student.image ? (
               <Avatar className="size-10">
                 <AvatarImage src={student.image} alt={student.name} />
@@ -148,7 +192,7 @@ export function GradebookDataTable({ data }: GradebookProps) {
       },
     };
 
-    // 2. Dynamic Assessment Columns
+    // 2. Assessment Columns (With Dropdowns)
     const assessmentCols: ColumnDef<StudentGradeRow>[] = data.assessments.map(
       (assessment) => ({
         id: `assessment-${assessment.id}`,
@@ -173,9 +217,12 @@ export function GradebookDataTable({ data }: GradebookProps) {
           const percentage =
             score != null ? Math.round((score / max) * 100) : null;
 
+          const cellId = `${row.original.student.id}-${assessment.id}`;
+          const isOpen = openDropdown === cellId;
+
+          // Colors
           let statusColor = "text-slate-400";
           let bgColor = "bg-slate-50";
-
           if (percentage !== null) {
             if (percentage >= 75) {
               statusColor = "text-green-600";
@@ -190,11 +237,16 @@ export function GradebookDataTable({ data }: GradebookProps) {
           }
 
           return (
-            <Tooltip>
-              <TooltipTrigger asChild>
+            <DropdownMenu
+              open={isOpen}
+              onOpenChange={(o) => handleOpenChange(o, cellId, score)}
+            >
+              <DropdownMenuTrigger asChild>
                 <div
                   className={cn(
-                    "flex flex-col items-center justify-center p-2 rounded-md cursor-default",
+                    "flex flex-col items-center justify-center p-2 rounded-md min-w-[70px]",
+                    isTeacher &&
+                      "cursor-pointer hover:ring-2 hover:ring-blue-200",
                     bgColor,
                   )}
                 >
@@ -212,21 +264,63 @@ export function GradebookDataTable({ data }: GradebookProps) {
                       No submission
                     </span>
                   ) : (
-                    <span className="text-slate-300 text-xs">To be Graded</span>
+                    <span className="text-slate-300 text-xs">To Grade</span>
+                  )}
+
+                  {/* Small indicator that there is a menu */}
+                  {isTeacher && (
+                    <MoreVertical className="h-3 w-3 text-slate-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                   )}
                 </div>
-              </TooltipTrigger>
-              <TooltipContent side="top">
-                <p className="font-semibold">{assessment.title}</p>
-                <p className="text-xs text-slate-400">
-                  {grade !== null && score != null
-                    ? `Score: ${score}/${max}`
-                    : grade == null
-                      ? "Not Submitted"
-                      : "To be graded"}
-                </p>
-              </TooltipContent>
-            </Tooltip>
+              </DropdownMenuTrigger>
+
+              {isTeacher && (
+                <DropdownMenuContent align="center" className="w-56 p-2">
+                  <div className="mb-2 text-center">
+                    <p className="text-xs text-slate-500">Edit Score</p>
+                    <p className="font-semibold text-sm">{assessment.title}</p>
+                  </div>
+
+                  <div className="flex items-center gap-1 mb-2">
+                    <Input
+                      type="number"
+                      value={inputValue}
+                      onChange={(e) => setInputValue(e.target.value)}
+                      className="h-8"
+                      placeholder="Score"
+                      disabled={isUpdating}
+                    />
+                    <Button
+                      size="icon"
+                      className="h-8 w-8 shrink-0"
+                      onClick={() =>
+                        handleSave(assessment.id, row.original.student.id)
+                      }
+                      disabled={isUpdating}
+                    >
+                      {isUpdating ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+
+                  <DropdownMenuSeparator />
+
+                  <DropdownMenuItem asChild className="cursor-pointer">
+                    <Link
+                      href={`/dashboard/student/${row.original.student.id}/activity`}
+                      target="_blank"
+                      className="flex items-center justify-between w-full"
+                    >
+                      <span>View Activity</span>
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              )}
+            </DropdownMenu>
           );
         },
       }),
@@ -239,7 +333,6 @@ export function GradebookDataTable({ data }: GradebookProps) {
       cell: ({ row }) => {
         let totalScore = 0;
         let totalMax = 0;
-
         data.assessments.forEach((a) => {
           const g = row.original.grades[a.id.toString()];
           if (g && g.score != null && a.maxScore) {
@@ -247,10 +340,8 @@ export function GradebookDataTable({ data }: GradebookProps) {
             totalMax += a.maxScore;
           }
         });
-
         const avg =
           totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
-
         return (
           <div className="text-center font-bold text-sm">
             <span
@@ -270,16 +361,15 @@ export function GradebookDataTable({ data }: GradebookProps) {
     };
 
     return [studentCol, ...assessmentCols, avgCol];
-  }, [data.assessments]);
+  }, [data.assessments, openDropdown, inputValue, isTeacher, isUpdating]);
 
   const table = useReactTable({
     data: data.rows,
     columns,
-    getCoreRowModel: getCoreRowModel(),
-    state: {
-      globalFilter,
-    },
+    state: { globalFilter },
     onGlobalFilterChange: setGlobalFilter,
+    getCoreRowModel: getCoreRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
   });
 
   return (
@@ -292,8 +382,6 @@ export function GradebookDataTable({ data }: GradebookProps) {
           onChange={(e) => setGlobalFilter(e.target.value)}
           className="max-w-sm"
         />
-
-        {/* EXPORT BUTTON */}
         <Button
           variant="outline"
           size="sm"
@@ -305,7 +393,7 @@ export function GradebookDataTable({ data }: GradebookProps) {
         </Button>
       </div>
 
-      {/* Table with Horizontal Scroll */}
+      {/* Table */}
       <div className="rounded-md border">
         <ScrollArea className="whitespace-nowrap">
           <Table>
@@ -340,6 +428,7 @@ export function GradebookDataTable({ data }: GradebookProps) {
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
+                    className="group" // Added group class for hover effects
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => {

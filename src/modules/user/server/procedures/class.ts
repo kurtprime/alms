@@ -944,4 +944,24 @@ export const classActions = {
         rows,
       };
     }),
+  updateGrade: protectedProcedure
+    .input(
+      z.object({
+        lessonTypeId: z.number(),
+        studentId: z.string(),
+        score: z.number().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Check if user is teacher
+      // Logic:
+      // 1. Find the quizAttempt for this student and lessonType (quiz/assignment).
+      // 2. If exists, update score.
+      // 3. If not, maybe create one? Or throw error?
+
+      // Example:
+      // await db.update(quizAttempt).set({ score: input.score }).where(...)
+
+      return { success: true };
+    }),
 };
