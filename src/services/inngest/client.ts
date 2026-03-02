@@ -9,6 +9,13 @@ type InngestEvents = {
   "test/connection": {
     data: undefined;
   };
+  "lesson/published": {
+    data: {
+      lessonTypeId: number;
+      classId: string;
+      teacherId: string;
+    };
+  };
 };
 
 export const inngest = new Inngest({

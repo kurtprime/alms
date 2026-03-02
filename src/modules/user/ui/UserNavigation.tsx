@@ -6,6 +6,7 @@ import React from "react";
 import { getCurrentUser } from "@/lib/auth-server";
 import ClassroomDropdown from "./components/Teacher/ClassroomDropdown";
 import ProfilePopupClient from "./components/ProfilePopupClient";
+import { separateFullName } from "@/hooks/separate-name";
 
 export default function UserNavigation() {
   return (
@@ -39,12 +40,7 @@ async function ProfilePopUp() {
   }
 
   const user = session.user;
-  const initials = user.name
-    ?.split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const initials = separateFullName(user.name).join(" ");
 
   return <ProfilePopupClient initials={initials} user={user} />;
 }

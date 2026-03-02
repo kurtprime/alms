@@ -15,6 +15,7 @@ interface UseAutoSaveLessonProps {
   enabled?: boolean;
   onSuccess?: () => void;
   onError?: () => void;
+  classId: string;
 }
 
 export function useAutoSaveLesson({
@@ -22,6 +23,7 @@ export function useAutoSaveLesson({
   interval = 1,
   enabled = false,
   onSuccess,
+  classId,
   onError,
 }: UseAutoSaveLessonProps) {
   const { lessonTypeId } = data;
@@ -60,6 +62,7 @@ export function useAutoSaveLesson({
 
     mutate({
       ...debouncedData,
+      classId,
     });
 
     previousDataRef.current = debouncedData;

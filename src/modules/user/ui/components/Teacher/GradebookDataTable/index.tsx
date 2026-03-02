@@ -1,0 +1,381 @@
+"use client";
+
+import * as React from "react";
+import {
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import {
+  AssessmentColumn,
+  StudentGradeRow,
+} from "@/modules/user/server/userSchema";
+import { Download, FileSpreadsheet } from "lucide-react";
+import * as XLSX from "xlsx"; // Import SheetJS
+import { GeneratedAvatar } from "@/components/generatedAvatar";
+import { separateFullName } from "@/hooks/separate-name";
+
+interface GradebookProps {
+  data: {
+    assessments: AssessmentColumn[];
+    rows: StudentGradeRow[];
+  };
+}
+
+export function GradebookDataTable({ data }: GradebookProps) {
+  const [globalFilter, setGlobalFilter] = React.useState("");
+
+  // --- EXPORT LOGIC ---
+  const handleExport = () => {
+    if (!data.rows.length) return;
+
+    // 1. Define Headers
+    const headers = [
+      "Student Name",
+      ...data.assessments.map((a) => a.title || `Assessment ${a.id}`),
+      "Average",
+    ];
+
+    // 2. Map Data to Rows
+    const rows = data.rows.map((row) => {
+      const rowData: (string | number)[] = [];
+
+      // A. Student Name
+      rowData.push(row.student.name || "N/A");
+
+      // B. Assessment Scores
+      let totalScore = 0;
+      let totalMax = 0;
+
+      data.assessments.forEach((assessment) => {
+        const grade = row.grades[assessment.id.toString()];
+        const score = grade?.score;
+        const max = assessment.maxScore || 100;
+
+        if (score != null && assessment.maxScore) {
+          // Format: "90/100"
+          rowData.push(`${score}/${max}`);
+          totalScore += score;
+          totalMax += max;
+        } else {
+          rowData.push("--");
+        }
+      });
+
+      // C. Calculate Average
+      const avg = totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
+      rowData.push(`${avg}%`);
+
+      return rowData;
+    });
+
+    // 3. Create Workbook & Worksheet
+    const worksheetData = [headers, ...rows];
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Optional: Set Column Widths for better readability
+    const colWidths = [
+      { wch: 25 },
+      ...data.assessments.map(() => ({ wch: 15 })),
+      { wch: 10 },
+    ];
+    worksheet["!cols"] = colWidths;
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Gradebook");
+
+    // 4. Generate File
+    XLSX.writeFile(
+      workbook,
+      `Gradebook_${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
+  };
+
+  const columns: ColumnDef<StudentGradeRow>[] = React.useMemo(() => {
+    // ... (Previous column definitions remain exactly the same) ...
+    // (I am omitting the column definition code here for brevity,
+    // but it should be pasted here exactly as before)
+
+    // 1. Static Student Column
+    const studentCol: ColumnDef<StudentGradeRow> = {
+      id: "student",
+      header: "Student",
+      accessorKey: "student.name",
+      enableSorting: true,
+      cell: ({ row }) => {
+        const student = row.original.student;
+        return (
+          <div className="flex items-center gap-2 min-w-[180px]">
+            {/* <Avatar className="h-8 w-8">
+              <AvatarImage src={student.image || ""} />
+              <AvatarFallback>{student.name?.charAt(0)}</AvatarFallback>
+            </Avatar> */}
+            {student.image ? (
+              <Avatar className="size-10">
+                <AvatarImage src={student.image} alt={student.name} />
+                <AvatarFallback>{student.name}</AvatarFallback>
+              </Avatar>
+            ) : (
+              <GeneratedAvatar
+                className="size-10"
+                seed={separateFullName(student.name).join(" ")}
+                variant="initials"
+              />
+            )}
+            <span className="font-medium truncate">{student.name}</span>
+          </div>
+        );
+      },
+    };
+
+    // 2. Dynamic Assessment Columns
+    const assessmentCols: ColumnDef<StudentGradeRow>[] = data.assessments.map(
+      (assessment) => ({
+        id: `assessment-${assessment.id}`,
+        header: () => (
+          <div className="flex flex-col items-center justify-center text-center min-w-[80px]">
+            <span className="truncate max-w-[120px] text-xs font-semibold">
+              {assessment.title || "Untitled"}
+            </span>
+            <Badge
+              variant="outline"
+              className="mt-1 text-[10px] px-1 py-0 h-4 capitalize"
+            >
+              {assessment.type}
+            </Badge>
+          </div>
+        ),
+        accessorKey: `grades.${assessment.id}`,
+        cell: ({ row }) => {
+          const grade = row.original.grades[assessment.id.toString()];
+          const score = grade?.score;
+          const max = assessment.maxScore ?? 100;
+          const percentage =
+            score != null ? Math.round((score / max) * 100) : null;
+
+          let statusColor = "text-slate-400";
+          let bgColor = "bg-slate-50";
+
+          if (percentage !== null) {
+            if (percentage >= 75) {
+              statusColor = "text-green-600";
+              bgColor = "bg-green-50";
+            } else if (percentage >= 50) {
+              statusColor = "text-amber-600";
+              bgColor = "bg-amber-50";
+            } else {
+              statusColor = "text-red-600";
+              bgColor = "bg-red-50";
+            }
+          }
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  className={cn(
+                    "flex flex-col items-center justify-center p-2 rounded-md cursor-default",
+                    bgColor,
+                  )}
+                >
+                  {grade != null && score != null ? (
+                    <>
+                      <span className={cn("text-sm font-bold", statusColor)}>
+                        {score}/{max}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {percentage}%
+                      </span>
+                    </>
+                  ) : grade == null ? (
+                    <span className="text-slate-300 text-xs">
+                      No submission
+                    </span>
+                  ) : (
+                    <span className="text-slate-300 text-xs">To be Graded</span>
+                  )}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                <p className="font-semibold">{assessment.title}</p>
+                <p className="text-xs text-slate-400">
+                  {grade !== null && score != null
+                    ? `Score: ${score}/${max}`
+                    : grade == null
+                      ? "Not Submitted"
+                      : "To be graded"}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        },
+      }),
+    );
+
+    // 3. Average Column
+    const avgCol: ColumnDef<StudentGradeRow> = {
+      id: "average",
+      header: "Average",
+      cell: ({ row }) => {
+        let totalScore = 0;
+        let totalMax = 0;
+
+        data.assessments.forEach((a) => {
+          const g = row.original.grades[a.id.toString()];
+          if (g && g.score != null && a.maxScore) {
+            totalScore += g.score;
+            totalMax += a.maxScore;
+          }
+        });
+
+        const avg =
+          totalMax > 0 ? Math.round((totalScore / totalMax) * 100) : 0;
+
+        return (
+          <div className="text-center font-bold text-sm">
+            <span
+              className={cn(
+                avg >= 75
+                  ? "text-green-600"
+                  : avg >= 50
+                    ? "text-amber-600"
+                    : "text-red-600",
+              )}
+            >
+              {avg}%
+            </span>
+          </div>
+        );
+      },
+    };
+
+    return [studentCol, ...assessmentCols, avgCol];
+  }, [data.assessments]);
+
+  const table = useReactTable({
+    data: data.rows,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+    state: {
+      globalFilter,
+    },
+    onGlobalFilterChange: setGlobalFilter,
+  });
+
+  return (
+    <div className="space-y-4">
+      {/* Toolbar */}
+      <div className="flex items-center justify-between">
+        <Input
+          placeholder="Search student..."
+          value={globalFilter ?? ""}
+          onChange={(e) => setGlobalFilter(e.target.value)}
+          className="max-w-sm"
+        />
+
+        {/* EXPORT BUTTON */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={!data.rows.length}
+        >
+          <FileSpreadsheet className="h-4 w-4 mr-2" />
+          Export Excel
+        </Button>
+      </div>
+
+      {/* Table with Horizontal Scroll */}
+      <div className="rounded-md border">
+        <ScrollArea className="whitespace-nowrap">
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => {
+                    const isSticky = header.column.id === "student";
+                    return (
+                      <TableHead
+                        key={header.id}
+                        className={cn(
+                          "bg-slate-50 dark:bg-slate-900",
+                          isSticky &&
+                            "sticky left-0 z-10 bg-slate-100 dark:bg-slate-800",
+                        )}
+                      >
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext(),
+                            )}
+                      </TableHead>
+                    );
+                  })}
+                </TableRow>
+              ))}
+            </TableHeader>
+            <TableBody>
+              {table.getRowModel().rows?.length ? (
+                table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row.getVisibleCells().map((cell) => {
+                      const isSticky = cell.column.id === "student";
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            isSticky &&
+                              "sticky left-0 z-0 bg-white dark:bg-slate-950",
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 text-center"
+                  >
+                    No results.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </div>
+    </div>
+  );
+}

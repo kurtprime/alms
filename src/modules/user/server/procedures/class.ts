@@ -1,4 +1,5 @@
 import {
+  announcement,
   assignmentDocument,
   classSubjects,
   comment,
@@ -31,7 +32,7 @@ import {
   desc,
 } from "drizzle-orm";
 import z from "zod";
-import { lessonTypeOptionSchema } from "../userSchema";
+import { lessonTypeOptionSchema, StudentGradeRow } from "../userSchema";
 
 export const classActions = {
   getAllStudentsInClass: protectedProcedure
@@ -686,5 +687,261 @@ export const classActions = {
         );
 
       return result;
+    }),
+  getClassAnnouncement: protectedProcedure
+    .input(z.object({ classId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { classId } = input;
+      const userId = ctx.auth.user.id;
+      const isTeacher = ctx.auth.user.role === "teacher";
+
+      // Security Check: Ensure user is part of the class (Teacher or Student)
+      const membership = await db
+        .select()
+        .from(member)
+        .innerJoin(organization, eq(organization.id, member.organizationId))
+        .innerJoin(
+          classSubjects,
+          eq(classSubjects.enrolledClass, organization.id),
+        )
+        .where(
+          and(
+            eq(classSubjects.id, classId),
+            or(eq(member.userId, userId), eq(classSubjects.teacherId, userId)),
+          ),
+        );
+
+      if (!membership) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not a member of this class",
+        });
+      }
+
+      // Fetch announcements with Creator and Lesson details
+      const announcements = await db
+        .select({
+          id: announcement.id,
+          message: announcement.message,
+          type: announcement.type,
+          createdAt: announcement.createdAt,
+          // Creator Details
+          creator: {
+            id: user.id,
+            name: user.name,
+            image: user.image,
+          },
+          // Linked Lesson Details (Nullable)
+          lessonType: {
+            id: lessonType.id,
+            name: lessonType.name,
+            type: lessonType.type,
+          },
+        })
+        .from(announcement)
+        .innerJoin(user, eq(announcement.createdBy, user.id))
+        .leftJoin(lessonType, eq(announcement.lessonTypeId, lessonType.id))
+        .where(eq(announcement.classId, classId))
+        .orderBy(desc(announcement.createdAt));
+
+      return announcements;
+    }),
+  createCustomAnnouncement: protectedProcedure
+    .input(
+      z.object({
+        classId: z.string(),
+        message: z.string().min(1, "Message cannot be empty"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const { classId, message } = input;
+      const userId = ctx.auth.user.id;
+
+      if (ctx.auth.user.role !== "teacher") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only teachers can post announcements",
+        });
+      }
+
+      const [newAnnouncement] = await db
+        .insert(announcement)
+        .values({
+          classId,
+          message,
+          type: "custom",
+          createdBy: userId,
+        })
+        .returning();
+
+      // Optional: Trigger Inngest event to send emails for custom announcements
+      // await inngest.send({ name: "announcement/custom", data: { announcementId: newAnnouncement.id } });
+
+      return newAnnouncement;
+    }),
+
+  // DELETE: Delete an announcement
+  deleteAnnouncement: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const { id } = input;
+      const userId = ctx.auth.user.id;
+
+      // Verify ownership
+      const [existing] = await db
+        .select({
+          id: announcement.id,
+          createdBy: announcement.createdBy,
+        })
+        .from(announcement)
+        .where(eq(announcement.id, id));
+      // db.query.announcement.findFirst({
+      //   where: eq(announcement.id, id),
+      // });
+
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+
+      if (existing.createdBy !== userId && ctx.auth.user.role !== "teacher") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You cannot delete this announcement",
+        });
+      }
+
+      await db.delete(announcement).where(eq(announcement.id, id));
+
+      return { success: true };
+    }),
+  getGradebookData: protectedProcedure
+    .input(z.object({ classId: z.string() }))
+    .query(async ({ input }) => {
+      const { classId } = input;
+
+      // 1. Get all Students in the class
+      // const students = await db.query.member.findMany({
+      //   where: and(
+      //     eq(member.organizationId, classId),
+      //     eq(member.role, "student"),
+      //   ),
+      //   with: {
+      //     user: { columns: { id: true, name: true, image: true } },
+      //   },
+      // });
+
+      const students = await db
+        .select({
+          userId: member.userId,
+          user: user,
+        })
+        .from(member)
+        .innerJoin(user, eq(user.id, member.userId))
+        .innerJoin(organization, eq(organization.id, member.organizationId))
+        .innerJoin(
+          classSubjects,
+          eq(classSubjects.enrolledClass, organization.id),
+        )
+        .where(and(eq(member.role, "student"), eq(classSubjects.id, classId)));
+
+      // 2. Get all Assessments (Quizzes/Assignments) for this class
+      // We assume you have a way to link lessonType -> class.
+      // Based on previous schema: lessonType -> lesson -> classSubjectId
+      const assessments = await db
+        .select({
+          id: quiz.id,
+          title: lessonType.name,
+          type: lessonType.type,
+          maxScore: quiz.score,
+          quizId: quiz.id,
+        })
+        .from(lessonType)
+        .innerJoin(quiz, eq(quiz.lessonTypeId, lessonType.id))
+        // Add joins to verify classId if needed
+        .where(not(inArray(lessonType.type, ["handout"]))); // Filter by class logic needed
+
+      // 3. Get all Attempts/Submissions for these students & assessments
+      // This is simplified. In reality, you'd fetch attempts where studentId IN studentIds AND quizId IN assessmentIds
+      // const attempts = await db.query.quizAttempt.findMany({
+      //   where: inArray(
+      //     quizAttempt.studentId,
+      //     students.map((s) => s.userId),
+      //   ),
+      // });
+
+      const attempts = await db
+        .select()
+        .from(quizAttempt)
+        .where(
+          and(
+            inArray(
+              quizAttempt.studentId,
+              students.map((s) => s.userId),
+            ),
+            inArray(
+              quizAttempt.quizId,
+              assessments.map((a) => a.quizId),
+            ),
+          ),
+        );
+
+      // 4. Format Data for Frontend
+      const rows: StudentGradeRow[] = students.map((s) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const grades: Record<string, any> = {};
+
+        // Find the best attempt for each assessment
+        // assessments.forEach((a) => {
+        //   const studentAttempts = attempts.filter(
+        //     (att) => att.studentId === s.userId && att.quizId === a.id,
+        //   );
+
+        //   // Logic: Get max score or latest score
+        //   const bestAttempt = studentAttempts.sort(
+        //     (a, b) => (b.score ?? 0) - (a.score ?? 0),
+        //   )[0];
+
+        //   grades[a.id] = bestAttempt
+        //     ? {
+        //         score: bestAttempt.score,
+        //         maxScore: a.maxScore,
+        //         status: bestAttempt.status,
+        //         submittedAt: bestAttempt.submittedAt,
+        //       }
+        //     : null;
+        // });
+
+        assessments.forEach((a) => {
+          const studentAttempts = attempts
+            .filter((att) => att.studentId === s.userId && att.quizId === a.id)
+            .sort((a, b) => a.attemptNumber - b.attemptNumber);
+
+          const latestAttempts = studentAttempts[0];
+
+          grades[a.quizId] = latestAttempts
+            ? {
+                score: latestAttempts.score,
+                maxScore: latestAttempts.maxScore,
+                status: latestAttempts.status,
+                submittedAt: latestAttempts.submittedAt,
+              }
+            : null;
+        });
+
+        return {
+          student: s.user,
+          grades,
+        };
+      });
+
+      return {
+        assessments: assessments.map((a) => ({
+          id: a.id,
+          title: a.title,
+          type: a.type,
+          maxScore: a.maxScore,
+        })),
+        rows,
+      };
     }),
 };

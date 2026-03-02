@@ -8,7 +8,7 @@ import {
 import { db } from "@/index";
 import { protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import z from "zod";
 import {
   addLessonTeacherSchema,
@@ -125,6 +125,7 @@ export const lessonActions = {
       addLessonTeacherSchema.and(
         z.object({
           status: z.enum(publishStatusEnum.enumValues).nullish(),
+          classId: z.string(),
         }),
       ),
     )
@@ -136,6 +137,7 @@ export const lessonActions = {
         lessonTypeId,
         status,
         lessonType: lessonTypeEnum,
+        classId,
       } = input;
 
       if (ctx.auth.user.role !== "teacher")
@@ -143,55 +145,77 @@ export const lessonActions = {
 
       console.log(input);
 
-      const updatedData = db
+      const updatedDataPromise = db
         .update(lessonType)
         .set({
           name: title,
           markup: markDownDescription,
           lessonId: +lessonId,
           status: status ? status : undefined,
+          publishedAt:
+            status === "published"
+              ? sql`CASE WHEN published_at IS NULL THEN NOW() ELSE published_at END`
+              : undefined,
         })
         .where(eq(lessonType.id, lessonTypeId));
       console.log("success update data");
 
-      const updateQuizSetting = db
-        .update(quiz)
-        .set(
-          lessonTypeEnum === "quiz"
-            ? {
-                timeLimit: input.quizSettings.timeLimit,
-                maxAttempts: input.quizSettings.maxAttempts,
-                shuffleQuestions: input.quizSettings.shuffleQuestions,
-                showScoreAfterSubmission:
-                  input.quizSettings.showScoreAfterSubmission,
-                showCorrectAnswers: input.quizSettings.showCorrectAnswers,
-                startDate: input.quizSettings.startDate
-                  ? new Date(input.quizSettings.startDate)
-                  : undefined,
-                endDate: input.quizSettings.endDate
-                  ? new Date(input.quizSettings.endDate)
-                  : undefined,
-              }
-            : lessonTypeEnum === "assignment"
-              ? {
-                  maxAttempts: input.quizSettings.maxAttempts,
-                  score: input.quizSettings.scores,
-                  startDate: input.quizSettings.startDate
-                    ? new Date(input.quizSettings.startDate)
-                    : undefined,
-                  endDate: input.quizSettings.endDate
-                    ? new Date(input.quizSettings.endDate)
-                    : undefined,
-                }
-              : {},
-        )
-        .where(eq(quiz.lessonTypeId, lessonTypeId));
+      const promises: Promise<unknown>[] = [updatedDataPromise];
 
-      await Promise.all([updatedData, updateQuizSetting]);
+      // 3. Conditionally add Quiz/Assignment update
+      if (lessonTypeEnum === "quiz") {
+        const updateQuiz = db
+          .update(quiz)
+          .set({
+            timeLimit: input.quizSettings.timeLimit,
+            maxAttempts: input.quizSettings.maxAttempts,
+            shuffleQuestions: input.quizSettings.shuffleQuestions,
+            showScoreAfterSubmission:
+              input.quizSettings.showScoreAfterSubmission,
+            showCorrectAnswers: input.quizSettings.showCorrectAnswers,
+            startDate: input.quizSettings.startDate
+              ? new Date(input.quizSettings.startDate)
+              : undefined,
+            endDate: input.quizSettings.endDate
+              ? new Date(input.quizSettings.endDate)
+              : undefined,
+          })
+          .where(eq(quiz.lessonTypeId, lessonTypeId));
 
+        promises.push(updateQuiz);
+      } else if (lessonTypeEnum === "assignment") {
+        const updateAssignment = db
+          .update(quiz)
+          .set({
+            maxAttempts: input.quizSettings.maxAttempts,
+            score: input.quizSettings.scores,
+            startDate: input.quizSettings.startDate
+              ? new Date(input.quizSettings.startDate)
+              : undefined,
+            endDate: input.quizSettings.endDate
+              ? new Date(input.quizSettings.endDate)
+              : undefined,
+          })
+          .where(eq(quiz.lessonTypeId, lessonTypeId));
+
+        promises.push(updateAssignment);
+      }
+      // If it's 'handout', we simply don't add anything to promises
+
+      // 4. Execute all valid queries
+      await Promise.all(promises);
+      console.log("Updated Settings");
       await inngest.send({
         name: "uploadthing/markup.image.upload",
         data: { lessonTypeId, markup: markDownDescription },
+      });
+      await inngest.send({
+        name: "lesson/published",
+        data: {
+          lessonTypeId: lessonTypeId,
+          classId: classId,
+          teacherId: ctx.auth.user.id,
+        },
       });
     }),
   deleteLessonType: protectedProcedure

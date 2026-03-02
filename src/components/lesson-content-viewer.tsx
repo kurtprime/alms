@@ -11,7 +11,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MDXRenderer } from "@/components/mdx-renderer";
-import { UserViewLessonAssignment } from "@/modules/user/server/userSchema";
+import {
+  UserViewLessonAssignment,
+  UserViewLessonHandout,
+} from "@/modules/user/server/userSchema";
 import React from "react";
 import DocViewer, { DocViewerRenderers } from "@cyntler/react-doc-viewer";
 
@@ -19,7 +22,7 @@ import "react-pdf/dist/Page/AnnotationLayer.css";
 import "react-pdf/dist/Page/TextLayer.css";
 
 interface LessonContentViewerProps {
-  data: UserViewLessonAssignment;
+  data: UserViewLessonAssignment | UserViewLessonHandout;
 }
 
 export function LessonContentViewer({ data }: LessonContentViewerProps) {

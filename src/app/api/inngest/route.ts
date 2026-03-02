@@ -3,18 +3,20 @@ import {
   testConnection,
   uploadThingMarkup,
 } from "@/services/inngest/functions/admin";
+import { handleLessonPublished } from "@/services/inngest/functions/user";
 import { serve } from "inngest/next";
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [uploadThingMarkup, testConnection],
+  functions: [uploadThingMarkup, testConnection, handleLessonPublished],
 });
 
-//for DOCKER
+// for DOCKER
 // import {
 //   testConnection,
 //   uploadThingMarkup,
 // } from "@/services/inngest/functions/admin";
+// import { handleLessonPublished } from "@/services/inngest/functions/user";
 // import { Inngest } from "inngest";
 // import { connect } from "inngest/connect";
 
@@ -35,7 +37,12 @@ export const { GET, POST, PUT } = serve({
 //     apps: [
 //       {
 //         client: inngest,
-//         functions: [handleSignupFunction, uploadThingMarkup, testConnection],
+//         functions: [
+//           handleSignupFunction,
+//           uploadThingMarkup,
+//           testConnection,
+//           handleLessonPublished,
+//         ],
 //       },
 //     ],
 //   });

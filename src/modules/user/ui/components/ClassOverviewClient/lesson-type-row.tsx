@@ -2,9 +2,8 @@
 
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import React, { useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
-  ChevronRight,
   MoreHorizontal,
   FileText,
   HelpCircle,
@@ -16,11 +15,13 @@ import {
   Eye,
   Paperclip,
   RotateCcw,
-  Trophy,
-  Shuffle,
   CheckCircle,
   AlertCircle,
   Timer,
+  Trophy,
+  ChevronRight,
+  Circle,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,60 +39,39 @@ import {
 } from "@/components/ui/tooltip";
 import ResponsiveDialog from "@/components/responsive-dialog";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useDocumentViewer } from "./context";
 import { buildInitialData, LessonType } from "./types";
 import { AddLessonDialog } from "../Teacher/AddLessonDialog";
 
-// ============================================
-// TYPES
-// ============================================
+// Types & Config
+type LessonTypeKey = "handout" | "quiz" | "assignment";
 
-interface QuizSettings {
-  lessonTypeId: number;
-  startDate: string | null;
-  endDate: string | null;
-  timeLimit: number | null;
-  maxAttempts: number | null;
-  shuffleQuestions: boolean | null;
-  showScoreAfterSubmission: boolean | null;
-  showCorrectAnswers: boolean | null;
-}
-
-interface AssignmentSettings {
-  lessonTypeId: number;
-  startDate: string | null;
-  endDate: string | null;
-  maxAttempts: number | null;
-  score: number | null;
-}
-
-// ============================================
-// CONFIG========================================
-
-// ====
-export const typeConfig = {
+const typeConfig = {
   handout: {
     label: "Handout",
     icon: FileText,
     color: "text-blue-600",
     bg: "bg-blue-50",
+    border: "border-blue-100",
   },
   quiz: {
     label: "Quiz",
     icon: HelpCircle,
     color: "text-purple-600",
     bg: "bg-purple-50",
+    border: "border-purple-100",
   },
   assignment: {
     label: "Assignment",
     icon: ClipboardList,
     color: "text-emerald-600",
     bg: "bg-emerald-50",
+    border: "border-emerald-100",
   },
 } as const;
 
-export const statusConfig = {
+const statusConfig = {
   draft: {
     label: "Draft",
     className: "bg-slate-100 text-slate-600 border-slate-200",
@@ -106,196 +86,15 @@ export const statusConfig = {
   },
 } as const;
 
-type LessonTypeKey = keyof typeof typeConfig;
-
-// ============================================
-// HELPER COMPONENTS
-// ============================================
-
-function SettingBadge({
-  icon: Icon,
-  label,
-  value,
-  variant = "secondary",
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  variant?: "secondary" | "outline" | "default";
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger>
-        <Badge
-          variant={variant}
-          className="text-[10px] px-1.5 py-0 h-5 font-medium gap-1"
-        >
-          <Icon className="w-2.5 h-2.5" />
-          {value === 0 ? "no time limit" : value}
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
+// Hook for current time (Pure)
+function useNow(interval = 60_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), interval);
+    return () => clearInterval(id);
+  }, [interval]);
+  return now;
 }
-
-function DateTimeBadge({
-  date,
-  label,
-  variant = "outline",
-}: {
-  date: string | Date | null;
-  label: string;
-  variant?: "outline" | "secondary" | "default";
-}) {
-  if (!date) return null;
-
-  const dateObj = typeof date === "string" ? new Date(date) : date;
-  const isPast = dateObj < new Date();
-
-  return (
-    <Tooltip>
-      <TooltipTrigger>
-        <Badge
-          variant={variant}
-          className={cn(
-            "text-[10px] px-1.5 py-0 h-5 font-medium gap-1",
-            isPast && "text-orange-600 border-orange-200 bg-orange-50",
-          )}
-        >
-          <Calendar className="w-2.5 h-2.5" />
-          {format(dateObj, "MMM d")}
-          <span className="text-muted-foreground font-normal">
-            {format(dateObj, "h:mm a")}
-          </span>
-        </Badge>
-      </TooltipTrigger>
-      <TooltipContent>
-        {label}: {format(dateObj, "MMM d, yyyy h:mm a")}
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-function BooleanIndicator({
-  value,
-  icon: Icon,
-  label,
-  activeColor = "text-green-600",
-}: {
-  value: boolean | null;
-  icon: React.ElementType;
-  label: string;
-  activeColor?: string;
-}) {
-  if (!value) return null;
-
-  return (
-    <Tooltip>
-      <TooltipTrigger>
-        <Icon className={cn("w-3.5 h-3.5", activeColor)} />
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  );
-}
-
-function QuizSettingsBadges({ settings }: { settings: QuizSettings | null }) {
-  if (!settings) return null;
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {/* Time Limit */}
-      {typeof settings.timeLimit === "number" && (
-        <SettingBadge
-          icon={Timer}
-          label="Time Limit"
-          value={
-            settings.timeLimit ? `${settings.timeLimit}m` : "No time Limit"
-          }
-        />
-      )}
-
-      {/* Max Attempts */}
-      {settings.maxAttempts && (
-        <SettingBadge
-          icon={RotateCcw}
-          label="Max Attempts"
-          value={
-            settings.maxAttempts === 99
-              ? "unlimited tries"
-              : `${settings.maxAttempts} tries`
-          }
-        />
-      )}
-
-      {/* Due Date */}
-      <DateTimeBadge date={settings.endDate} label="Due" />
-
-      {/* Boolean Indicators */}
-      <div className="flex items-center gap-1 ml-1">
-        <BooleanIndicator
-          value={settings.shuffleQuestions}
-          icon={Shuffle}
-          label="Shuffle Questions"
-        />
-        <BooleanIndicator
-          value={settings.showScoreAfterSubmission}
-          icon={CheckCircle}
-          label="Show Score After Submit"
-        />
-        <BooleanIndicator
-          value={settings.showCorrectAnswers}
-          icon={Eye}
-          label="Show Correct Answers"
-          activeColor="text-blue-600"
-        />
-      </div>
-    </div>
-  );
-}
-
-function AssignmentSettingsBadges({
-  settings,
-}: {
-  settings: AssignmentSettings | null;
-}) {
-  if (!settings) return null;
-
-  return (
-    <div className="flex items-center gap-1.5 flex-wrap">
-      {/* Points/Score */}
-      {settings.score && (
-        <SettingBadge
-          icon={Trophy}
-          label="Points"
-          value={`${settings.score} pts`}
-          variant="default"
-        />
-      )}
-
-      {/* Max Attempts */}
-      {settings.maxAttempts && (
-        <SettingBadge
-          icon={RotateCcw}
-          label="Max Attempts"
-          value={
-            settings.maxAttempts === 99
-              ? "unlimited tries"
-              : `${settings.maxAttempts} tries`
-          }
-        />
-      )}
-
-      {/* Due Date */}
-      <DateTimeBadge date={settings.endDate} label="Due" />
-    </div>
-  );
-}
-
-// ============================================
-// MAIN COMPONENT
-// ============================================
 
 export function LessonTypeRow({
   item,
@@ -319,9 +118,7 @@ export function LessonTypeRow({
         queryClient.invalidateQueries(
           trpc.user.getAllLessonsWithContentsInClass.queryOptions({ classId }),
         );
-        if (activeItem?.id === item.id) {
-          setActiveItem(null);
-        }
+        if (activeItem?.id === item.id) setActiveItem(null);
       },
     }),
   );
@@ -334,30 +131,36 @@ export function LessonTypeRow({
   const isActive = activeItem?.id === item.id;
   const hasDocuments = item.documents && item.documents.length > 0;
 
-  // Determine if due date is approaching or past
-  const getDueDateStatus = () => {
-    const settings =
-      item.type === "quiz"
-        ? item.quizSettings
-        : item.type === "assignment"
-          ? item.assignmentSettings
-          : null;
+  // === MOCK DATA FOR UI VISUALIZATION ===
+  // In a real app, this would come from item.isCompleted passed via props
+  const [isCompleted, setIsCompleted] = useState(false);
 
-    if (!settings?.endDate) return null;
+  // Date Logic (Safe)
+  const now = useNow();
+  const endDateString =
+    item.type === "quiz"
+      ? item.quizSettings?.endDate
+      : item.assignmentSettings?.endDate;
 
-    const dueDate = new Date(settings.endDate);
-    const now = new Date();
-    const hoursUntilDue =
-      (dueDate.getTime() - now.getTime()) / (1000 * 60 * 60);
+  const dueDate = useMemo(() => {
+    return endDateString ? new Date(endDateString) : null;
+  }, [endDateString]);
 
-    if (hoursUntilDue < 0) return "past";
-    if (hoursUntilDue < 24) return "soon";
-    return "upcoming";
-  };
+  const { isPastDue, isDueSoon, formattedDate } = useMemo(() => {
+    if (!dueDate)
+      return { isPastDue: false, isDueSoon: false, formattedDate: null };
+    const dueTime = dueDate.getTime();
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    const past = dueTime < now;
+    const soon = !past && dueTime - now < twentyFourHours;
+    return {
+      isPastDue: past,
+      isDueSoon: soon,
+      formattedDate: formatDistanceToNow(dueDate, { addSuffix: true }),
+    };
+  }, [dueDate, now]);
 
-  const dueDateStatus = getDueDateStatus();
-
-  const handleViewDocument = () => {
+  const handleClick = () => {
     if (!isViewerOpen) toggleViewer();
     setActiveItem(item);
   };
@@ -365,174 +168,162 @@ export function LessonTypeRow({
   return (
     <>
       <div
+        onClick={handleClick}
         className={cn(
-          "group relative flex items-start gap-2 py-2.5 px-2.5 rounded-lg cursor-pointer",
-          "transition-all duration-150 ease-out",
-          "hover:bg-slate-50",
-          "border border-transparent",
-          isActive && "bg-blue-50/50 border-blue-100",
-          dueDateStatus === "past" && "opacity-60",
+          "group relative flex items-stretch rounded-xl cursor-pointer transition-all duration-200",
+          "border bg-white hover:shadow-md hover:border-slate-200",
+          isActive && "ring-2 ring-blue-500 border-blue-200 shadow-sm",
+          isPastDue && !isTeacher && "opacity-60 hover:opacity-100",
         )}
-        onClick={handleViewDocument}
       >
-        {/* Left accent bar */}
+        {/* Left Status Strip */}
         <div
           className={cn(
-            "absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-full",
-            "transition-all duration-150",
-            isActive
-              ? "bg-blue-400"
-              : "bg-transparent group-hover:bg-slate-300",
+            "w-1.5 rounded-l-xl flex-shrink-0 transition-colors",
+            isCompleted
+              ? "bg-green-500"
+              : "bg-slate-200 group-hover:bg-slate-300",
           )}
         />
 
-        {/* Icon */}
-        <div className={cn("p-1.5 rounded-md shrink-0 mt-0.5", config.bg)}>
-          <Icon className={cn("w-4 h-4", config.color)} />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 space-y-1">
-          {/* Title Row */}
-          <div className="flex items-center gap-2">
-            <h4 className="font-medium text-slate-900 truncate text-sm">
-              {item.name || `Untitled ${config.label}`}
-            </h4>
-            {item.status && (
-              <Badge
-                variant="outline"
-                className={cn(
-                  "text-[10px] px-1.5 py-0 h-5 font-medium shrink-0",
-                  statusConfig[item.status as keyof typeof statusConfig]
-                    .className,
-                )}
-              >
-                {statusConfig[item.status as keyof typeof statusConfig].label}
-              </Badge>
-            )}
+        <div className="flex-1 flex items-center gap-4 p-3 min-w-0">
+          {/* Type Icon */}
+          <div className={cn("p-2.5 rounded-lg shrink-0", config.bg)}>
+            <Icon className={cn("w-5 h-5", config.color)} />
           </div>
 
-          {/* Settings Row - Type Specific */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {/* Created Date */}
-            <span className="flex items-center gap-1 text-[11px] text-slate-500">
-              <Calendar className="w-3 h-3" />
-              {new Date(item.createdAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-              })}
-            </span>
+          {/* Content */}
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center gap-2">
+              <h4 className="font-semibold text-slate-800 truncate text-sm">
+                {item.name || `Untitled ${config.label}`}
+              </h4>
 
-            {/* Documents Count */}
-            {hasDocuments && (
-              <Badge
-                variant="secondary"
-                className="text-[10px] px-1.5 py-0 h-5 shrink-0"
-              >
-                <Paperclip className="w-2.5 h-2.5 mr-1" />
-                {item.documents!.length}
-              </Badge>
-            )}
+              {/* Completion Badge for Students */}
+              {!isTeacher && isCompleted && (
+                <Badge
+                  variant="outline"
+                  className="bg-green-50 text-green-700 border-green-200 text-[10px]"
+                >
+                  Completed
+                </Badge>
+              )}
 
-            {/* Type-specific settings */}
-            {item.type === "quiz" && (
-              <QuizSettingsBadges settings={item.quizSettings} />
-            )}
-            {item.type === "assignment" && (
-              <AssignmentSettingsBadges settings={item.assignmentSettings} />
-            )}
+              {item.status && isTeacher && (
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    "text-[10px] px-2 py-0.5 h-5 font-medium shrink-0 capitalize",
+                    statusConfig[item.status as keyof typeof statusConfig]
+                      .className,
+                  )}
+                >
+                  {statusConfig[item.status as keyof typeof statusConfig].label}
+                </Badge>
+              )}
+            </div>
+
+            {/* Meta Info Row */}
+            <div className="flex items-center gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                {format(new Date(item.createdAt), "MMM d")}
+              </span>
+
+              {hasDocuments && (
+                <span className="flex items-center gap-1.5">
+                  <Paperclip className="w-3.5 h-3.5" />
+                  {item.documents!.length} files
+                </span>
+              )}
+
+              {item.type === "quiz" && item.quizSettings?.timeLimit && (
+                <span className="flex items-center gap-1.5">
+                  <Timer className="w-3.5 h-3.5" />
+                  {item.quizSettings.timeLimit} min
+                </span>
+              )}
+
+              {item.type === "assignment" && item.assignmentSettings?.score && (
+                <span className="flex items-center gap-1.5">
+                  <Trophy className="w-3.5 h-3.5" />
+                  {item.assignmentSettings.score} pts
+                </span>
+              )}
+
+              {dueDate && (
+                <span
+                  className={cn(
+                    "flex items-center gap-1.5",
+                    isPastDue && "text-red-500 font-medium",
+                    isDueSoon && "text-amber-600 font-medium",
+                  )}
+                >
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  {isPastDue ? "Closed" : formattedDate}
+                </span>
+              )}
+            </div>
           </div>
 
-          {/* Due Date Warning */}
-          {dueDateStatus === "soon" && (
-            <div className="flex items-center gap-1 text-[11px] text-orange-600">
-              <AlertCircle className="w-3 h-3" />
-              <span>Due soon</span>
-            </div>
-          )}
-          {dueDateStatus === "past" && (
-            <div className="flex items-center gap-1 text-[11px] text-red-500">
-              <AlertCircle className="w-3 h-3" />
-              <span>Past due</span>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div
-          className={cn(
-            "flex items-center gap-0.5 shrink-0",
-            "opacity-0 group-hover:opacity-100 transition-opacity duration-150",
-          )}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {isTeacher && (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                    onClick={() => setOpenEdit(true)}
-                  >
-                    <Pencil className="w-3.5 h-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Edit</TooltipContent>
-              </Tooltip>
+          {/* Right Action Area */}
+          {/* Stop propagation to prevent card click when interacting with buttons */}
+          <div
+            className="flex items-center gap-1 shrink-0 pr-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {isTeacher ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
-                  >
-                    <MoreHorizontal className="w-4 h-4" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreHorizontal className="w-4 h-4 text-slate-500" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-40">
-                  <DropdownMenuItem className="text-xs">
-                    <Eye className="w-3.5 h-3.5 mr-2" />
-                    Preview
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem onClick={() => setOpenEdit(true)}>
+                    <Pencil className="w-4 h-4 mr-2" /> Edit
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-xs">
-                    <Copy className="w-3.5 h-3.5 mr-2" />
-                    Duplicate
+                  <DropdownMenuItem>
+                    <Eye className="w-4 h-4 mr-2" /> Preview as Student
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Copy className="w-4 h-4 mr-2" /> Duplicate
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setOpenDelete(true)}
-                    className="text-xs text-red-600 focus:text-red-600"
+                    className="text-red-600 focus:text-red-600 focus:bg-red-50"
                   >
-                    <Trash2 className="w-3.5 h-3.5 mr-2" />
-                    Delete
+                    <Trash2 className="w-4 h-4 mr-2" /> Delete
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            </>
-          )}
-        </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                {/* Show Mark as Done for Handouts to Students */}
 
-        {/* View indicator for large screens */}
-        <div className="hidden lg:flex items-center">
-          <ChevronRight
-            className={cn(
-              "w-4 h-4 text-slate-400 transition-transform duration-150",
-              isActive && "rotate-180 text-blue-500",
+                {/* View Button for Quizzes/Assignments */}
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-blue-600 hover:text-blue-700"
+                >
+                  View <ChevronRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
             )}
-          />
+          </div>
         </div>
       </div>
 
-      {/* Delete Dialog */}
+      {/* Dialogs */}
       <ResponsiveDialog
         title="Delete Item"
         description={`Delete "${item.name || "Untitled"}"? This cannot be undone.`}
         onOpenChange={setOpenDelete}
         open={openDelete}
       >
-        <div className="flex justify-end gap-2">
+        <div className="flex justify-end gap-2 pt-4">
           <Button
             variant="outline"
             size="sm"
@@ -552,7 +343,6 @@ export function LessonTypeRow({
         </div>
       </ResponsiveDialog>
 
-      {/* Edit Dialog - Import your AddLessonDialog here */}
       <ResponsiveDialog
         title={`Edit ${config.label}`}
         open={openEdit}

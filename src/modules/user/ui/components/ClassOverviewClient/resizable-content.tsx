@@ -35,7 +35,7 @@ export function ResizableContent({
       {/* Left Panel - Lesson List */}
       <ResizablePanel defaultSize={isViewerOpen ? 60 : 100} minSize={30}>
         <div className="h-full overflow-auto">
-          <div className="max-w-3xl mx-auto px-4 py-6">
+          <div className="w-full mx-auto px-4 md:px-15 py-6">
             <ViewerToggle />
 
             {/* Content List */}

@@ -9,6 +9,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { separateFullName } from "@/hooks/separate-name";
 import { authClient, Session } from "@/lib/auth-client";
 import { LogOut, Settings, Shield } from "lucide-react";
 import Link from "next/link";
@@ -43,13 +44,13 @@ export default function ProfilePopupClient({
           {user.image ? (
             <Avatar className="h-9 w-9">
               <AvatarImage src={user.image} alt={user.name} />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-medium">
+              <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white font-medium">
                 {initials}
               </AvatarFallback>
             </Avatar>
           ) : (
             <GeneratedAvatar
-              seed={user.name}
+              seed={initials}
               variant="initials"
               className="h-9 w-9"
             />
@@ -61,13 +62,17 @@ export default function ProfilePopupClient({
         {/* Header with User Info */}
         <div className="flex flex-col gap-4 p-5 pb-3">
           <div className="flex items-start gap-4">
-            <Avatar className="h-12 w-12 ring-2 ring-background shadow-sm">
-              <AvatarImage src={user.image || undefined} alt={user.name} />
-              <AvatarFallback className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white text-lg font-semibold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-
+            {user.image ? (
+              <Avatar className="h-12 w-12 ring-2 ring-background shadow-sm">
+                <AvatarImage src={user.image} alt={user.name} />
+              </Avatar>
+            ) : (
+              <GeneratedAvatar
+                seed={separateFullName(user.name).join(" ")}
+                variant={"initials"}
+                className="h-12 w-12"
+              />
+            )}
             <div className="flex flex-col gap-1 min-w-0 flex-1">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold leading-none truncate">

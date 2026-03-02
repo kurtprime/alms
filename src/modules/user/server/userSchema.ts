@@ -28,6 +28,7 @@ const dateSchema = z
 // QUIZ SETTINGS SCHEMA
 // ============================================
 export const quizSettingsSchema = z.object({
+  quizId: z.int(),
   timeLimit: z.number().int().min(0),
   maxAttempts: z.number().int().min(1).optional(),
   shuffleQuestions: z.boolean(),
@@ -128,6 +129,7 @@ export function hasQuizSettings(
 // DEFAULT VALUES
 // ============================================
 export const defaultQuizSettings: QuizSettings = {
+  quizId: 0,
   timeLimit: 30,
   maxAttempts: 3,
   shuffleQuestions: false,
@@ -182,6 +184,29 @@ export const lessonTypeOptionSchema = z.object({
   classId: z.string(),
   lessonTypeId: z.number(),
 });
+
+export type AssessmentColumn = {
+  id: number;
+  title: string | null;
+  type: "quiz" | "assignment" | "handout";
+  maxScore: number | null;
+};
+
+export type StudentGradeRow = {
+  student: {
+    id: string;
+    name: string;
+    image: string | null;
+  };
+  grades: Record<
+    string,
+    {
+      score: number | null;
+      status: string;
+      submittedAt: string | null;
+    }
+  >;
+};
 
 // ============================================
 // TRPC ROUTER TYPES

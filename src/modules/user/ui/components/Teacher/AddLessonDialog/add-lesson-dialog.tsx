@@ -126,6 +126,7 @@ export function AddLessonDialog({
       });
     },
     interval: 3,
+    classId,
   });
 
   // UI state
@@ -155,7 +156,7 @@ export function AddLessonDialog({
 
   // Form submit
   function onSubmit(data: LessonTeacherData) {
-    mutate({ ...data, status: "published" });
+    mutate({ ...data, status: "published", classId });
   }
 
   return (

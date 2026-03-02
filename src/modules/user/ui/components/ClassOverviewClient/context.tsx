@@ -35,7 +35,7 @@ export function DocumentViewerProvider({
   children: React.ReactNode;
 }) {
   const [activeItem, setActiveItem] = useState<ViewerItem | null>(null);
-  const [isViewerOpen, setIsViewerOpen] = useState(true);
+  const [isViewerOpen, setIsViewerOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleViewer = useCallback(() => setIsViewerOpen((prev) => !prev), []);

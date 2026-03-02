@@ -7,6 +7,8 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { ac, admin, student, teacher, user } from "./permission";
 import { username } from "better-auth/plugins/username";
+import { sendEmail } from "@/services/mailbit/mailer";
+import { getPasswordResetHtml } from "@/services/mailbit/templates/password-reset";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -17,6 +19,18 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
+    sendResetPassword: async ({ user, url, token }, request) => {
+      const htmlContent = getPasswordResetHtml(url, user.name);
+      void sendEmail({
+        to: user.email,
+        subject: "Reset your password",
+        html: htmlContent,
+      });
+    },
+    onPasswordReset: async ({ user }, request) => {
+      // your logic here
+      console.log(`Password for user ${user.email} has been reset.`);
+    },
   },
   socialProviders: {
     facebook: {
@@ -48,21 +62,7 @@ export const auth = betterAuth({
       },
     }),
     username(),
-    // customSession(async ({ user, session }: {
-    //   user: AuthUser;
-    //   session: Session
-    // }) => {
-    //   // Enrich session with custom data (e.g., user preferences, roles, etc.)
-    //   return {
-    //     session,
-    //     user: {
-    //       ...user,
-    //       onBoarded: "on_boarded",
-    //     },
-    //     // Add custom fields
-    //     // You can fetch additional data from your database here
-    //   };
-    // }),
+
     nextCookies(),
   ],
 });

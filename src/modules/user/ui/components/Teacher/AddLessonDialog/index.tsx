@@ -1,138 +1,305 @@
 "use client";
 
 import ResponsiveDialog from "@/components/responsive-dialog";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Form, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useTRPC } from "@/trpc/client";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus } from "lucide-react";
-import { useState } from "react";
-import type { LessonTeacherData } from "./types";
-import { LESSON_TYPE_CONFIG } from "./types";
-import { AddLessonDialog } from "./add-lesson-dialog";
+import { useMemo, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
+import CreateLessonLeftSide from "@/modules/admin/ui/subject/components/CreateLessonLeftSide";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MdxEditor } from "@/services/mdxEditor";
+import {
+  lessonTeacherSchema,
+  getDefaultLessonValues,
+  hasQuizSettings,
+  LessonType,
+} from "@/modules/user/server/userSchema";
+import { useAutoSaveLesson } from "@/modules/user/hooks/use-auto-save";
+import { LessonTeacherData, LessonDocument } from "./types";
+import { useFileUpload } from "./use-file-upload";
+import { TitleSection } from "./title-section";
+import { DeleteConfirmDialog } from "../DeleteConfirmDialog";
+import { FileUploadSection } from "./file-upload-section";
+import { FormFooter } from "./form-footer";
+import { SettingsSidebar } from "./settings-sidebar";
+import { UploadedFilesList } from "./uploaded-files-list";
+import { lessonTypeEnum } from "@/db/schema";
+import { QuizSelector } from "./quiz-selector";
 
-interface AddLessonBtnProps {
+// ============================================
+// MAIN COMPONENT
+// ============================================
+interface AddLessonDialogProps {
   classId: string;
+  initialData: LessonTeacherData;
+  setOpen: (arg: boolean) => void;
+  lessonType: (typeof lessonTypeEnum)["enumValues"][number];
 }
 
-export default function AddLessonBtn({ classId }: AddLessonBtnProps) {
-  const [open, setOpen] = useState(false);
-  const [initialData, setInitialData] = useState<LessonTeacherData>();
-  const [lessonType, setLessonType] = useState<
-    "handout" | "assignment" | "quiz"
-  >("handout");
+export function AddLessonDialog({
+  classId,
+  initialData,
+  setOpen,
+  lessonType,
+}: AddLessonDialogProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
+  const { lessonId, lessonTypeId, title, markDownDescription } = initialData;
+  const isQuiz = lessonType === "quiz";
 
-  const lessonCreateType = useMutation(
-    trpc.user.createLessonType.mutationOptions({
-      onSuccess: (data, variables) => {
-        if (!data) return;
+  const defaultValues = useMemo((): LessonTeacherData => {
+    const defaults = getDefaultLessonValues(lessonType as LessonType);
+    const merged = {
+      ...defaults,
+      lessonId: `${lessonId}`,
+      lessonTypeId: lessonTypeId,
+      title: title ?? "",
+      markDownDescription: markDownDescription ?? "",
+    };
+    if (hasQuizSettings(initialData) && initialData.quizSettings) {
+      return {
+        ...merged,
+        quizSettings: initialData.quizSettings,
+      } as LessonTeacherData;
+    }
+    return merged;
+  }, [
+    lessonType,
+    lessonId,
+    lessonTypeId,
+    title,
+    markDownDescription,
+    initialData,
+  ]);
 
+  const form = useForm<LessonTeacherData>({
+    resolver: zodResolver(lessonTeacherSchema),
+    defaultValues,
+    mode: "onChange",
+  });
+
+  // Use useWatch for reactive values compatible with React Compiler
+  const formValues = useWatch({ control: form.control });
+  const isDirty = form.formState.isDirty;
+  const isValid = form.formState.isValid;
+
+  const { mutate, isPending } = useMutation(
+    trpc.user.updateLessonType.mutationOptions({
+      onSuccess: () => {
         queryClient.invalidateQueries(
-          trpc.user.getAllLessonsWithContentsInClass.queryOptions({
-            classId: variables.classId,
-          }),
+          trpc.user.getAllLessonsWithContentsInClass.queryOptions({ classId }),
         );
-
-        setLessonType(data.lessonTypeData.type);
-
-        // Build data with type assertion
-        const initialData = {
-          lessonId: `${data.lessonData.id}`,
-          lessonTypeId: data.lessonTypeData.id,
-          title: data.lessonTypeData.name ?? "",
-          markDownDescription: data.lessonTypeData.markup ?? "",
-          lessonType: variables.lessonTypeEnum,
-          ...("quizSetting" in data && { quizSettings: data.quizSetting }),
-        } as LessonTeacherData;
-
-        setInitialData(initialData);
-        setOpen(true);
+        setOpen(false);
       },
     }),
   );
 
-  const handleCreateLesson = (type: "handout" | "assignment" | "quiz") => {
-    lessonCreateType.mutate({
-      classId: classId,
-      lessonTypeEnum: type,
-    });
-  };
+  const { isSaving, errorMessage } = useAutoSaveLesson({
+    data: formValues as LessonTeacherData,
+    enabled: isDirty,
+    onSuccess: () => {
+      queryClient.invalidateQueries(
+        trpc.user.getAllLessonsWithContentsInClass.queryOptions({ classId }),
+      );
+      form.reset(form.getValues(), { keepValues: true, keepDirty: false });
+    },
+    interval: 3,
+    classId,
+  });
 
-  // Get lesson types from config
-  const lessonTypes = Object.values(LESSON_TYPE_CONFIG);
+  const [activeTab, setActiveTab] = useState("content");
+  const [deleteConfirm, setDeleteConfirm] = useState<
+    LessonDocument[number] | null
+  >(null);
+  const [openAddNewLesson, setOpenAddNewLesson] = useState(false);
+
+  const {
+    files,
+    error,
+    isUploading,
+    isLoadingDocs,
+    uploadedDocs,
+    totalCount,
+    handleUpload,
+    removeFile,
+    getRootProps,
+    getInputProps,
+    isDragActive,
+  } = useFileUpload({
+    lessonTypeId: lessonTypeId ?? initialData.lessonTypeId,
+    maxFiles: 5,
+  });
+
+  function onSubmit(data: LessonTeacherData) {
+    mutate({ ...data, status: "published", classId });
+  }
 
   return (
-    <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            size="lg"
-            className="gap-2 shadow-sm hover:shadow-md transition-shadow"
-            disabled={lessonCreateType.isPending}
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            {lessonCreateType.isPending ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Plus className="h-5 w-5" />
-            )}
-            <span>Create</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-64 p-2">
-          <DropdownMenuGroup>
-            {lessonTypes.map((item) => {
-              const Icon = item.icon;
-              return (
-                <DropdownMenuItem
-                  key={item.type}
-                  onClick={() => handleCreateLesson(item.type)}
-                  className="flex items-center gap-3 p-3 cursor-pointer"
-                >
-                  <div
-                    className={`flex h-9 w-9 items-center justify-center rounded-lg ${item.bgColor}`}
-                  >
-                    <Icon className={`h-5 w-5 ${item.color}`} />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-medium">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {item.description}
-                    </span>
-                  </div>
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+              {/* Left side */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden border-r">
+                <TitleSection
+                  form={form}
+                  lessonType={lessonType}
+                  isSaving={isSaving}
+                  isDirty={isDirty}
+                  errorMessage={errorMessage}
+                />
 
-      {initialData && (
-        <ResponsiveDialog
-          title={"Add " + lessonType}
-          description=""
-          open={open}
-          variant="fullscreen"
-          onOpenChange={setOpen}
-        >
-          <AddLessonDialog
-            setOpen={setOpen}
-            classId={classId}
-            initialData={initialData}
-            lessonType={lessonType}
-          />
-        </ResponsiveDialog>
-      )}
-    </>
+                <Tabs
+                  value={activeTab}
+                  onValueChange={setActiveTab}
+                  className="flex min-h-0 flex-1 flex-col overflow-hidden"
+                >
+                  <div className="shrink-0 border-b px-6">
+                    <TabsList className="h-12 bg-transparent p-0">
+                      <TabsTrigger
+                        value="content"
+                        className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                      >
+                        {isQuiz ? "Quiz Setup" : "Content"}
+                      </TabsTrigger>
+
+                      {/* Hide Attachments tab for Quiz type */}
+                      {!isQuiz && (
+                        <TabsTrigger
+                          value="attachments"
+                          className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                        >
+                          Attachments
+                          {totalCount > 0 && (
+                            <span className="ml-2 rounded-full bg-secondary px-2 py-0.5 text-xs">
+                              {totalCount}
+                            </span>
+                          )}
+                        </TabsTrigger>
+                      )}
+                    </TabsList>
+                  </div>
+
+                  {/* Content Tab */}
+                  <TabsContent
+                    value="content"
+                    className="m-0 min-h-0 flex-1 overflow-hidden"
+                  >
+                    <ScrollArea className="h-full">
+                      <div className="p-6 space-y-6">
+                        {/* QUIZ SPECIFIC UI */}
+                        {isQuiz && (
+                          <FormField
+                            control={form.control}
+                            name="quizSettings.quizId"
+                            render={({ field }) => (
+                              <FormItem>
+                                <QuizSelector
+                                  value={field.value}
+                                  onChange={field.onChange}
+                                  classId={classId}
+                                />
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        )}
+
+                        {/* Markdown Editor */}
+                        <div className="space-y-3">
+                          <label className="text-sm font-medium text-muted-foreground">
+                            {isQuiz ? "Quiz Instructions" : "Lesson Content"}
+                          </label>
+                          <div className="rounded-lg border">
+                            <MdxEditor
+                              className="min-h-[300px]"
+                              // FIX: Use formValues derived from useWatch instead of form.watch
+                              value={formValues?.markDownDescription ?? ""}
+                              onChange={(val) =>
+                                form.setValue("markDownDescription", val)
+                              }
+                              lessonTypeId={formValues?.lessonTypeId}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </ScrollArea>
+                  </TabsContent>
+
+                  {/* Attachments Tab (Hidden for Quiz) */}
+                  {!isQuiz && (
+                    <TabsContent
+                      value="attachments"
+                      className="m-0 min-h-0 flex-1 overflow-hidden"
+                    >
+                      <ScrollArea className="h-full">
+                        <div className="p-6 space-y-6">
+                          <FileUploadSection
+                            files={files}
+                            error={error}
+                            isUploading={isUploading}
+                            isDragActive={isDragActive}
+                            getRootProps={getRootProps}
+                            getInputProps={getInputProps}
+                            onUpload={handleUpload}
+                            onRemoveFile={removeFile}
+                          />
+                          <Separator />
+                          <UploadedFilesList
+                            documents={uploadedDocs}
+                            isLoading={isLoadingDocs}
+                            onDeleteRequest={setDeleteConfirm}
+                          />
+                        </div>
+                      </ScrollArea>
+                    </TabsContent>
+                  )}
+                </Tabs>
+              </div>
+
+              {/* Right Sidebar */}
+              <SettingsSidebar
+                lessonType={lessonType}
+                form={form}
+                classId={classId}
+                onOpenAddNewLesson={setOpenAddNewLesson}
+              />
+            </div>
+
+            <FormFooter
+              isPending={isPending}
+              isValid={isValid}
+              totalCount={totalCount}
+              onReset={() => form.reset()}
+              onCancel={() => setOpen(false)}
+              onShowFiles={() => !isQuiz && setActiveTab("attachments")}
+            />
+          </form>
+        </Form>
+      </div>
+
+      <DeleteConfirmDialog
+        doc={deleteConfirm}
+        onClose={() => setDeleteConfirm(null)}
+        lessonTypeId={lessonTypeId ?? initialData.lessonTypeId}
+      />
+
+      <ResponsiveDialog
+        open={openAddNewLesson}
+        onOpenChange={setOpenAddNewLesson}
+        description=""
+        title="Create Lesson"
+      >
+        <CreateLessonLeftSide onOpen={setOpenAddNewLesson} classId={classId} />
+      </ResponsiveDialog>
+    </div>
   );
 }
-
-export { AddLessonDialog } from "./add-lesson-dialog";
-export * from "./types";
