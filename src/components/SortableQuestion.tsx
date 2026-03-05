@@ -45,7 +45,7 @@ export function SortableQuestion({ id, children }: SortableQuestionProps) {
       </div>
 
       {/* Content */}
-      <div className="pl-8">{children}</div>
+      <div className="p-8">{children}</div>
     </div>
   );
 }

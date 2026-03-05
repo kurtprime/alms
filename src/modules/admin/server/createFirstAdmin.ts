@@ -4,7 +4,6 @@ import { auth } from "@/lib/auth";
 import { user } from "@/db/schema";
 import { count, eq } from "drizzle-orm";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { db } from "@/index";
 
 /**
@@ -26,33 +25,28 @@ export async function createFirstAdmin(formData: FormData) {
     throw new Error("Setup is already complete.");
   }
 
+  const name = formData.get("name") as string;
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
-  const name = formData.get("name") as string;
 
   if (!email || !password) {
     throw new Error("Email and password are required.");
   }
 
   try {
-    // 1. Create the user using standard signup
-    // We pass headers() to simulate a request context
+    // 1. Create user using standard Better Auth API
     const { user: newUser } = await auth.api.signUpEmail({
       body: { email, password, name },
-      headers: await headers(),
     });
 
-    if (!newUser) {
-      throw new Error("Failed to create user.");
-    }
+    if (!newUser) throw new Error("Failed to create user.");
 
-    // 2. Force elevate to Admin (Direct DB Update)
-    // We do this because admin.createUser requires an existing admin session.
+    // 2. Force elevate to Admin directly in DB
     await db.update(user).set({ role: "admin" }).where(eq(user.id, newUser.id));
-  } catch (error) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
     console.error(error);
-    throw error; // Rethrow to show error in UI
+    throw new Error(error.message || "Setup failed");
   }
-
-  redirect("/sign-in?message=setup_complete");
+  redirect("/admin/users");
 }

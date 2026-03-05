@@ -174,7 +174,7 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
         </div>
 
         {/* Divider */}
-        <div className="relative my-6">
+        {/* <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>
           </div>
@@ -183,10 +183,10 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
               Or continue with
             </span>
           </div>
-        </div>
+        </div> */}
 
         {/* Social Logins */}
-        <div className="flex flex-col gap-3">
+        {/* <div className="flex flex-col gap-3">
           <Button
             onClick={() => login("google")}
             variant="outline"
@@ -207,7 +207,7 @@ function LoginModal({ isOpen, onClose }: LoginModalProps) {
             Privacy Policy
           </Link>
           .
-        </p>
+        </p> */}
       </DialogContent>
     </Dialog>
   );

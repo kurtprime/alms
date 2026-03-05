@@ -1,6 +1,6 @@
+import { checkSetupStatus } from "@/modules/admin/server/createFirstAdmin";
+import { SetupForm } from "@/modules/admin/ui/admin/components/setup-form";
 import Image from "next/image";
-import { SetupForm } from "./setup-form";
-import { checkSetupStatus } from "./action";
 import { redirect } from "next/navigation";
 
 export default async function SetupPage() {
