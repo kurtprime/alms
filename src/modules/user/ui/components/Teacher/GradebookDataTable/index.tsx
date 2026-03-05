@@ -1,4 +1,5 @@
 "use client";
+"use no memo";
 
 import * as React from "react";
 import {
@@ -22,11 +23,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -38,13 +34,7 @@ import {
   AssessmentColumn,
   StudentGradeRow,
 } from "@/modules/user/server/userSchema";
-import {
-  FileSpreadsheet,
-  MoreVertical,
-  ExternalLink,
-  Check,
-  Loader2,
-} from "lucide-react";
+import { FileSpreadsheet, ExternalLink, Check, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { GeneratedAvatar } from "@/components/generatedAvatar";
 import { separateFullName } from "@/hooks/separate-name";
@@ -72,7 +62,6 @@ export function GradebookDataTable({
 
   // --- STATE ---
   const [globalFilter, setGlobalFilter] = React.useState("");
-  // We track which dropdown is open to manage the input value effectively
   const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
   const [inputValue, setInputValue] = React.useState<string>("");
 
@@ -150,18 +139,21 @@ export function GradebookDataTable({
     }
   };
 
-  const handleSave = (lessonTypeId: number, studentId: string) => {
-    const newScore = inputValue === "" ? null : parseFloat(inputValue);
-    if (inputValue !== "" && isNaN(newScore as number)) {
-      toast.error("Invalid number");
-      return;
-    }
-    updateScore({
-      lessonTypeId,
-      studentId,
-      score: newScore,
-    });
-  };
+  const handleSave = React.useCallback(
+    (lessonTypeId: number, studentId: string, value: string) => {
+      const newScore = value === "" ? null : parseFloat(value);
+      if (value !== "" && isNaN(newScore as number)) {
+        toast.error("Invalid number");
+        return;
+      }
+      updateScore({
+        lessonTypeId,
+        studentId,
+        score: newScore,
+      });
+    },
+    [updateScore],
+  );
 
   const columns: ColumnDef<StudentGradeRow>[] = React.useMemo(() => {
     // 1. Student Column
@@ -192,7 +184,7 @@ export function GradebookDataTable({
       },
     };
 
-    // 2. Assessment Columns (With Dropdowns)
+    // 2. Assessment Columns
     const assessmentCols: ColumnDef<StudentGradeRow>[] = data.assessments.map(
       (assessment) => ({
         id: `assessment-${assessment.id}`,
@@ -220,7 +212,6 @@ export function GradebookDataTable({
           const cellId = `${row.original.student.id}-${assessment.id}`;
           const isOpen = openDropdown === cellId;
 
-          // Colors
           let statusColor = "text-slate-400";
           let bgColor = "bg-slate-50";
           if (percentage !== null) {
@@ -266,11 +257,6 @@ export function GradebookDataTable({
                   ) : (
                     <span className="text-slate-300 text-xs">To Grade</span>
                   )}
-
-                  {/* Small indicator that there is a menu */}
-                  {isTeacher && (
-                    <MoreVertical className="h-3 w-3 text-slate-300 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  )}
                 </div>
               </DropdownMenuTrigger>
 
@@ -294,7 +280,11 @@ export function GradebookDataTable({
                       size="icon"
                       className="h-8 w-8 shrink-0"
                       onClick={() =>
-                        handleSave(assessment.id, row.original.student.id)
+                        handleSave(
+                          assessment.id,
+                          row.original.student.id,
+                          inputValue,
+                        )
                       }
                       disabled={isUpdating}
                     >
@@ -361,7 +351,14 @@ export function GradebookDataTable({
     };
 
     return [studentCol, ...assessmentCols, avgCol];
-  }, [data.assessments, openDropdown, inputValue, isTeacher, isUpdating]);
+  }, [
+    data.assessments,
+    openDropdown,
+    isTeacher,
+    isUpdating,
+    handleSave,
+    inputValue,
+  ]); // inputValue needed here to update input visually
 
   const table = useReactTable({
     data: data.rows,
@@ -373,7 +370,7 @@ export function GradebookDataTable({
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 md:mx-20">
       {/* Toolbar */}
       <div className="flex items-center justify-between">
         <Input
@@ -428,7 +425,7 @@ export function GradebookDataTable({
                 table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
-                    className="group" // Added group class for hover effects
+                    className="group"
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) => {

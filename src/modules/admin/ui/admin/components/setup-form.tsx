@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Loader2, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { authClient } from "@/lib/auth-client";
+import { createFirstAdmin } from "@/modules/admin/server/createFirstAdmin";
 
 // Schema
 const setupSchema = z
@@ -38,6 +40,7 @@ export function SetupForm() {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [isPending, setIsPending] = useState(false);
 
   const form = useForm<z.infer<typeof setupSchema>>({
     resolver: zodResolver(setupSchema),
@@ -47,23 +50,30 @@ export function SetupForm() {
   const { isSubmitting } = form.formState;
 
   const onSubmit = async (values: z.infer<typeof setupSchema>) => {
+    const { email, password, name, confirmPassword } = values;
+
+    setIsPending(true);
+
     try {
-      const response = await fetch("/api/setup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
+      if (confirmPassword !== password)
+        throw new Error("password does not match");
+      const formData = new FormData();
+      formData.append("name", values.name);
+      formData.append("email", values.email);
+      formData.append("password", values.password);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Setup failed");
-      }
+      // Call the Server Action
+      await createFirstAdmin(formData);
 
+      // If successful, the server action redirects.
+      // We set success state just in case redirect takes a moment.
       setIsSuccess(true);
-      toast.success("Admin account created!");
-      setTimeout(() => router.push("/sign-in"), 2000);
     } catch (error: any) {
-      toast.error("Error", { description: error.message });
+      console.error(error);
+      toast.error("Setup Failed", {
+        description: error.message || "Something went wrong.",
+      });
+      setIsPending(false);
     }
   };
 

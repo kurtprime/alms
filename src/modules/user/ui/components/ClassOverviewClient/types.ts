@@ -122,6 +122,7 @@ export function buildInitialData(item: ViewerItem): LessonTeacherData {
       ...base,
       lessonType: "quiz",
       quizSettings: {
+        quizId: quizSetting?.quizId ?? defaultQuizSettings.quizId,
         timeLimit: quizSetting?.timeLimit ?? defaultQuizSettings.timeLimit,
         maxAttempts:
           quizSetting?.maxAttempts ?? defaultQuizSettings.maxAttempts,

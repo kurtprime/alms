@@ -159,6 +159,7 @@ export const classActions = {
         quizTypeIds.length > 0
           ? await db
               .select({
+                quizId: quiz.id,
                 lessonTypeId: quiz.lessonTypeId,
                 timeLimit: quiz.timeLimit,
                 maxAttempts: quiz.maxAttempts,

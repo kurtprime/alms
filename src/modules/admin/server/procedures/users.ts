@@ -1,4 +1,4 @@
-import { adminProcedure } from "@/trpc/init";
+import { adminProcedure, baseProcedure } from "@/trpc/init";
 import {
   createStudentFormSchema,
   createTeacherFormSchema,
@@ -13,6 +13,7 @@ import { customAlphabet, nanoid } from "nanoid";
 import { and, desc, eq, ilike, or, SQL } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { headers } from "next/headers";
+import z from "zod";
 
 export const users = {
   createStudent: adminProcedure
@@ -268,8 +269,8 @@ export const users = {
             ilike(user.name, `%${search}%`),
             ilike(user.customId, `%${search}%`),
             ilike(user.username, `%${search}%`),
-            ilike(organization.name, `%${search}%`)
-          ) as SQL<unknown>
+            ilike(organization.name, `%${search}%`),
+          ) as SQL<unknown>,
         );
       }
 
@@ -329,5 +330,18 @@ export const users = {
         .orderBy(desc(user.createdAt));
 
       return teachers;
+    }),
+  createFirstAdmin: baseProcedure
+    .input(
+      z.object({ email: z.string(), password: z.string(), name: z.string() }),
+    )
+    .mutation(async ({ input }) => {
+      const { user: newUser } = await auth.api.createUser({
+        body: { ...input, role: "admin" },
+      });
+
+      if (!newUser) {
+        throw new Error("Failed to create user.");
+      }
     }),
 };
