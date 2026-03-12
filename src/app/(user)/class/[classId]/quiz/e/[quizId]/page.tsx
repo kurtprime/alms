@@ -1,4 +1,8 @@
-import QuizEditClient from "@/modules/user/ui/Views/QuizEditView";
+import CreateQuiz from "@/modules/admin/ui/subject/components/CreateQuiz";
+import { getQueryClient, trpc } from "@/trpc/server";
+import { HydrationBoundary, dehydrate } from "@tanstack/react-query";
+import { Suspense } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 
 export default async function page({
   params,
@@ -7,5 +11,18 @@ export default async function page({
 }) {
   const { quizId } = await params;
 
-  return <QuizEditClient quizId={quizId} />;
+  const queryClient = getQueryClient();
+  void queryClient.prefetchQuery(
+    trpc.user.getQuizDetails.queryOptions({ quizId: +quizId }),
+  );
+
+  return (
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <ErrorBoundary fallback={<div>something went wrong</div>}>
+        <Suspense>
+          <CreateQuiz quizId={+quizId} />
+        </Suspense>
+      </ErrorBoundary>
+    </HydrationBoundary>
+  );
 }

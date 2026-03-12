@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { authClient } from "@/lib/auth-client";
@@ -27,6 +27,7 @@ import {
   MapPin,
   HelpCircle,
   MessageCircle,
+  ShieldCheck,
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -49,91 +50,335 @@ const SignInSchema = z.object({
 function SignInForm() {
   const router = useRouter();
 
+  // Define strict types
+  type Step = "credentials" | "choose_method" | "enter_code";
+  type TwoFactorMethod = "totp" | "email";
+
+  // Step Logic: credentials -> choose_method -> enter_code
+  const [step, setStep] = useState<Step>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("login_step");
+      // Type guard to ensure only valid steps are returned
+      if (
+        stored === "credentials" ||
+        stored === "choose_method" ||
+        stored === "enter_code"
+      ) {
+        return stored;
+      }
+    }
+    return "credentials";
+  });
+
+  // Which method did they choose?
+  const [method, setMethod] = useState<TwoFactorMethod | null>(() => {
+    if (typeof window !== "undefined") {
+      const stored = sessionStorage.getItem("login_method");
+      if (stored === "totp" || stored === "email") {
+        return stored;
+      }
+    }
+    return null;
+  });
+
+  const [email, setEmail] = useState(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("login_email") || "";
+    }
+    return "";
+  });
+
   const form = useForm<z.infer<typeof SignInSchema>>({
     resolver: zodResolver(SignInSchema),
     defaultValues: { username: "", password: "" },
   });
 
-  async function onSubmit(values: z.infer<typeof SignInSchema>) {
-    const { data, error } = await authClient.signIn.username({
-      username: values.username,
-      password: values.password,
-      callbackURL: "/",
-    });
+  // Persist state to sessionStorage
+  useEffect(() => {
+    sessionStorage.setItem("login_step", step);
+    if (method) sessionStorage.setItem("login_method", method);
+    if (email) sessionStorage.setItem("login_email", email);
 
-    if (error) {
-      toast.error("Sign In Failed", { description: error.message });
+    if (step === "credentials") {
+      sessionStorage.removeItem("login_method");
+      sessionStorage.removeItem("login_email");
     }
-    if (data) router.push("/");
+  }, [step, method, email]);
+
+  // --- STEP 1: Submit Credentials ---
+  async function onSubmit(values: z.infer<typeof SignInSchema>) {
+    await authClient.signIn.username(
+      {
+        username: values.username,
+        password: values.password,
+        callbackURL: "/",
+      },
+      {
+        async onSuccess(context) {
+          if (context.data.twoFactorRedirect) {
+            setEmail(values.username);
+            setStep("choose_method");
+          } else {
+            router.push("/");
+          }
+        },
+        onError(context) {
+          toast.error("Sign In Failed", { description: context.error.message });
+        },
+      },
+    );
   }
 
   const { isSubmitting } = form.formState;
 
+  // --- STEP 2: Choose Method ---
+  const handleChooseMethod = async (selectedType: TwoFactorMethod) => {
+    setMethod(selectedType);
+    setStep("enter_code");
+
+    if (selectedType === "email") {
+      try {
+        await authClient.twoFactor.sendOtp();
+        toast.info("Code Sent", {
+          description: "Check your email for the code.",
+        });
+      } catch (e) {
+        toast.error("Failed to send email");
+      }
+    }
+  };
+
+  // --- STEP 3: Verify Code ---
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+
+  const handleVerify2FA = async () => {
+    if (!code) return;
+    setVerifying(true);
+
+    let result;
+
+    if (method === "totp") {
+      result = await authClient.twoFactor.verifyTotp({ code });
+    } else {
+      // Default to OTP (email) logic
+      result = await authClient.twoFactor.verifyOtp({ code });
+    }
+
+    const { data, error } = result;
+
+    if (error) {
+      toast.error("Verification Failed", {
+        description: error.message || "Invalid code",
+      });
+    } else {
+      sessionStorage.clear(); // Clear temp storage
+      toast.success("Verified!");
+      router.push("/");
+    }
+
+    setVerifying(false);
+  };
+
+  const handleBack = () => {
+    if (step === "enter_code") {
+      setStep("choose_method");
+      setCode("");
+    } else if (step === "choose_method") {
+      setStep("credentials");
+    }
+  };
+
+  // --- RENDER ---
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col">
-        <FormField
-          control={form.control}
-          name="username"
-          render={({ field }) => (
-            <FormItem className="mt-4">
-              <FormLabel className="text-sm text-gray-800">User ID</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder=""
-                  {...field}
-                  className="h-11 px-4 rounded-[10px] border-gray-300 bg-white focus:border-[#e02424] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  disabled={isSubmitting}
-                />
-              </FormControl>
-              <FormMessage className="text-red-500 text-xs" />
-            </FormItem>
-          )}
-        />
+    <div className="flex flex-col">
+      {step === "credentials" && (
+        // STANDARD LOGIN VIEW
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col"
+          >
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem className="mt-4">
+                  <FormLabel className="text-sm text-gray-800">
+                    User ID
+                  </FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder=""
+                      {...field}
+                      className="h-11 px-4 rounded-[10px] border-gray-300 bg-white focus:border-[#e02424] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-500 text-xs" />
+                </FormItem>
+              )}
+            />
 
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem className="mt-4">
-              <div className="flex items-center justify-between">
-                <FormLabel className="text-sm text-gray-800">
-                  Password
-                </FormLabel>
-                <Link
-                  href="/reset-password"
-                  className="text-xs text-gray-700 hover:text-black hover:underline"
-                >
-                  Forgot password?
-                </Link>
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem className="mt-4">
+                  <div className="flex items-center justify-between">
+                    <FormLabel className="text-sm text-gray-800">
+                      Password
+                    </FormLabel>
+                    <Link
+                      href="/reset-password"
+                      className="text-xs text-gray-700 hover:text-black hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <FormControl>
+                    <Input
+                      type="password"
+                      placeholder=""
+                      {...field}
+                      className="h-11 px-4 rounded-[10px] border-gray-300 bg-white focus:border-[#e02424] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      disabled={isSubmitting}
+                    />
+                  </FormControl>
+                  <FormMessage className="text-red-500 text-xs" />
+                </FormItem>
+              )}
+            />
+
+            <Button
+              disabled={isSubmitting}
+              type="submit"
+              className="w-full h-12 mt-8 rounded-full bg-[#e02424] hover:bg-[#c81e1e] text-white font-semibold text-base transition-transform hover:-translate-y-0.5"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                "Log in"
+              )}
+            </Button>
+          </form>
+        </Form>
+      )}
+
+      {step === "choose_method" && (
+        // METHOD SELECTION VIEW
+        <div className="flex flex-col items-center text-center space-y-6">
+          <div className="p-3 bg-slate-100 rounded-full mb-2">
+            <ShieldCheck className="h-6 w-6 text-slate-600" />
+          </div>
+          <h3 className="text-lg font-semibold text-gray-800">
+            Two-Factor Authentication
+          </h3>
+          <p className="text-sm text-gray-500">
+            Choose how you want to verify your identity.
+          </p>
+
+          <div className="w-full space-y-3">
+            <Button
+              variant="outline"
+              className="w-full h-16 flex items-center justify-start gap-4 px-6 border-2 hover:border-blue-500 hover:bg-blue-50"
+              onClick={() => handleChooseMethod("totp")}
+            >
+              <div className="p-2 bg-blue-100 rounded-full">
+                <Phone className="h-5 w-5 text-blue-600" />
               </div>
-              <FormControl>
-                <Input
-                  type="password"
-                  placeholder=""
-                  {...field}
-                  className="h-11 px-4 rounded-[10px] border-gray-300 bg-white focus:border-[#e02424] focus:ring-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-                  disabled={isSubmitting}
-                />
-              </FormControl>
-              <FormMessage className="text-red-500 text-xs" />
-            </FormItem>
-          )}
-        />
+              <div className="text-left">
+                <p className="font-semibold text-gray-800">Authenticator App</p>
+                <p className="text-xs text-gray-500">
+                  Use Google Authenticator or similar
+                </p>
+              </div>
+            </Button>
 
-        <Button
-          disabled={isSubmitting}
-          type="submit"
-          className="w-full h-12 mt-8 rounded-full bg-[#e02424] hover:bg-[#c81e1e] text-white font-semibold text-base transition-transform hover:-translate-y-0.5"
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
+            <Button
+              variant="outline"
+              className="w-full h-16 flex items-center justify-start gap-4 px-6 border-2 hover:border-indigo-500 hover:bg-indigo-50"
+              onClick={() => handleChooseMethod("email")}
+            >
+              <div className="p-2 bg-indigo-100 rounded-full">
+                <Mail className="h-5 w-5 text-indigo-600" />
+              </div>
+              <div className="text-left">
+                <p className="font-semibold text-gray-800">Email Code</p>
+                <p className="text-xs text-gray-500">
+                  Get a code sent to your email
+                </p>
+              </div>
+            </Button>
+          </div>
+
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="text-gray-600 hover:text-gray-800"
+          >
+            ← Back to login
+          </Button>
+        </div>
+      )}
+
+      {step === "enter_code" && (
+        // CODE INPUT VIEW
+        <div className="flex flex-col items-center text-center">
+          <div className="p-3 bg-blue-50 rounded-full mb-4">
+            {method === "email" ? (
+              <Mail className="h-6 w-6 text-blue-600" />
+            ) : (
+              <ShieldCheck className="h-6 w-6 text-blue-600" />
+            )}
+          </div>
+
+          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+            Verification Required
+          </h3>
+
+          {method === "email" ? (
+            <p className="text-sm text-gray-500 mb-6">
+              We sent a code to{" "}
+              <span className="font-medium text-gray-700">{email}</span>
+            </p>
           ) : (
-            "Log in"
+            <p className="text-sm text-gray-500 mb-6">
+              Enter the code from your authenticator app.
+            </p>
           )}
-        </Button>
-      </form>
-    </Form>
+
+          <Input
+            type="text"
+            placeholder="Enter 6-digit code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="h-12 text-center text-2xl tracking-[0.5em] font-bold rounded-lg border-gray-300 focus:border-blue-500"
+            maxLength={6}
+          />
+
+          <Button
+            onClick={handleVerify2FA}
+            disabled={verifying || code.length < 6}
+            className="w-full h-12 mt-6 rounded-full bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+          >
+            {verifying ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              "Verify Code"
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={handleBack}
+            className="mt-4 text-gray-600 hover:text-gray-800"
+          >
+            ← Choose another method
+          </Button>
+        </div>
+      )}
+    </div>
   );
 }
 

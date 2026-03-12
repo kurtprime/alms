@@ -7,6 +7,21 @@ import {
   invitation,
 } from "./schemas/organization-schema";
 import { subjects, classSubjects, subjectName } from "./schemas/subject-schema";
+import {
+  quiz,
+  quizAnswerOption,
+  quizMatchingPair,
+  quizOrderingItem,
+  quizQuestion,
+} from "./schemas/activity-schema";
+
+export * from "./schemas/auth-schema";
+export * from "./schemas/organization-schema";
+export * from "./schemas/subject-schema";
+export * from "./schemas/lesson-schema";
+export * from "./schemas/file-schema";
+export * from "./schemas/activity-schema";
+export * from "./schemas/data-schema";
 
 // User relations
 export const userRelations = relations(user, ({ many }) => ({
@@ -97,15 +112,63 @@ export const classSubjectRelations = relations(classSubjects, ({ one }) => ({
   }),
 }));
 
+export const subjectsRelations = relations(subjects, ({ one }) => ({
+  nameRelation: one(subjectName, {
+    fields: [subjects.name],
+    references: [subjectName.id],
+  }),
+}));
+
+// In your quiz-schema.ts or a separate relations file
+
+export const quizRelations = relations(quiz, ({ many }) => ({
+  questions: many(quizQuestion),
+}));
+
+export const quizQuestionRelations = relations(
+  quizQuestion,
+  ({ one, many }) => ({
+    quiz: one(quiz, {
+      fields: [quizQuestion.quizId],
+      references: [quiz.id],
+    }),
+    matchingPairs: many(quizMatchingPair),
+    orderingItems: many(quizOrderingItem),
+    answerOptions: many(quizAnswerOption),
+  }),
+);
+
+export const quizMatchingPairRelations = relations(
+  quizMatchingPair,
+  ({ one }) => ({
+    question: one(quizQuestion, {
+      fields: [quizMatchingPair.questionId],
+      references: [quizQuestion.id],
+    }),
+  }),
+);
+
+export const quizOrderingItemRelations = relations(
+  quizOrderingItem,
+  ({ one }) => ({
+    question: one(quizQuestion, {
+      fields: [quizOrderingItem.questionId],
+      references: [quizQuestion.id],
+    }),
+  }),
+);
+
+export const quizAnswerOptionRelations = relations(
+  quizAnswerOption,
+  ({ one }) => ({
+    question: one(quizQuestion, {
+      fields: [quizAnswerOption.questionId],
+      references: [quizQuestion.id],
+    }),
+  }),
+);
+
 // SubjectName relations
 export const subjectNameRelations = relations(subjectName, ({ many }) => ({
   subjects: many(subjects), // One name can be used by multiple subject entries
 }));
-
-export * from "./schemas/auth-schema";
-export * from "./schemas/organization-schema";
-export * from "./schemas/subject-schema";
-export * from "./schemas/lesson-schema";
-export * from "./schemas/file-schema";
-export * from "./schemas/activity-schema";
-export * from "./schemas/data-schema";

@@ -48,7 +48,7 @@ export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
     body: {
       userId: ctx.auth.user.id,
       role: "teacher",
-      permission: {
+      permissions: {
         setUser: ["create", "update"],
       },
     },

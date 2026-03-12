@@ -6,7 +6,12 @@ import {
   pgEnum,
   varchar,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
+
+// ==========================================
+// ENUMS
+// ==========================================
 
 export const userRoleEnum = pgEnum("role", [
   "admin",
@@ -14,6 +19,10 @@ export const userRoleEnum = pgEnum("role", [
   "student",
   "user",
 ]);
+
+// ==========================================
+// TABLES
+// ==========================================
 
 export const user = pgTable(
   "user",
@@ -34,9 +43,12 @@ export const user = pgTable(
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
     onBoarded: boolean("on_boarded"),
+
+    // Added for Better Auth Two-Factor Plugin
+    twoFactorEnabled: boolean("two_factor_enabled").default(false),
   },
   (table) => [
     index("user_custom_id_idx").on(table.customId),
@@ -56,7 +68,7 @@ export const session = pgTable(
       .$defaultFn(() => new Date())
       .notNull(),
     updatedAt: timestamp("updated_at")
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
@@ -90,7 +102,7 @@ export const account = pgTable(
       .$defaultFn(() => new Date())
       .notNull(),
     updatedAt: timestamp("updated_at")
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("account_userId_idx").on(table.userId)],
@@ -108,8 +120,28 @@ export const verification = pgTable(
       .notNull(),
     updatedAt: timestamp("updated_at")
       .defaultNow()
-      .$onUpdate(() => /* @__PURE__ */ new Date())
+      .$onUpdate(() => new Date())
       .notNull(),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
+);
+
+// ==========================================
+// TWO FACTOR (New)
+// ==========================================
+
+export const twoFactor = pgTable(
+  "two_factor",
+  {
+    id: text("id").primaryKey(),
+    secret: text("secret").notNull(),
+    backupCodes: text("backup_codes").notNull(),
+    userId: varchar("user_id", { length: 255 })
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+  },
+  (table) => [
+    index("twoFactor_secret_idx").on(table.secret),
+    index("twoFactor_userId_idx").on(table.userId),
+  ],
 );

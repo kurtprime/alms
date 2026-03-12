@@ -43,6 +43,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { useDocumentViewer } from "./context";
 import { buildInitialData, LessonType } from "./types";
 import { AddLessonDialog } from "../Teacher/AddLessonDialog";
+import Link from "next/link";
 
 // Types & Config
 type LessonTypeKey = "handout" | "quiz" | "assignment";
@@ -303,13 +304,15 @@ export function LessonTypeRow({
                 {/* Show Mark as Done for Handouts to Students */}
 
                 {/* View Button for Quizzes/Assignments */}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="text-blue-600 hover:text-blue-700"
-                >
-                  View <ChevronRight className="w-4 h-4 ml-1" />
-                </Button>
+                <Link href={`${classId}/${item.type}/${item.id}`}>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    View <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </Link>
               </div>
             )}
           </div>

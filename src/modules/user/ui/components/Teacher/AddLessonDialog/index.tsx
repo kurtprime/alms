@@ -203,9 +203,10 @@ export function AddLessonDialog({
                             render={({ field }) => (
                               <FormItem>
                                 <QuizSelector
-                                  value={field.value}
+                                  value={field.value ?? null}
                                   onChange={field.onChange}
                                   classId={classId}
+                                  lessonTypeId={lessonTypeId}
                                 />
                                 <FormMessage />
                               </FormItem>

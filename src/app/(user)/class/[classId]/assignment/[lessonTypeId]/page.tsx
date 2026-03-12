@@ -1,5 +1,6 @@
 import { getCurrentUser } from "@/lib/auth-server";
 import { LessonPageClient } from "@/modules/user/ui/components/Student/ClassAssignment/lesson";
+import { TeacherLessonView } from "@/modules/user/ui/components/Teacher/TeacherLessonView";
 import { getQueryClient, trpc } from "@/trpc/server";
 import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import React, { Suspense } from "react";
@@ -12,6 +13,8 @@ export default async function page({
 }) {
   const param = await params;
   const session = await getCurrentUser();
+
+  const isTeacher = session.user.role === "teacher";
 
   const queryClient = getQueryClient();
   void queryClient.prefetchQuery(
@@ -32,7 +35,11 @@ export default async function page({
     <HydrationBoundary state={dehydrate(queryClient)}>
       <Suspense>
         <ErrorBoundary fallback={<div>something went wrong</div>}>
-          <LessonPageClient params={param} session={session} />
+          {isTeacher ? (
+            <TeacherLessonView params={param} session={session} />
+          ) : (
+            <LessonPageClient params={param} session={session} />
+          )}
         </ErrorBoundary>
       </Suspense>
     </HydrationBoundary>

@@ -1,15 +1,30 @@
 ```
 └── 📁alms
+    └── 📁.continue
+        └── 📁agents
+            ├── new-config-1.yaml
+            ├── new-config-2.yaml
+            ├── new-config-3.yaml
+            ├── new-config.yaml
+        └── 📁prompts
+            ├── new-prompt.md
+    └── 📁.vscode
+        ├── extensions.json
     └── 📁drizzle
         └── 📁meta
             ├── _journal.json
             ├── 0000_snapshot.json
             ├── 0001_snapshot.json
             ├── 0002_snapshot.json
+            ├── 0003_snapshot.json
+            ├── 0004_snapshot.json
         ├── 0000_lumpy_hiroim.sql
         ├── 0001_wooden_mattie_franklin.sql
         ├── 0002_illegal_thunderball.sql
+        ├── 0003_deep_zombie.sql
+        ├── 0004_orange_madrox.sql
     └── 📁public
+        └── 📁assets
         ├── file.svg
         ├── globe.svg
         ├── next.svg
@@ -40,6 +55,10 @@
                 ├── layout.tsx
                 ├── loading.tsx
             └── 📁(auth)
+                └── 📁reset-password
+                    ├── page.tsx
+                └── 📁setup
+                    ├── page.tsx
                 └── 📁sign-in
                     ├── page.tsx
                 ├── layout.tsx
@@ -55,8 +74,30 @@
             └── 📁(user)
                 └── 📁calendar
                     ├── page.tsx
+                └── 📁check
+                    └── 📁[classId]
+                        └── 📁[quizId]
+                            └── 📁[studentId]
+                                ├── page.tsx
+                            ├── page.tsx
+                        ├── page.tsx
+                    ├── page.tsx
                 └── 📁class
                     └── 📁[classId]
+                        └── 📁assignment
+                            └── 📁[lessonTypeId]
+                                ├── loading.tsx
+                                ├── page.tsx
+                        └── 📁handout
+                            └── 📁[lessonTypeId]
+                                ├── page.tsx
+                        └── 📁quiz
+                            └── 📁[lessonTypeId]
+                                ├── loading.tsx
+                                ├── page.tsx
+                            └── 📁e
+                                └── 📁[quizId]
+                                    ├── page.tsx
                         ├── loading.tsx
                         ├── page.tsx
                 ├── layout.tsx
@@ -75,7 +116,6 @@
             ├── favicon.ico
             ├── globals.css
             ├── layout.tsx
-            ├── loading.tsx
         └── 📁components
             └── 📁ui
                 ├── accordion.tsx
@@ -127,15 +167,21 @@
                 ├── toggle.tsx
                 ├── tooltip.tsx
             ├── DataTable.tsx
+            ├── file-upload-dropzone.tsx
             ├── generatedAvatar.tsx
             ├── image-cropper.tsx
+            ├── lesson-content-viewer.tsx
             ├── LoadingSwap.tsx
+            ├── mdx-components.tsx
+            ├── mdx-renderer.tsx
             ├── responsive-dialog.tsx
             ├── SidebarUserButton.tsx
+            ├── SortableQuestion.tsx
         └── 📁db
             └── 📁schemas
                 ├── activity-schema.ts
                 ├── auth-schema.ts
+                ├── data-schema.ts
                 ├── file-schema.ts
                 ├── lesson-schema.ts
                 ├── organization-schema.ts
@@ -150,6 +196,8 @@
             ├── auth-server.ts
             ├── auth.ts
             ├── avatar.ts
+            ├── mdx-files.ts
+            ├── mdx.ts
             ├── navigation.ts
             ├── permission.ts
             ├── utils.ts
@@ -162,11 +210,13 @@
                         ├── subject.ts
                         ├── users.ts
                     ├── adminSchema.ts
+                    ├── createFirstAdmin.ts
                     ├── procedure.ts
                 └── 📁ui
                     └── 📁admin
                         └── 📁components
                             ├── AdminSidebar.tsx
+                            ├── setup-form.tsx
                         └── 📁views
                             ├── AdminView.tsx
                     └── 📁section
@@ -247,27 +297,79 @@
                         ├── subject.ts
                     ├── procedure.ts
                     ├── userSchema.ts
+                └── 📁types
+                    ├── addLesson.ts
                 └── 📁ui
                     └── 📁components
+                        └── 📁AnnouncementOverview
+                            ├── index.tsx
+                        └── 📁ClassOverviewClient
+                            ├──  topic-section.tsx
+                            ├── context.tsx
+                            ├── document-viewer-panel.tsx
+                            ├── empty-state.tsx
+                            ├── index.tsx
+                            ├── lesson-type-row.tsx
+                            ├── mobile-document-sheet.tsx
+                            ├── resizable-content.tsx
+                            ├── types.ts
+                            ├── viewer-toggle.tsx
                         └── 📁Student
+                            └── 📁ClassAssignment
+                                ├── assignment-uploader.tsx
+                                ├── lesson-comments.tsx
+                                ├── lesson-layout.tsx
+                                ├── lesson.tsx
+                            └── 📁ClassHandout
+                                ├── class-handout-loading.tsx
+                                ├── class-handout.tsx
+                                ├── index.tsx
                             ├── StudentSidebarAccordion.tsx
                         └── 📁Teacher
+                            └── 📁AddLessonDialog
+                                ├── add-lesson-dialog.tsx
+                                ├── file-upload-section.tsx
+                                ├── form-footer.tsx
+                                ├── index.tsx
+                                ├── quiz-selector.tsx
+                                ├── settings-sidebar.tsx
+                                ├── title-section.tsx
+                                ├── types.ts
+                                ├── uploaded-files-list.tsx
+                                ├── use-file-upload.ts
+                            └── 📁CheckClient
+                                ├── ActivityCard.tsx
+                                ├── GradingDialog.tsx
+                                ├── index.tsx
+                                ├── StudentListTable.tsx
+                                ├── SubmissionsTable.tsx
+                                ├── types.ts
+                            └── 📁GradebookDataTable
+                                ├── index.tsx
                             ├── AddLesson.tsx
                             ├── AddLessonHeader.tsx
                             ├── ClassroomDropdown.tsx
+                            ├── DeleteConfirmDialog.tsx
+                            ├── Docoment.tsx
+                            ├── DocumentPreviewDialog.tsx
                             ├── LessonSelect.tsx
                             ├── SidebarAccordion.tsx
                             ├── TeacherAddClassForm.tsx
+                            ├── TeacherLessonView.tsx
                         ├── ClassOverview.tsx
-                        ├── ClassOverviewClient.tsx
                         ├── ClassSubjectClient.tsx
                         ├── ProfilePopupClient.tsx
                         ├── SidebarMenuItemsParams.tsx
                         ├── StudentListClient.tsx
                         ├── StudentTab.tsx
                     └── 📁Views
+                        ├── AnnouncementView.tsx
+                        ├── CheckView.tsx
+                        ├── ClassHandoutView.tsx
                         ├── ClassIdView.tsx
                         ├── CurrentSectionClass.tsx
+                        ├── GradeBookView.tsx
+                        ├── QuizEditView.tsx
                     ├── AppSidebar.tsx
                     ├── UserNavigation.tsx
         └── 📁services
@@ -277,8 +379,13 @@
             └── 📁inngest
                 └── 📁functions
                     ├── admin.ts
+                    ├── user.ts
                 ├── client.ts
                 ├── test.ts
+            └── 📁mailbit
+                └── 📁templates
+                    ├── password-reset.ts
+                ├── mailer.ts
             └── 📁mdxEditor
                 ├── custom-image-dialog.tsx
                 ├── index.tsx
@@ -306,9 +413,11 @@
         └── 📁.temp
             ├── cli-latest
         └── 📁snippets
+            ├── Untitled query 782.sql
             ├── Untitled query 866.sql
         ├── .gitignore
         ├── config.toml
+    ├── .dockerignore
     ├── .env
     ├── .gitignore
     ├── .hintrc
@@ -318,14 +427,17 @@
     ├── Dockerfile
     ├── drizzle.config.ts
     ├── eslint.config.mts
+    ├── File Structure
     ├── GEMINI.md
     ├── inngest
+    ├── kong.yml
     ├── next-env.d.ts
     ├── next.config.ts
     ├── package.json
     ├── pnpm-lock.yaml
     ├── pnpm-workspace.yaml
     ├── postcss.config.mjs
+    ├── README.Docker.md
     ├── README.md
     ├── tailwind.config.ts
     └── tsconfig.json

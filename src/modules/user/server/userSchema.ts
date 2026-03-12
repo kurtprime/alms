@@ -28,7 +28,8 @@ const dateSchema = z
 // QUIZ SETTINGS SCHEMA
 // ============================================
 export const quizSettingsSchema = z.object({
-  quizId: z.int(),
+  quizId: z.int().optional(),
+  description: z.string().optional(),
   timeLimit: z.number().int().min(0),
   maxAttempts: z.number().int().min(1).optional(),
   shuffleQuestions: z.boolean(),
@@ -202,12 +203,14 @@ export type StudentGradeRow = {
     string,
     {
       score: number | null;
+      maxScore: number | null; // ADDED THIS
       status: string;
       submittedAt: string | null;
-    }
+    } | null
   >;
 };
 
+export type Expand<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
 // ============================================
 // TRPC ROUTER TYPES
 // ============================================
@@ -227,3 +230,7 @@ export type UserCommentData =
   inferRouterOutputs<AppRouter>["user"]["getCommentsInLessonType"];
 export type UserViewLessonAssignment =
   inferRouterOutputs<AppRouter>["user"]["getLessonAssignment"];
+export type UserGetQuizForTaking =
+  inferRouterOutputs<AppRouter>["user"]["getQuizForTaking"];
+export type UserGetActivityPerClass =
+  inferRouterOutputs<AppRouter>["user"]["getActivityPerClass"];

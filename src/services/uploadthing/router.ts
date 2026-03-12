@@ -7,8 +7,10 @@ import {
   lessonDocument,
   mdxEditorImageUpload,
   quizAttempt,
+  user,
 } from "@/db/schema";
 import { getCurrentUser } from "@/lib/auth-server";
+import { eq } from "drizzle-orm";
 
 const f = createUploadthing();
 
@@ -135,6 +137,49 @@ export const customFileRouter = {
         name: file.name,
       };
     }),
+
+  imageUploader: f({
+    image: {
+      maxFileSize: "4MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async () => {
+      const currentUser = await getCurrentUser();
+
+      if (!currentUser?.user?.id) {
+        throw new UploadThingError("Unauthorized");
+      }
+
+      return { userId: currentUser.user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      // Update the user's image URL in the database
+      await db
+        .update(user)
+        .set({
+          image: file.ufsUrl,
+          updatedAt: new Date(),
+        })
+        .where(eq(user.id, metadata.userId));
+
+      return { uploadedBy: metadata.userId };
+    }),
+  profileImage: f({
+    image: {
+      maxFileSize: "1MB",
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async () => {
+      const { user } = await getCurrentUser();
+      return { userId: user.id };
+    })
+    .onUploadComplete(async ({ metadata, file }) => {
+      console.log("Profile image uploaded:", file.url);
+      return { url: file.url };
+    }),
+
   assignmentSubmissionUploader: f(assignmentFileTypes)
     .input(
       z.object({

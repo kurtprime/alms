@@ -7,8 +7,11 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins/organization";
 import { ac, admin, student, teacher, user } from "./permission";
 import { username } from "better-auth/plugins/username";
-import { sendEmail } from "@/services/mailbit/mailer";
-import { getPasswordResetHtml } from "@/services/mailbit/templates/password-reset";
+import { sendEmail } from "@/services/mailpit/mailer";
+import { getPasswordResetHtml } from "@/services/mailpit/templates/password-reset";
+import { twoFactor } from "better-auth/plugins";
+import { getTwoFactorOtpHtml } from "@/services/mailpit/templates/two-factor-otp";
+import { getVerificationEmailHtml } from "@/services/mailpit/templates/email-verification";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -32,6 +35,18 @@ export const auth = betterAuth({
       console.log(`Password for user ${user.email} has been reset.`);
     },
   },
+  emailVerification: {
+    sendOnSignUp: true, // Automatically send email on sign up
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      const htmlContent = getVerificationEmailHtml(url, user.name);
+      await sendEmail({
+        to: user.email,
+        subject: "Verify your email address",
+        html: htmlContent,
+      });
+    },
+  },
   socialProviders: {
     facebook: {
       clientId: process.env.FACEBOOK_CLIENT_ID as string,
@@ -44,6 +59,18 @@ export const auth = betterAuth({
   },
 
   plugins: [
+    twoFactor({
+      otpOptions: {
+        async sendOTP({ user, otp }) {
+          const htmlContent = getTwoFactorOtpHtml(otp, user.name);
+          await sendEmail({
+            to: user.email,
+            subject: "Your Verification Code",
+            html: htmlContent,
+          });
+        },
+      },
+    }),
     adminPlugin({
       ac,
       roles: {
