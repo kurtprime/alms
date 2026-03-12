@@ -2,8 +2,7 @@
 import { announcement, lessonType } from "@/db/schema";
 import { inngest } from "../client";
 import { db } from "@/index";
-import { eq } from "drizzle-orm";
-// import { sendEmail } from "@/services/email"; // Your email service
+import { eq, sql } from "drizzle-orm"; // Added 'sql' import
 
 export const handleLessonPublished = inngest.createFunction(
   { id: "handle-lesson-published" },
@@ -21,10 +20,6 @@ export const handleLessonPublished = inngest.createFunction(
         .from(lessonType)
         .where(eq(lessonType.id, lessonTypeId))
         .limit(1);
-      // db.query.lessonType.findFirst({
-      //   where: eq(lessonType.id, lessonTypeId),
-      //   columns: { name: true, type: true },
-      // });
     });
 
     if (!lessonDetails) throw new Error("Lesson not found");
@@ -38,17 +33,28 @@ export const handleLessonPublished = inngest.createFunction(
       return `New ${typeLabel}: ${lessonDetails.name || "Untitled"}`;
     });
 
-    // Step 3: Insert Announcement
-    await step.run("create-announcement-record", async () => {
-      await db.insert(announcement).values({
-        classId,
-        lessonTypeId,
-        type: "lesson_publish",
-        message: message, // Storing the generated message
-        createdBy: teacherId,
-      });
+    // Step 3: Upsert Announcement (Update if exists, Insert if new)
+    await step.run("upsert-announcement-record", async () => {
+      await db
+        .insert(announcement)
+        .values({
+          classId,
+          lessonTypeId,
+          type: "lesson_publish",
+          message: message,
+          createdBy: teacherId,
+        })
+        .onConflictDoUpdate({
+          // The target columns must match your unique index definition
+          target: [announcement.classId, announcement.lessonTypeId],
+          // What to update if the record already exists
+          set: {
+            message: sql`excluded.message`,
+            // We typically do not update 'createdBy' or 'createdAt' on an update
+          },
+        });
     });
 
-    // Step 4: Send Notifications (Email/Push)
+    // Step 4: Send Notifications (Email/Push) - Future implementation
   },
 );

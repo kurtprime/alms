@@ -7,10 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { UserViewLessonAssignment } from "@/modules/user/server/userSchema";
+import {
+  Expand,
+  UserViewLessonAssignment,
+} from "@/modules/user/server/userSchema";
 
 interface LessonLayoutProps {
-  data: UserViewLessonAssignment;
+  data: Expand<UserViewLessonAssignment>;
   sessionUser: { id: string }; // Minimal session info needed
   viewer: ReactNode; // The MDX/Doc Viewer passed from parent
   actionSlot: ReactNode; // The specific action (Mark Done / Submit Assignment)

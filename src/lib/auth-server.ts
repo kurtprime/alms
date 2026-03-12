@@ -1,17 +1,11 @@
+import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
-import { auth } from "./auth";
 import { redirect } from "next/navigation";
-import { waitFor } from "@/services/waitFor";
 
 export async function getCurrentAdmin() {
   const session = await auth.api.getSession({
-    headers: await headers(), // you need to pass the headers object.
+    headers: await headers(),
   });
-
-  // const errorMessage = {
-  //   error: true,
-  //   message: "You are not authorized to access this page",
-  // };
 
   if (!session) {
     redirect("/sign-in");
@@ -26,13 +20,11 @@ export async function getCurrentAdmin() {
 
 export async function getCurrentStudent() {
   const session = await auth.api.getSession({
-    headers: await headers(), // you need to pass the headers object.
+    headers: await headers(),
   });
 
   if (!session) {
     redirect("/sign-in");
-  }
-  if (!session.user) {
   }
 
   return { ...session };
@@ -40,10 +32,80 @@ export async function getCurrentStudent() {
 
 export async function getCurrentUser() {
   const session = await auth.api.getSession({
-    headers: await headers(), // you need to pass the headers object.
+    headers: await headers(),
   });
   if (!session) {
     redirect("/sign-in");
   }
   return { ...session };
+}
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return "An unexpected error occurred.";
+}
+
+// 1. Enable 2FA (Generates QR Code URI)
+export async function enableTwoFactor(password: string) {
+  try {
+    const response = await auth.api.enableTwoFactor({
+      body: { password },
+      headers: await headers(),
+    });
+    return { success: true, data: response };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+}
+
+export async function verifySetupTOTP(code: string) {
+  try {
+    await auth.api.verifyTOTP({
+      body: { code },
+      headers: await headers(),
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+}
+
+// 3. Disable 2FA
+export async function disableTwoFactor(password: string) {
+  try {
+    await auth.api.disableTwoFactor({
+      body: { password },
+      headers: await headers(),
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+}
+
+// 4. Send OTP to Email (During Login)
+export async function sendTwoFactorOTP() {
+  try {
+    await auth.api.sendTwoFactorOTP({
+      headers: await headers(),
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
+  }
+}
+
+// 5. Verify OTP (During Login - Email/SMS)
+export async function verifyTwoFactorOTP(code: string) {
+  try {
+    await auth.api.verifyTwoFactorOTP({
+      body: { code },
+      headers: await headers(),
+    });
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, message: getErrorMessage(error) };
+  }
 }

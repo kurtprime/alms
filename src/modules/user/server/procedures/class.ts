@@ -11,7 +11,12 @@ import {
   organization,
   privacyEnum,
   quiz,
+  quizAnswerOption,
   quizAttempt,
+  quizMatchingPair,
+  quizOrderingItem,
+  quizQuestion,
+  quizQuestionResponse,
   user,
 } from "@/db/schema";
 import { db } from "@/index";
@@ -30,9 +35,44 @@ import {
   SQL,
   sql,
   desc,
+  count,
 } from "drizzle-orm";
 import z from "zod";
 import { lessonTypeOptionSchema, StudentGradeRow } from "../userSchema";
+
+type CorrectAnswerType =
+  | boolean // true_false
+  | { id: string; text: string }[] // multiple_choice & ordering
+  | { left: string | null; right: string }[] // matching
+  | null; // essay
+
+type QuizResultReviewItem = {
+  questionId: number;
+  questionText: string;
+  type: string;
+  points: number;
+  // FIX: Removed NonNullable. The answer from DB can be null.
+  userAnswer: (typeof quizQuestionResponse.$inferSelect)["answer"];
+  isCorrect: boolean | null;
+  pointsEarned: number | null;
+  correctAnswer: CorrectAnswerType;
+  teacherFeedback: string | null;
+  explanation: string | null;
+};
+
+type QuizResultResponse = {
+  quiz: typeof quiz.$inferSelect;
+  attempt: Partial<typeof quizAttempt.$inferSelect> & {
+    id: number;
+    status: string;
+    submittedAt: Date | null;
+    startedAt: Date;
+    score: number | null;
+    maxScore: number | null;
+    percentage: number | null;
+  };
+  review?: QuizResultReviewItem[];
+};
 
 export const classActions = {
   getAllStudentsInClass: protectedProcedure
@@ -765,20 +805,20 @@ export const classActions = {
         });
       }
 
-      const [newAnnouncement] = await db
-        .insert(announcement)
-        .values({
-          classId,
-          message,
-          type: "custom",
-          createdBy: userId,
-        })
-        .returning();
+      // const [newAnnouncement] = await db
+      //   .insert(announcement)
+      //   .values({
+      //     classId,
+      //     message,
+      //     type: "custom",
+      //     createdBy: userId,
+      //   })
+      //   .returning();
 
       // Optional: Trigger Inngest event to send emails for custom announcements
       // await inngest.send({ name: "announcement/custom", data: { announcementId: newAnnouncement.id } });
 
-      return newAnnouncement;
+      // return newAnnouncement;
     }),
 
   // DELETE: Delete an announcement
@@ -964,5 +1004,818 @@ export const classActions = {
       // await db.update(quizAttempt).set({ score: input.score }).where(...)
 
       return { success: true };
+    }),
+
+  createNewQuiz: protectedProcedure
+    .input(
+      z.object({
+        lessonTypeId: z.number(),
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { lessonTypeId } = input;
+      const { auth } = ctx;
+
+      const [result] = await db
+        .insert(quiz)
+        .values({
+          lessonTypeId: lessonTypeId,
+          createdBy: auth.user.id,
+        })
+        .returning({
+          quizId: quiz.id,
+        });
+
+      if (!result) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to create quiz",
+        });
+      }
+
+      return result;
+    }),
+  getQuizPreview: protectedProcedure
+    .input(z.object({ lessonTypeId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const { lessonTypeId } = input;
+      const userId = ctx.auth.user.id;
+
+      // 1. Fetch Quiz Details
+      const [quizData] = await db
+        .select()
+        .from(quiz)
+        .where(eq(quiz.lessonTypeId, lessonTypeId))
+        .limit(1);
+
+      if (!quizData) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
+      }
+
+      // 2. Fetch Student's Latest Attempt
+      // We filter for 'submitted' or 'graded' so we don't accidentally show an 'in_progress' attempt as a result.
+      // 'expired' attempts might also be shown as a result (score 0).
+      const attemptStatusesToView: (typeof quizAttempt.status.enumValues)[number][] =
+        ["submitted", "graded", "expired"];
+
+      const [latestAttempt] = await db
+        .select()
+        .from(quizAttempt)
+        .where(
+          and(
+            eq(quizAttempt.quizId, quizData.id),
+            eq(quizAttempt.studentId, userId),
+            inArray(quizAttempt.status, attemptStatusesToView),
+          ),
+        )
+        .orderBy(desc(quizAttempt.createdAt)) // Get the most recent one
+        .limit(1);
+
+      return {
+        ...quizData,
+        latestAttempt: latestAttempt || null,
+      };
+    }),
+  getQuizResult: protectedProcedure
+    .input(z.object({ attemptId: z.number() }))
+    .query(async ({ input, ctx }): Promise<QuizResultResponse> => {
+      const { attemptId } = input;
+      const userId = ctx.auth.user.id;
+
+      // 1. Fetch Attempt and Quiz Settings
+      const [attempt] = await db
+        .select()
+        .from(quizAttempt)
+        .where(
+          and(eq(quizAttempt.id, attemptId), eq(quizAttempt.studentId, userId)),
+        )
+        .limit(1);
+
+      if (!attempt) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Attempt not found",
+        });
+      }
+
+      if (attempt.status === "in_progress") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Quiz is still in progress",
+        });
+      }
+
+      const [quizData] = await db
+        .select()
+        .from(quiz)
+        .where(eq(quiz.id, attempt.quizId))
+        .limit(1);
+
+      if (!quizData) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
+      }
+
+      // 2. Construct Base Response
+      const response: QuizResultResponse = {
+        quiz: quizData,
+        attempt: {
+          id: attempt.id,
+          status: attempt.status,
+          submittedAt: attempt.submittedAt,
+          timeSpent: attempt.timeSpent,
+          startedAt: attempt.startedAt,
+          // Score is initially hidden
+          score: null,
+          maxScore: null,
+          percentage: null,
+        },
+      };
+
+      // 3. Logic: Show Score?
+      if (quizData.showScoreAfterSubmission) {
+        response.attempt.score = attempt.score;
+        response.attempt.maxScore = attempt.maxScore;
+        response.attempt.percentage = attempt.percentage;
+      }
+
+      // 4. Logic: Show Correct Answers / Detailed Review?
+      if (quizData.showCorrectAnswers) {
+        const responses = await db
+          .select()
+          .from(quizQuestionResponse)
+          .where(eq(quizQuestionResponse.attemptId, attemptId));
+
+        const questionIds = responses.map((r) => r.questionId);
+
+        if (questionIds.length > 0) {
+          const questions = await db
+            .select()
+            .from(quizQuestion)
+            .where(inArray(quizQuestion.id, questionIds));
+
+          // Fetch Related Data
+          const [mcOptions, orderingItems, matchingPairs] = await Promise.all([
+            db
+              .select()
+              .from(quizAnswerOption)
+              .where(inArray(quizAnswerOption.questionId, questionIds)),
+            db
+              .select()
+              .from(quizOrderingItem)
+              .where(inArray(quizOrderingItem.questionId, questionIds)),
+            db
+              .select()
+              .from(quizMatchingPair)
+              .where(inArray(quizMatchingPair.questionId, questionIds)),
+          ]);
+
+          // Map related data for quick lookup
+          const optionsMap = new Map<number, typeof mcOptions>();
+          mcOptions.forEach((opt) => {
+            if (!optionsMap.has(opt.questionId))
+              optionsMap.set(opt.questionId, []);
+            optionsMap.get(opt.questionId)!.push(opt);
+          });
+
+          const orderingMap = new Map<number, typeof orderingItems>();
+          orderingItems.forEach((item) => {
+            if (!orderingMap.has(item.questionId))
+              orderingMap.set(item.questionId, []);
+            orderingMap.get(item.questionId)!.push(item);
+          });
+
+          const matchingMap = new Map<number, typeof matchingPairs>();
+          matchingPairs.forEach((pair) => {
+            if (!matchingMap.has(pair.questionId))
+              matchingMap.set(pair.questionId, []);
+            matchingMap.get(pair.questionId)!.push(pair);
+          });
+
+          // Construct Review Array with Strict Typing
+          const reviewItems: QuizResultReviewItem[] = questions.map((q) => {
+            const userResponse = responses.find((r) => r.questionId === q.id);
+
+            let correctAnswer: CorrectAnswerType = null;
+
+            if (q.type === "true_false") {
+              correctAnswer = q.correctBoolean ?? false;
+            } else if (q.type === "multiple_choice") {
+              const opts = optionsMap.get(q.id) || [];
+              correctAnswer = opts
+                .filter((o) => o.isCorrect)
+                .map((o) => ({ id: o.id, text: o.optionText }));
+            } else if (q.type === "ordering") {
+              const items = orderingMap.get(q.id) || [];
+              correctAnswer = items
+                .sort((a, b) => a.correctPosition - b.correctPosition)
+                .map((i) => ({ id: i.id, text: i.itemText }));
+            } else if (q.type === "matching") {
+              const pairs = matchingMap.get(q.id) || [];
+              correctAnswer = pairs.map((p) => ({
+                left: p.leftItem,
+                right: p.rightItem,
+              }));
+            }
+
+            return {
+              questionId: q.id,
+              questionText: q.question,
+              type: q.type,
+              points: q.points,
+              userAnswer: userResponse?.answer ?? null, // Use null if no answer
+              isCorrect: userResponse?.isCorrect ?? null,
+              pointsEarned: userResponse?.pointsEarned ?? null,
+              correctAnswer: correctAnswer,
+              teacherFeedback: userResponse?.teacherFeedback ?? null,
+              explanation: q.explanation ?? null,
+            };
+          });
+
+          response.review = reviewItems;
+        } else {
+          response.review = [];
+        }
+      }
+
+      return response;
+    }),
+  getQuizForTaking: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .query(async ({ input, ctx }) => {
+      const { quizId } = input;
+      const userId = ctx.auth.user.id;
+
+      // 1. Fetch Quiz Metadata
+      const [quizData] = await db
+        .select({
+          id: quiz.id,
+          name: quiz.name,
+          description: quiz.description,
+          timeLimit: quiz.timeLimit,
+          startDate: quiz.startDate,
+          endDate: quiz.endDate,
+          status: quiz.status,
+        })
+        .from(quiz)
+        .where(eq(quiz.id, quizId));
+
+      console.log("QUIZ DATA: ", quizData);
+      if (!quizData) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
+      }
+
+      // 2. Authorization & Availability Checks
+      // Check if student has attempts left
+      const [attemptData] = await db
+        .select({ count: count() })
+        .from(quizAttempt)
+        .where(
+          and(
+            eq(quizAttempt.quizId, quizId),
+            eq(quizAttempt.studentId, userId),
+          ),
+        );
+      console.log("Attempt Data: ", attemptData);
+      // Note: You might need to fetch 'maxAttempts' from quiz or lesson settings
+      // if (attemptData.count >= maxAttempts) throw new TRPCError({ code: "FORBIDDEN", message: "No attempts left" });
+
+      // 3. Fetch Questions (Base)
+      const questionsRaw = await db
+        .select({
+          id: quizQuestion.id,
+          question: quizQuestion.question,
+          type: quizQuestion.type,
+          points: quizQuestion.points,
+          orderIndex: quizQuestion.orderIndex,
+          required: quizQuestion.required,
+          imageBase64Jpg: quizQuestion.imageBase64Jpg,
+        })
+        .from(quizQuestion)
+        .where(eq(quizQuestion.quizId, quizId))
+        .orderBy(quizQuestion.orderIndex);
+
+      console.log("RAW QUESTIONS", questionsRaw);
+      if (questionsRaw.length === 0) {
+        return { ...quizData, questions: [] };
+      }
+
+      const questionIds = questionsRaw.map((q) => q.id);
+
+      // 4. Fetch Options (Parallel Optimization)
+      // We fetch everything needed, then strip sensitive data
+
+      // A. Multiple Choice Options
+      const mcOptions = await db
+        .select({
+          questionId: quizAnswerOption.questionId,
+          id: quizAnswerOption.id,
+          optionText: quizAnswerOption.optionText,
+          imageBase64Jpg: quizAnswerOption.imageBase64Jpg,
+          // Explicitly DO NOT select 'isCorrect'
+        })
+        .from(quizAnswerOption)
+        .where(inArray(quizAnswerOption.questionId, questionIds));
+
+      // B. Matching Pairs (SECURITY CRITICAL)
+      // We decouple pairs so the student doesn't see the correct answer immediately
+      const matchingPairs = await db
+        .select({
+          questionId: quizMatchingPair.questionId,
+          id: quizMatchingPair.id,
+          leftItem: quizMatchingPair.leftItem,
+          rightItem: quizMatchingPair.rightItem, // We need this to return the list of 'right' items
+          leftImageBase64Jpg: quizMatchingPair.leftImageBase64Jpg,
+          rightImageBase64Jpg: quizMatchingPair.rightImageBase64Jpg,
+        })
+        .from(quizMatchingPair)
+        .where(inArray(quizMatchingPair.questionId, questionIds));
+
+      // C. Ordering Items
+      const orderingItems = await db
+        .select({
+          questionId: quizOrderingItem.questionId,
+          id: quizOrderingItem.id,
+          itemText: quizOrderingItem.itemText,
+          imageBase64Jpg: quizOrderingItem.imageBase64Jpg,
+          // DO NOT select 'correctPosition'
+        })
+        .from(quizOrderingItem)
+        .where(inArray(quizOrderingItem.questionId, questionIds));
+
+      console.log("Ordering Items: ", orderingItems);
+
+      // 5. Construct Response Structure
+      const questions = questionsRaw
+        .map((q) => {
+          const base = {
+            id: q.id,
+            question: q.question,
+            points: q.points,
+            orderIndex: q.orderIndex,
+            required: q.required,
+            imageBase64Jpg: q.imageBase64Jpg,
+          };
+
+          switch (q.type) {
+            case "multiple_choice":
+              return {
+                ...base,
+                type: "multiple_choice" as const,
+                multipleChoices: mcOptions
+                  .filter((opt) => opt.questionId === q.id)
+                  .map((opt) => ({
+                    multipleChoiceId: opt.id,
+                    optionText: opt.optionText,
+                    imageBase64Jpg: opt.imageBase64Jpg,
+                  })),
+              };
+
+            case "true_false":
+              return {
+                ...base,
+                type: "true_false" as const,
+                // DO NOT return correctBoolean
+              };
+
+            case "essay":
+              return {
+                ...base,
+                type: "essay" as const,
+              };
+
+            case "matching": {
+              // SECURITY: Decouple left and right items
+              const pairs = matchingPairs.filter((p) => p.questionId === q.id);
+              const leftItems = pairs.map((p) => ({
+                id: p.id,
+                text: p.leftItem,
+                imageBase64Jpg: p.leftImageBase64Jpg,
+              }));
+
+              // Shuffle right items so order doesn't give away answers
+              const rightItems = pairs
+                .map((p) => ({
+                  id: p.id,
+                  text: p.rightItem,
+                  imageBase64Jpg: p.rightImageBase64Jpg,
+                }))
+                .sort(() => Math.random() - 0.5);
+
+              return {
+                ...base,
+                type: "matching" as const,
+                matchingOptions: pairs.map((p) => ({
+                  matchingPairId: p.id,
+                  leftItem: p.leftItem,
+                  leftImageBase64Jpg: p.leftImageBase64Jpg,
+                  rightIem: p.rightItem, // Sending this for your specific types
+                  rightImageBase64Jpg: p.rightImageBase64Jpg,
+                })),
+                // Ideally, send decoupled lists to frontend, but adapting to your previous Renderer:
+                // If your Renderer expects `matchingOptions` with both items, we send them.
+                // If you want to prevent cheating via inspect element, implement the decoupling logic in the renderer.
+              };
+            }
+
+            case "ordering": {
+              const items = orderingItems
+                .filter((i) => i.questionId === q.id)
+                .map((i) => ({
+                  orderingOptionId: i.id,
+                  itemText: i.itemText,
+                  imageBase64Jpg: i.imageBase64Jpg,
+                }))
+                .sort(() => Math.random() - 0.5); // Shuffle so order isn't the answer
+
+              return {
+                ...base,
+                type: "ordering" as const,
+                orderingOptions: items,
+              };
+            }
+
+            default:
+              return null;
+          }
+        })
+        .filter((q): q is NonNullable<typeof q> => q !== null);
+
+      console.log(questions);
+
+      return {
+        ...quizData,
+        questions,
+        attemptsUsed: attemptData.count,
+      };
+    }),
+  startQuizAttempt: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      const { quizId } = input;
+      const userId = ctx.auth.user.id;
+
+      // 1. Fetch Quiz Settings (need maxAttempts)
+      const [quizData] = await db
+        .select({
+          maxAttempts: quiz.maxAttempts,
+          timeLimit: quiz.timeLimit,
+        })
+        .from(quiz)
+        .where(eq(quiz.id, quizId));
+
+      if (!quizData) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // 2. Check previous attempts
+      const previousAttempts = await db
+        .select({ id: quizAttempt.id, status: quizAttempt.status })
+        .from(quizAttempt)
+        .where(
+          and(
+            eq(quizAttempt.quizId, quizId),
+            eq(quizAttempt.studentId, userId),
+          ),
+        );
+
+      // Validate Max Attempts (e.g., if max is 1 and they have 1, they can't start)
+      // Note: Adjust logic if you allow re-taking completed quizzes.
+      // Usually, we check if they have *completed* attempts.
+      if (previousAttempts.length >= (quizData.maxAttempts || 1)) {
+        // Check if any are 'in_progress' or if they simply used all tokens
+        const inProgress = previousAttempts.find(
+          (a) => a.status === "in_progress",
+        );
+        // For simplicity, let's just check count for now.
+        // You might want to check specific logic:
+        // "If maxAttempts is 2, and they have 2 'submitted' rows, block them."
+      }
+
+      // 3. Check if there is an existing 'in_progress' attempt
+      const [existingAttempt] = await db
+        .select()
+        .from(quizAttempt)
+        .where(
+          and(
+            eq(quizAttempt.quizId, quizId),
+            eq(quizAttempt.studentId, userId),
+            eq(quizAttempt.status, "in_progress"),
+          ),
+        );
+
+      if (existingAttempt) {
+        // Return the existing one instead of creating duplicate
+        return { attemptId: existingAttempt.id, isNew: false };
+      }
+
+      // 4. Create New Attempt
+      const [newAttempt] = await db
+        .insert(quizAttempt)
+        .values({
+          quizId,
+          studentId: userId,
+          attemptNumber: previousAttempts.length + 1,
+          status: "in_progress",
+          startedAt: new Date(),
+          // Calculate expiry if needed? Or handle in frontend.
+        })
+        .returning();
+
+      return { attemptId: newAttempt.id, isNew: true };
+    }),
+  submitQuiz: protectedProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+        attemptId: z.number().optional(), // Optional: if resuming
+        answers: z.array(
+          z.object({
+            questionId: z.number(),
+            answer: z.any(), // string, boolean, array, or object
+          }),
+        ),
+        timeSpent: z.number(), // Time spent in seconds
+      }),
+    )
+    .mutation(async ({ input, ctx }) => {
+      const { quizId, attemptId, answers, timeSpent } = input;
+      const userId = ctx.auth.user.id;
+
+      // 1. Validate or Create Attempt
+      let attempt;
+
+      if (attemptId) {
+        // Validate existing attempt
+        const [existing] = await db
+          .select()
+          .from(quizAttempt)
+          .where(
+            and(
+              eq(quizAttempt.id, attemptId),
+              eq(quizAttempt.studentId, userId),
+              eq(quizAttempt.status, "in_progress"),
+            ),
+          );
+
+        if (!existing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Active attempt not found.",
+          });
+        }
+        attempt = existing;
+      } else {
+        // Create new attempt if not provided (fallback)
+        // Check for existing in_progress first to prevent duplicates
+        const [existing] = await db
+          .select()
+          .from(quizAttempt)
+          .where(
+            and(
+              eq(quizAttempt.quizId, quizId),
+              eq(quizAttempt.studentId, userId),
+              eq(quizAttempt.status, "in_progress"),
+            ),
+          );
+
+        if (existing) {
+          attempt = existing;
+        } else {
+          const [newAttempt] = await db
+            .insert(quizAttempt)
+            .values({
+              quizId,
+              studentId: userId,
+              attemptNumber: 1, // Simplified: should check previous count
+              status: "in_progress",
+              startedAt: new Date(Date.now() - timeSpent * 1000),
+            })
+            .returning();
+          attempt = newAttempt;
+        }
+      }
+
+      // 2. Fetch Questions & Correct Answers
+      const questions = await db
+        .select()
+        .from(quizQuestion)
+        .where(eq(quizQuestion.quizId, quizId));
+
+      if (questions.length === 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "No questions found for this quiz.",
+        });
+      }
+
+      const questionIds = questions.map((q) => q.id);
+
+      // Fetch related data for grading
+      const [mcOptions, orderingItems, matchingPairs] = await Promise.all([
+        // MC Options
+        db
+          .select()
+          .from(quizAnswerOption)
+          .where(inArray(quizAnswerOption.questionId, questionIds)),
+        // Ordering Items
+        db
+          .select()
+          .from(quizOrderingItem)
+          .where(inArray(quizOrderingItem.questionId, questionIds)),
+        // Matching Pairs
+        db
+          .select()
+          .from(quizMatchingPair)
+          .where(inArray(quizMatchingPair.questionId, questionIds)),
+      ]);
+
+      // Group data by questionId for faster lookup
+      const optionsMap = new Map<number, typeof mcOptions>();
+      mcOptions.forEach((opt) => {
+        if (!optionsMap.has(opt.questionId)) optionsMap.set(opt.questionId, []);
+        optionsMap.get(opt.questionId)!.push(opt);
+      });
+
+      const orderingMap = new Map<number, typeof orderingItems>();
+      orderingItems.forEach((item) => {
+        if (!orderingMap.has(item.questionId))
+          orderingMap.set(item.questionId, []);
+        orderingMap.get(item.questionId)!.push(item);
+      });
+
+      const matchingMap = new Map<number, typeof matchingPairs>();
+      matchingPairs.forEach((pair) => {
+        if (!matchingMap.has(pair.questionId))
+          matchingMap.set(pair.questionId, []);
+        matchingMap.get(pair.questionId)!.push(pair);
+      });
+
+      // 3. Grade Responses
+      let totalScore = 0;
+      let maxPossibleScore = 0;
+      const responseInserts: (typeof quizQuestionResponse.$inferInsert)[] = [];
+
+      for (const q of questions) {
+        const userAnswerObj = answers.find((a) => a.questionId === q.id);
+        const userAnswer = userAnswerObj?.answer;
+
+        maxPossibleScore += q.points;
+        let isCorrect: boolean | null = false;
+        let pointsEarned = 0;
+
+        if (
+          userAnswer === undefined ||
+          userAnswer === null ||
+          userAnswer === ""
+        ) {
+          // Skipped question
+          pointsEarned = 0;
+          isCorrect = false;
+        } else if (q.type === "multiple_choice") {
+          // userAnswer is expected to be the optionId (string)
+          const options = optionsMap.get(q.id) || [];
+          const selectedOption = options.find((opt) => opt.id === userAnswer);
+
+          if (selectedOption && selectedOption.isCorrect) {
+            isCorrect = true;
+            pointsEarned = q.points; // Assuming full points for correct MC
+          } else {
+            isCorrect = false;
+            pointsEarned = 0;
+          }
+        } else if (q.type === "true_false") {
+          // userAnswer is boolean
+          if (userAnswer === q.correctBoolean) {
+            isCorrect = true;
+            pointsEarned = q.points;
+          } else {
+            isCorrect = false;
+            pointsEarned = 0;
+          }
+        } else if (q.type === "ordering") {
+          // userAnswer is string[] (array of item IDs)
+          const items = orderingMap.get(q.id) || [];
+          // Sort correct items by position
+          const correctOrder = items
+            .sort((a, b) => a.correctPosition - b.correctPosition)
+            .map((i) => i.id);
+
+          const userOrder = Array.isArray(userAnswer) ? userAnswer : [];
+
+          if (JSON.stringify(userOrder) === JSON.stringify(correctOrder)) {
+            isCorrect = true;
+            pointsEarned = q.points;
+          } else {
+            isCorrect = false;
+            pointsEarned = 0;
+          }
+        } else if (q.type === "matching") {
+          // userAnswer is Record<string, string> mapping pairId -> selectedRightId
+          // Note: Based on your MatchingRenderer, the value maps pairId to the correct pairId?
+          // Let's assume userAnswer is { [pairId]: selectedRightId }
+          // We need to verify if the selected right ID matches the correct pair's right item.
+
+          const pairs = matchingMap.get(q.id) || [];
+          let correctCount = 0;
+
+          pairs.forEach((pair) => {
+            // Check if user mapped this pair correctly
+            // Note: This logic depends heavily on how MatchingRenderer sends data.
+            // Assuming: Key = pair.id (left), Value = selected pair.id (right)
+            // We check if the right item text matches? Or if the ID matches?
+            // Since matching pairs are unique, usually:
+            // Correct logic: Did user select the RIGHT item that belongs to THIS pair?
+
+            if (userAnswer && userAnswer[pair.id] === pair.id) {
+              // This assumes the 'correct' answer ID is the pair ID itself.
+              // Adjust logic if your 'right' items have separate IDs.
+              correctCount++;
+            }
+          });
+
+          if (correctCount === pairs.length) {
+            isCorrect = true;
+            pointsEarned = q.points;
+          } else {
+            isCorrect = false;
+            // Partial credit? For now: 0
+            pointsEarned = 0;
+          }
+        } else if (q.type === "essay") {
+          // Essays require manual grading
+          isCorrect = null;
+          pointsEarned = 0;
+        }
+
+        totalScore += pointsEarned;
+
+        let answerPayload: typeof quizQuestionResponse.$inferInsert.answer;
+
+        // Helper to map raw answer to Schema Type
+        if (
+          userAnswer === undefined ||
+          userAnswer === null ||
+          userAnswer === ""
+        ) {
+          answerPayload = null;
+        } else if (q.type === "multiple_choice") {
+          // Assuming userAnswer is the optionId (string)
+          answerPayload = { type: "option", optionId: String(userAnswer) };
+        } else if (q.type === "true_false") {
+          // userAnswer is boolean
+          answerPayload = { type: "boolean", value: Boolean(userAnswer) };
+        } else if (q.type === "ordering") {
+          // userAnswer is string[]
+          answerPayload = { type: "ordering", order: userAnswer as string[] };
+        } else if (q.type === "matching") {
+          // userAnswer is Record<string, string>
+          answerPayload = {
+            type: "matching",
+            matches: userAnswer as Record<string, string>,
+          };
+        } else if (q.type === "essay") {
+          // userAnswer is string
+          answerPayload = { type: "text", text: String(userAnswer) };
+        } else {
+          answerPayload = null;
+        }
+
+        responseInserts.push({
+          attemptId: attempt.id,
+          questionId: q.id,
+          answer: answerPayload,
+          isCorrect,
+          pointsEarned,
+        });
+      }
+
+      // 4. Database Operations (Transaction)
+      await db.transaction(async (tx) => {
+        // Insert Responses
+        if (responseInserts.length > 0) {
+          await tx.insert(quizQuestionResponse).values(responseInserts);
+        }
+
+        // Update Attempt
+        const hasEssay = questions.some((q) => q.type === "essay");
+        const finalStatus = hasEssay ? "submitted" : "graded";
+
+        await tx
+          .update(quizAttempt)
+          .set({
+            status: finalStatus,
+            score: totalScore,
+            maxScore: maxPossibleScore,
+            percentage: Math.round((totalScore / maxPossibleScore) * 100),
+            submittedAt: new Date(),
+            timeSpent,
+          })
+          .where(eq(quizAttempt.id, attempt.id));
+      });
+
+      return {
+        success: true,
+        attemptId: attempt.id,
+        score: totalScore,
+        maxScore: maxPossibleScore,
+      };
     }),
 };

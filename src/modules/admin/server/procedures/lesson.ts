@@ -1,4 +1,4 @@
-import { adminProcedure } from "@/trpc/init";
+import { adminProcedure, protectedProcedure } from "@/trpc/init";
 import {
   createLessonSchema,
   createLessonTypeSchema,
@@ -24,7 +24,7 @@ import {
   quizTypeEnum,
 } from "@/db/schema";
 import z from "zod";
-import { and, eq, gt, inArray, not, sql } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, not, sql, sum } from "drizzle-orm";
 import { uploadthing } from "@/services/uploadthing/client";
 import { inngest } from "@/services/inngest/client";
 import { TRPCError } from "@trpc/server";
@@ -259,7 +259,7 @@ export const lessonActions = {
     .input(
       z.object({
         ...updateQuizSettingsFormSchema.shape,
-        lessonTypeId: z.number(),
+        lessonTypeId: z.number().nullable(),
       }),
     )
     .mutation(async ({ input }) => {
@@ -285,7 +285,11 @@ export const lessonActions = {
           startDate: startDate ? new Date(startDate) : null,
           endDate: endDate ? new Date(endDate) : null,
         })
-        .where(eq(quiz.lessonTypeId, lessonTypeId));
+        .where(
+          lessonTypeId === null
+            ? isNull(quiz.lessonTypeId)
+            : eq(quiz.lessonTypeId, lessonTypeId),
+        );
     }),
   addQuizQuestion: adminProcedure
     .input(
@@ -305,26 +309,66 @@ export const lessonActions = {
       });
     }),
   getQuizQuestions: adminProcedure
-    .input(
-      z.object({
-        quizId: z.number(),
-      }),
-    )
+    .input(z.object({ quizId: z.number() }))
     .query(async ({ input }) => {
       const { quizId } = input;
 
-      const quizQuestions = await db
+      // 1. Fetch the base questions
+      const questions = await db
         .select({
           id: quizQuestion.id,
           type: quizQuestion.type,
           orderIndex: quizQuestion.orderIndex,
           quizId: quizQuestion.quizId,
+          basePoints: quizQuestion.points, // The default points column
         })
         .from(quizQuestion)
         .where(eq(quizQuestion.quizId, quizId))
         .orderBy(quizQuestion.orderIndex);
 
-      return quizQuestions;
+      // 2. Calculate total points dynamically based on type
+      // We will map over the questions and fetch details only for types that need aggregation
+      const questionsWithScores = await Promise.all(
+        questions.map(async (q) => {
+          let calculatedPoints = q.basePoints; // Default to base points (Essay, True/False)
+
+          if (q.type === "multiple_choice") {
+            // Sum points of CORRECT options
+            const options = await db
+              .select({ value: sum(quizAnswerOption.points) })
+              .from(quizAnswerOption)
+              .where(
+                sql`${quizAnswerOption.questionId} = ${q.id} AND ${quizAnswerOption.isCorrect} = true`,
+              );
+
+            // Drizzle sum returns string | null, handle parsing
+            calculatedPoints = Number(options[0]?.value || 0);
+          } else if (q.type === "ordering") {
+            // Sum points of all ordering items
+            const items = await db
+              .select({ value: sum(quizOrderingItem.points) })
+              .from(quizOrderingItem)
+              .where(eq(quizOrderingItem.questionId, q.id));
+
+            calculatedPoints = Number(items[0]?.value || 0);
+          } else if (q.type === "matching") {
+            // Sum points of all matching pairs
+            const pairs = await db
+              .select({ value: sum(quizMatchingPair.points) })
+              .from(quizMatchingPair)
+              .where(eq(quizMatchingPair.questionId, q.id));
+
+            calculatedPoints = Number(pairs[0]?.value || 0);
+          }
+
+          return {
+            ...q,
+            points: calculatedPoints, // This is the final score for this question
+          };
+        }),
+      );
+
+      return questionsWithScores;
     }),
   getMultipleChoiceQuestionDetails: adminProcedure
     .input(z.object({ quizQuestionId: z.number() }))
@@ -870,4 +914,75 @@ export const lessonActions = {
           );
       });
     }),
+  getQuizzesOptions: protectedProcedure.query(async ({ ctx }) => {
+    const { auth } = ctx;
+
+    // Get quizzes
+    const quizzes = await db
+      .select({
+        id: quiz.id,
+        name: quiz.name,
+        description: quiz.description,
+        status: quiz.status,
+      })
+      .from(quiz)
+      .where(eq(quiz.createdBy, auth.user.id));
+
+    // Get all questions with their related data in parallel
+    const quizzesWithStats = await Promise.all(
+      quizzes.map(async (q) => {
+        const questions = await db
+          .select({
+            id: quizQuestion.id,
+            type: quizQuestion.type,
+            points: quizQuestion.points,
+          })
+          .from(quizQuestion)
+          .where(eq(quizQuestion.quizId, q.id));
+
+        const totalQuestions = questions.length;
+
+        // Calculate total score by fetching related data for each question type
+        let totalScore = 0;
+
+        for (const question of questions) {
+          if (question.type === "essay") {
+            totalScore += question.points || 0;
+          } else if (question.type === "matching") {
+            const pairs = await db
+              .select({ points: quizMatchingPair.points })
+              .from(quizMatchingPair)
+              .where(eq(quizMatchingPair.questionId, question.id));
+            totalScore += pairs.reduce((sum, p) => sum + (p.points || 0), 0);
+          } else if (question.type === "ordering") {
+            const items = await db
+              .select({ points: quizOrderingItem.points })
+              .from(quizOrderingItem)
+              .where(eq(quizOrderingItem.questionId, question.id));
+            totalScore += items.reduce((sum, i) => sum + (i.points || 0), 0);
+          } else {
+            // multiple_choice, true_false
+            const options = await db
+              .select({ points: quizAnswerOption.points })
+              .from(quizAnswerOption)
+              .where(
+                and(
+                  eq(quizAnswerOption.questionId, question.id),
+                  eq(quizAnswerOption.isCorrect, true),
+                ),
+              );
+            totalScore += options.reduce((sum, o) => sum + (o.points || 0), 0);
+          }
+        }
+
+        return {
+          ...q,
+          totalQuestions,
+          totalScore,
+        };
+      }),
+    );
+
+    return quizzesWithStats;
+  }),
 };

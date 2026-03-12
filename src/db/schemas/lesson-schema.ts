@@ -6,6 +6,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
 import { classSubjects, publishStatusEnum } from "./subject-schema";
@@ -85,10 +86,11 @@ export const announcement = pgTable(
       .notNull()
       .references(() => classSubjects.id, { onDelete: "cascade" }),
 
-    // Nullable: Links to the specific lesson/quiz/assignment
-    lessonTypeId: integer("lesson_type_id").references(() => lessonType.id, {
-      onDelete: "cascade",
-    }),
+    lessonTypeId: integer("lesson_type_id")
+      .notNull()
+      .references(() => lessonType.id, {
+        onDelete: "cascade",
+      }),
 
     type: announcementTypeEnum("type").notNull().default("lesson_publish"),
 
@@ -104,5 +106,9 @@ export const announcement = pgTable(
   },
   (table) => [
     index("announcement_class_idx").on(table.classId, table.createdAt),
+    uniqueIndex("announcement_classId_lessonType_unique_index").on(
+      table.classId,
+      table.lessonTypeId,
+    ),
   ],
 );

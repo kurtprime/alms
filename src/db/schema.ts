@@ -7,6 +7,13 @@ import {
   invitation,
 } from "./schemas/organization-schema";
 import { subjects, classSubjects, subjectName } from "./schemas/subject-schema";
+import {
+  quiz,
+  quizAnswerOption,
+  quizMatchingPair,
+  quizOrderingItem,
+  quizQuestion,
+} from "./schemas/activity-schema";
 
 // User relations
 export const userRelations = relations(user, ({ many }) => ({
@@ -96,6 +103,55 @@ export const classSubjectRelations = relations(classSubjects, ({ one }) => ({
     relationName: "teacher",
   }),
 }));
+
+// In your quiz-schema.ts or a separate relations file
+
+export const quizRelations = relations(quiz, ({ many }) => ({
+  questions: many(quizQuestion),
+}));
+
+export const quizQuestionRelations = relations(
+  quizQuestion,
+  ({ one, many }) => ({
+    quiz: one(quiz, {
+      fields: [quizQuestion.quizId],
+      references: [quiz.id],
+    }),
+    matchingPairs: many(quizMatchingPair),
+    orderingItems: many(quizOrderingItem),
+    answerOptions: many(quizAnswerOption),
+  }),
+);
+
+export const quizMatchingPairRelations = relations(
+  quizMatchingPair,
+  ({ one }) => ({
+    question: one(quizQuestion, {
+      fields: [quizMatchingPair.questionId],
+      references: [quizQuestion.id],
+    }),
+  }),
+);
+
+export const quizOrderingItemRelations = relations(
+  quizOrderingItem,
+  ({ one }) => ({
+    question: one(quizQuestion, {
+      fields: [quizOrderingItem.questionId],
+      references: [quizQuestion.id],
+    }),
+  }),
+);
+
+export const quizAnswerOptionRelations = relations(
+  quizAnswerOption,
+  ({ one }) => ({
+    question: one(quizQuestion, {
+      fields: [quizAnswerOption.questionId],
+      references: [quizQuestion.id],
+    }),
+  }),
+);
 
 // SubjectName relations
 export const subjectNameRelations = relations(subjectName, ({ many }) => ({

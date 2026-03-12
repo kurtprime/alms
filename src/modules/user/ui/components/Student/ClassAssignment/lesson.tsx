@@ -271,6 +271,7 @@ export function LessonPageClient({ params, session }: Props) {
               })
             }
           />
+          // <div>{JSON.stringify(lessonData.serializedMarkup)}</div>
         }
       />
       <ResponsiveDialog

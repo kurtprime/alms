@@ -2,6 +2,7 @@ import {
   classSubjects,
   member,
   organization,
+  quiz,
   subjectName,
   subjects,
   user,
@@ -11,8 +12,8 @@ import { db } from "@/index";
 import { getManySectionsSchema } from "@/modules/admin/server/adminSchema";
 import { adminProcedure, protectedProcedure } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
-import { role } from "better-auth/plugins/access";
 import { and, desc, eq, ilike, not, or } from "drizzle-orm";
+import z from "zod";
 
 export const sectionActions = {
   getManySections: protectedProcedure
@@ -149,4 +150,54 @@ export const sectionActions = {
       });
     }
   }),
+  getQuizDetails: protectedProcedure
+    .input(z.object({ quizId: z.number() }))
+    .query(async ({ input }) => {
+      const { quizId } = input;
+
+      const data = await db
+        .select({
+          id: quiz.id,
+          name: quiz.name,
+          lessonTypeId: quiz.lessonTypeId,
+          description: quiz.description,
+          timeLimit: quiz.timeLimit,
+          maxAttempts: quiz.maxAttempts,
+          shuffleQuestions: quiz.shuffleQuestions,
+          showScoreAfterSubmission: quiz.showScoreAfterSubmission,
+          showCorrectAnswers: quiz.showCorrectAnswers,
+          startDate: quiz.startDate,
+          endDate: quiz.endDate,
+          status: quiz.status,
+          // You can join with lessonType here if needed to get the name
+        })
+        .from(quiz)
+        .where(eq(quiz.id, quizId))
+        .limit(1);
+
+      return data[0];
+    }),
+  updateQuizSettings: protectedProcedure
+    .input(
+      z.object({
+        quizId: z.number(),
+        data: z.object({
+          name: z.string().min(1, "Quiz name is required"),
+          description: z.string().optional(),
+        }),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      const { quizId, data } = input;
+
+      await db
+        .update(quiz)
+        .set({
+          ...data,
+          updatedAt: new Date(),
+        })
+        .where(eq(quiz.id, quizId));
+
+      return { success: true };
+    }),
 };

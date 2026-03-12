@@ -4,6 +4,7 @@ import {
   lessonTypeEnum,
   publishStatusEnum,
   quiz,
+  quizAttempt,
 } from "@/db/schema";
 import { db } from "@/index";
 import { protectedProcedure } from "@/trpc/init";
@@ -17,6 +18,8 @@ import {
   defaultQuizSettings,
 } from "../userSchema";
 import { inngest } from "@/services/inngest/client";
+import { deepCloneQuiz } from "../helpers";
+import { QuizSettings } from "../userSchema";
 
 export const lessonActions = {
   createLessonType: protectedProcedure
@@ -164,25 +167,60 @@ export const lessonActions = {
 
       // 3. Conditionally add Quiz/Assignment update
       if (lessonTypeEnum === "quiz") {
-        const updateQuiz = db
-          .update(quiz)
-          .set({
-            timeLimit: input.quizSettings.timeLimit,
-            maxAttempts: input.quizSettings.maxAttempts,
-            shuffleQuestions: input.quizSettings.shuffleQuestions,
-            showScoreAfterSubmission:
-              input.quizSettings.showScoreAfterSubmission,
-            showCorrectAnswers: input.quizSettings.showCorrectAnswers,
-            startDate: input.quizSettings.startDate
-              ? new Date(input.quizSettings.startDate)
-              : undefined,
-            endDate: input.quizSettings.endDate
-              ? new Date(input.quizSettings.endDate)
-              : undefined,
-          })
-          .where(eq(quiz.lessonTypeId, lessonTypeId));
+        const { quizSettings } = input;
+        if (!quizSettings.quizId)
+          throw new TRPCError({ code: "CONFLICT", message: "select a quiz" });
 
-        promises.push(updateQuiz);
+        const { quizId } = quizSettings;
+        // 1. Fetch the source quiz to check if it's a template or live
+        const [sourceQuiz] = await db
+          .select()
+          .from(quiz)
+          .where(eq(quiz.id, quizId));
+
+        if (!sourceQuiz)
+          throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
+
+        // 2. DETERMINE ACTION
+
+        // CASE 1: TEMPLATE (lessonTypeId is null) -> ALWAYS CLONE
+        const isTemplate = sourceQuiz.lessonTypeId === null;
+
+        // CASE 2: CURRENT LIVE QUIZ -> UPDATE ONLY
+        const isCurrentQuiz = sourceQuiz.lessonTypeId === lessonTypeId;
+
+        if (isTemplate || !isCurrentQuiz) {
+          // --- CLONE PATH ---
+
+          // A. Handle Existing Quiz on this Lesson (Replace Logic)
+          const [existingQuiz] = await db
+            .select()
+            .from(quiz)
+            .where(eq(quiz.lessonTypeId, lessonTypeId))
+            .limit(1);
+
+          if (existingQuiz && existingQuiz.id !== quizId) {
+            const attempts = await db
+              .select()
+              .from(quizAttempt)
+              .where(eq(quizAttempt.quizId, existingQuiz.id))
+              .limit(1);
+
+            if (attempts.length > 0) {
+              // Archive if has attempts
+              await db
+                .update(quiz)
+                .set({ lessonTypeId: null, status: "archived" })
+                .where(eq(quiz.id, existingQuiz.id));
+            } else {
+              // Delete if untouched
+              await db.delete(quiz).where(eq(quiz.id, existingQuiz.id));
+            }
+          }
+
+          // B. Deep Clone the Template/Source
+          await deepCloneQuiz(quizId, lessonTypeId, input.quizSettings);
+        }
       } else if (lessonTypeEnum === "assignment") {
         const updateAssignment = db
           .update(quiz)
@@ -203,20 +241,22 @@ export const lessonActions = {
       // If it's 'handout', we simply don't add anything to promises
 
       // 4. Execute all valid queries
-      await Promise.all(promises);
+      await Promise.all([
+        ...promises,
+        inngest.send({
+          name: "uploadthing/markup.image.upload",
+          data: { lessonTypeId, markup: markDownDescription },
+        }),
+        inngest.send({
+          name: "lesson/published",
+          data: {
+            lessonTypeId: lessonTypeId,
+            classId: classId,
+            teacherId: ctx.auth.user.id,
+          },
+        }),
+      ]);
       console.log("Updated Settings");
-      await inngest.send({
-        name: "uploadthing/markup.image.upload",
-        data: { lessonTypeId, markup: markDownDescription },
-      });
-      await inngest.send({
-        name: "lesson/published",
-        data: {
-          lessonTypeId: lessonTypeId,
-          classId: classId,
-          teacherId: ctx.auth.user.id,
-        },
-      });
     }),
   deleteLessonType: protectedProcedure
     .input(

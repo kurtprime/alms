@@ -5,6 +5,7 @@ import StudentTab from "../components/StudentTab";
 import ClassOverview from "../components/ClassOverview";
 import AnnouncementView from "./AnnouncementView";
 import GradeBookView from "./GradeBookView";
+import { cn } from "@/lib/utils";
 
 export default async function ClassIdView({ classId }: { classId: string }) {
   const session = await getCurrentUser();
@@ -16,62 +17,84 @@ export default async function ClassIdView({ classId }: { classId: string }) {
         defaultValue="overview"
         className="flex flex-col flex-1 overflow-hidden"
       >
-        {/* Sticky Tabs Header */}
+        {/* Sticky Header with Bottom Border */}
         <div className="sticky top-0 z-20 bg-background border-b">
-          <TabsList className="h-12 w-full justify-start rounded-none bg-transparent p-0">
+          <TabsList className="h-12 w-full justify-start rounded-none bg-transparent p-0 px-4">
             <TabsTrigger
               value="announcement"
-              className="relative h-full rounded-none px-4 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent"
+              className={cn(
+                "relative h-full rounded-none px-4 text-sm font-medium transition-colors",
+                "border-b-2 border-transparent", // Default state: invisible border
+                "hover:text-foreground hover:bg-muted/50", // Hover state
+                "data-[state=active]:text-foreground data-[state=active]:border-primary", // Active state: visible border
+                "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0", // Focus management
+              )}
             >
               Announcements
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-transform data-[state=inactive]:scale-x-0 data-[state=active]:scale-x-100" />
             </TabsTrigger>
+
             <TabsTrigger
               value="overview"
-              className="relative h-full rounded-none px-4 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent"
+              className={cn(
+                "relative h-full rounded-none px-4 text-sm font-medium transition-colors",
+                "border-b-2 border-transparent",
+                "hover:text-foreground hover:bg-muted/50",
+                "data-[state=active]:text-foreground data-[state=active]:border-primary",
+                "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+              )}
             >
               Overview
-              {/* Active Indicator Dot */}
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-transform data-[state=inactive]:scale-x-0 data-[state=active]:scale-x-100" />
             </TabsTrigger>
+
             <TabsTrigger
               value="students"
-              className="relative h-full rounded-none px-4 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent"
+              className={cn(
+                "relative h-full rounded-none px-4 text-sm font-medium transition-colors",
+                "border-b-2 border-transparent",
+                "hover:text-foreground hover:bg-muted/50",
+                "data-[state=active]:text-foreground data-[state=active]:border-primary",
+                "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+              )}
             >
               Students
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-transform data-[state=inactive]:scale-x-0 data-[state=active]:scale-x-100" />
             </TabsTrigger>
+
             {isTeacher && (
               <TabsTrigger
                 value="gradebook"
-                className="relative h-full rounded-none px-4 text-sm font-medium text-muted-foreground transition-colors data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:bg-transparent"
+                className={cn(
+                  "relative h-full rounded-none px-4 text-sm font-medium transition-colors",
+                  "border-b-2 border-transparent",
+                  "hover:text-foreground hover:bg-muted/50",
+                  "data-[state=active]:text-foreground data-[state=active]:border-primary",
+                  "focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0",
+                )}
               >
                 Gradebook
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary transition-transform data-[state=inactive]:scale-x-0 data-[state=active]:scale-x-100" />
               </TabsTrigger>
             )}
           </TabsList>
         </div>
 
-        {/* Content Area - Removed fixed heights for natural scrolling */}
+        {/* Scrollable Content Area */}
         <div className="flex-1 overflow-y-auto">
           <TabsContent
             value="announcement"
-            className=" mt-0 focus-visible:outline-none"
+            className="m-0 focus-visible:outline-none"
           >
             <AnnouncementView classId={classId} session={session} />
           </TabsContent>
 
           <TabsContent
             value="overview"
-            className=" mt-0 focus-visible:outline-none"
+            className="m-0 focus-visible:outline-none"
           >
             <ClassOverview session={session} classId={classId} />
           </TabsContent>
 
           <TabsContent
             value="students"
-            className=" mt-0 focus-visible:outline-none"
+            className="m-0 focus-visible:outline-none"
           >
             <StudentTab classId={classId} />
           </TabsContent>
@@ -79,7 +102,7 @@ export default async function ClassIdView({ classId }: { classId: string }) {
           {isTeacher && (
             <TabsContent
               value="gradebook"
-              className=" mt-0 focus-visible:outline-none"
+              className="m-0 focus-visible:outline-none"
             >
               <GradeBookView session={session} classId={classId} />
             </TabsContent>

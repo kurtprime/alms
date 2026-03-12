@@ -24,14 +24,25 @@ export const quizTypeEnum = pgEnum("quiz_type", [
   "ordering",
 ]);
 
+// ==========================================
+// NEW ENUM: Attempt Status
+// ==========================================
+export const attemptStatusEnum = pgEnum("attempt_status", [
+  "in_progress", // Student is currently taking the quiz
+  "submitted", // Student finished, waiting for grading (or auto-graded)
+  "graded", // Teacher has reviewed/graded (or fully auto-graded)
+  "expired", // Time ran out before submission
+]);
+
 // Main quiz table
 export const quiz = pgTable(
   "quiz",
   {
     id: serial("id").primaryKey(),
-    lessonTypeId: integer("lesson_type_id")
-      .references(() => lessonType.id, { onDelete: "cascade" })
-      .notNull(),
+    lessonTypeId: integer("lesson_type_id").references(() => lessonType.id, {
+      onDelete: "cascade",
+    }),
+    name: text("name"),
     description: text("description"),
     timeLimit: integer("time_limit"),
     maxAttempts: integer("max_attempts").default(1),
@@ -157,9 +168,8 @@ export const quizAttempt = pgTable(
       .references(() => user.id, { onDelete: "cascade" })
       .notNull(),
     attemptNumber: integer("attempt_number").notNull(),
-    status: varchar("status", { length: 20 })
-      .$default(() => "in_progress")
-      .notNull(),
+    // UPDATED: Use the enum here
+    status: attemptStatusEnum("status").default("in_progress").notNull(),
     startedAt: timestamp("started_at").defaultNow().notNull(),
     submittedAt: timestamp("submitted_at"),
     score: integer("score"),
@@ -185,10 +195,12 @@ export const quizQuestionResponse = pgTable(
       .references(() => quizQuestion.id, { onDelete: "cascade" })
       .notNull(),
     answer: json("answer").$type<
-      | { type: "option"; optionId: number }
+      | { type: "option"; optionId: string }
       | { type: "text"; text: string }
-      | { type: "multiple"; optionIds: number[] }
+      | { type: "multiple"; optionIds: string[] }
       | { type: "ordering"; order: string[] }
+      | { type: "matching"; matches: Record<string, string> }
+      | { type: "boolean"; value: boolean }
     >(),
     isCorrect: boolean("is_correct"),
     pointsEarned: integer("points_earned"),

@@ -41,8 +41,12 @@ import { separateFullName } from "@/hooks/separate-name";
 import { toast } from "sonner";
 import { useTRPC } from "@/trpc/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import Link from "next/link";
 
+// ============================================
+// FIXED TYPES
+// ============================================
+
+// Fixed: Added maxScore to the grade object
 interface GradebookProps {
   data: {
     assessments: AssessmentColumn[];
@@ -96,7 +100,9 @@ export function GradebookDataTable({
       data.assessments.forEach((assessment) => {
         const grade = row.grades[assessment.id.toString()];
         const score = grade?.score;
-        const max = assessment.maxScore || 100;
+        // Use assessment maxScore for calculation logic consistency
+        const max = assessment.maxScore ?? 100;
+
         if (score != null && assessment.maxScore) {
           rowData.push(`${score}/${max}`);
           totalScore += score;
@@ -139,21 +145,22 @@ export function GradebookDataTable({
     }
   };
 
-  const handleSave = React.useCallback(
-    (lessonTypeId: number, studentId: string, value: string) => {
-      const newScore = value === "" ? null : parseFloat(value);
-      if (value !== "" && isNaN(newScore as number)) {
-        toast.error("Invalid number");
-        return;
-      }
-      updateScore({
-        lessonTypeId,
-        studentId,
-        score: newScore,
-      });
-    },
-    [updateScore],
-  );
+  const handleSave = (
+    lessonTypeId: number,
+    studentId: string,
+    value: string,
+  ) => {
+    const newScore = value === "" ? null : parseFloat(value);
+    if (value !== "" && isNaN(newScore as number)) {
+      toast.error("Invalid number");
+      return;
+    }
+    updateScore({
+      lessonTypeId,
+      studentId,
+      score: newScore,
+    });
+  };
 
   const columns: ColumnDef<StudentGradeRow>[] = React.useMemo(() => {
     // 1. Student Column
@@ -205,7 +212,11 @@ export function GradebookDataTable({
         cell: ({ row }) => {
           const grade = row.original.grades[assessment.id.toString()];
           const score = grade?.score;
-          const max = assessment.maxScore ?? 100;
+
+          // FIX: Prioritize assessment maxScore, fallback to 100
+          // If your DB has maxScore: 50 for this assessment, this will now show /50
+          const max = assessment.maxScore ?? grade?.maxScore ?? 100;
+
           const percentage =
             score != null ? Math.round((score / max) * 100) : null;
 
@@ -230,7 +241,7 @@ export function GradebookDataTable({
           return (
             <DropdownMenu
               open={isOpen}
-              onOpenChange={(o) => handleOpenChange(o, cellId, score)}
+              onOpenChange={(o) => handleOpenChange(o, cellId, score ?? null)}
             >
               <DropdownMenuTrigger asChild>
                 <div
@@ -273,7 +284,7 @@ export function GradebookDataTable({
                       value={inputValue}
                       onChange={(e) => setInputValue(e.target.value)}
                       className="h-8"
-                      placeholder="Score"
+                      placeholder={`Score (Max: ${max})`}
                       disabled={isUpdating}
                     />
                     <Button
@@ -299,14 +310,14 @@ export function GradebookDataTable({
                   <DropdownMenuSeparator />
 
                   <DropdownMenuItem asChild className="cursor-pointer">
-                    <Link
-                      href={`/dashboard/student/${row.original.student.id}/activity`}
+                    <a
+                      href={`/check/${classId}/${assessment.id}/${row.original.student.id}`}
                       target="_blank"
                       className="flex items-center justify-between w-full"
                     >
                       <span>View Activity</span>
                       <ExternalLink className="h-4 w-4" />
-                    </Link>
+                    </a>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               )}
@@ -356,9 +367,10 @@ export function GradebookDataTable({
     openDropdown,
     isTeacher,
     isUpdating,
-    handleSave,
     inputValue,
-  ]); // inputValue needed here to update input visually
+    classId, // added classId to deps
+    handleSave,
+  ]);
 
   const table = useReactTable({
     data: data.rows,
