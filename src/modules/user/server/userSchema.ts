@@ -232,3 +232,5 @@ export type UserViewLessonAssignment =
   inferRouterOutputs<AppRouter>["user"]["getLessonAssignment"];
 export type UserGetQuizForTaking =
   inferRouterOutputs<AppRouter>["user"]["getQuizForTaking"];
+export type UserGetActivityPerClass =
+  inferRouterOutputs<AppRouter>["user"]["getActivityPerClass"];

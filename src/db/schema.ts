@@ -15,6 +15,14 @@ import {
   quizQuestion,
 } from "./schemas/activity-schema";
 
+export * from "./schemas/auth-schema";
+export * from "./schemas/organization-schema";
+export * from "./schemas/subject-schema";
+export * from "./schemas/lesson-schema";
+export * from "./schemas/file-schema";
+export * from "./schemas/activity-schema";
+export * from "./schemas/data-schema";
+
 // User relations
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
@@ -104,6 +112,13 @@ export const classSubjectRelations = relations(classSubjects, ({ one }) => ({
   }),
 }));
 
+export const subjectsRelations = relations(subjects, ({ one }) => ({
+  nameRelation: one(subjectName, {
+    fields: [subjects.name],
+    references: [subjectName.id],
+  }),
+}));
+
 // In your quiz-schema.ts or a separate relations file
 
 export const quizRelations = relations(quiz, ({ many }) => ({
@@ -157,11 +172,3 @@ export const quizAnswerOptionRelations = relations(
 export const subjectNameRelations = relations(subjectName, ({ many }) => ({
   subjects: many(subjects), // One name can be used by multiple subject entries
 }));
-
-export * from "./schemas/auth-schema";
-export * from "./schemas/organization-schema";
-export * from "./schemas/subject-schema";
-export * from "./schemas/lesson-schema";
-export * from "./schemas/file-schema";
-export * from "./schemas/activity-schema";
-export * from "./schemas/data-schema";

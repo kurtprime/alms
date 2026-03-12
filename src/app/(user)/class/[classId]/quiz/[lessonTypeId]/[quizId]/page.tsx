@@ -8,10 +8,10 @@ import { ErrorBoundary } from "react-error-boundary";
 export default async function QuizPage({
   params,
 }: {
-  params: Promise<{ quizId: string }>;
+  params: Promise<{ quizId: string; lessonTypeId: string }>;
 }) {
   const session = getCurrentUser();
-  const { quizId } = await params;
+  const { quizId, lessonTypeId } = await params;
 
   const queryClient = getQueryClient();
 
@@ -23,7 +23,7 @@ export default async function QuizPage({
     <HydrationBoundary state={dehydrate(queryClient)}>
       <ErrorBoundary fallback={<div>something went wrong</div>}>
         <Suspense>
-          <QuizPageView quizId={+quizId} />
+          <QuizPageView quizId={+quizId} lessonTypeId={+lessonTypeId} />
         </Suspense>
       </ErrorBoundary>
     </HydrationBoundary>

@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { LessonLayout } from "../Student/ClassAssignment/lesson-layout";
 import { LessonComments } from "../Student/ClassAssignment/lesson-comments";
+import { attemptStatusEnum } from "@/db/schemas/activity-schema";
 
 // ==========================================
 // 1. TYPES & MOCK DATA
@@ -101,7 +102,7 @@ interface TeacherLessonData {
   // Attempts (Teacher usually doesn't need this populated, but type must match)
   attempts: {
     score: number | null;
-    status: string;
+    status: (typeof attemptStatusEnum.enumValues)[number];
     attemptNumber: number;
     submittedAt: string | null;
     attemptId: number;

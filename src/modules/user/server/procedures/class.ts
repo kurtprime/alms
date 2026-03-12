@@ -17,6 +17,8 @@ import {
   quizOrderingItem,
   quizQuestion,
   quizQuestionResponse,
+  subjectName,
+  subjects,
   user,
 } from "@/db/schema";
 import { db } from "@/index";
@@ -40,19 +42,30 @@ import {
 import z from "zod";
 import { lessonTypeOptionSchema, StudentGradeRow } from "../userSchema";
 
+type ResultReviewAnswer =
+  | { type: "option"; optionId: string }
+  | { type: "text"; text: string }
+  | { type: "multiple"; optionIds: string[] }
+  | { type: "ordering"; order: string[] }
+  | {
+      type: "matching";
+      matches: { left: string | null; right: string | null }[];
+    } // THE FIX
+  | { type: "boolean"; value: boolean }
+  | null;
+
 type CorrectAnswerType =
-  | boolean // true_false
-  | { id: string; text: string }[] // multiple_choice & ordering
-  | { left: string | null; right: string }[] // matching
-  | null; // essay
+  | boolean
+  | { id: string; text: string }[]
+  | { left: string | null; right: string }[]
+  | null;
 
 type QuizResultReviewItem = {
   questionId: number;
   questionText: string;
   type: string;
   points: number;
-  // FIX: Removed NonNullable. The answer from DB can be null.
-  userAnswer: (typeof quizQuestionResponse.$inferSelect)["answer"];
+  userAnswer: ResultReviewAnswer; // Use the updated type here
   isCorrect: boolean | null;
   pointsEarned: number | null;
   correctAnswer: CorrectAnswerType;
@@ -73,7 +86,6 @@ type QuizResultResponse = {
   };
   review?: QuizResultReviewItem[];
 };
-
 export const classActions = {
   getAllStudentsInClass: protectedProcedure
     .input(
@@ -1041,23 +1053,33 @@ export const classActions = {
       const { lessonTypeId } = input;
       const userId = ctx.auth.user.id;
 
-      // 1. Fetch Quiz Details
+      // 1. Fetch Quiz
       const [quizData] = await db
         .select()
         .from(quiz)
         .where(eq(quiz.lessonTypeId, lessonTypeId))
         .limit(1);
 
-      if (!quizData) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
-      }
+      if (!quizData) throw new TRPCError({ code: "NOT_FOUND" });
 
-      // 2. Fetch Student's Latest Attempt
-      // We filter for 'submitted' or 'graded' so we don't accidentally show an 'in_progress' attempt as a result.
-      // 'expired' attempts might also be shown as a result (score 0).
-      const attemptStatusesToView: (typeof quizAttempt.status.enumValues)[number][] =
-        ["submitted", "graded", "expired"];
+      // 2. Fetch ALL attempts for counting
+      const attempts = await db
+        .select({ status: quizAttempt.status })
+        .from(quizAttempt)
+        .where(
+          and(
+            eq(quizAttempt.quizId, quizData.id),
+            eq(quizAttempt.studentId, userId),
+          ),
+        );
 
+      // 3. Calculate Used attempts
+      const attemptsUsed = attempts.filter((a) =>
+        ["submitted", "graded", "expired"].includes(a.status),
+      ).length;
+
+      // 4. Find latest FINISHED attempt (SQL Style)
+      // This replaces the db.query.quizAttempt.findFirst
       const [latestAttempt] = await db
         .select()
         .from(quizAttempt)
@@ -1065,15 +1087,17 @@ export const classActions = {
           and(
             eq(quizAttempt.quizId, quizData.id),
             eq(quizAttempt.studentId, userId),
-            inArray(quizAttempt.status, attemptStatusesToView),
+            // Only show results for finished quizzes
+            inArray(quizAttempt.status, ["submitted", "graded", "expired"]),
           ),
         )
-        .orderBy(desc(quizAttempt.createdAt)) // Get the most recent one
+        .orderBy(desc(quizAttempt.createdAt))
         .limit(1);
 
       return {
         ...quizData,
-        latestAttempt: latestAttempt || null,
+        attemptsUsed,
+        latestAttempt,
       };
     }),
   getQuizResult: protectedProcedure
@@ -1124,7 +1148,6 @@ export const classActions = {
           submittedAt: attempt.submittedAt,
           timeSpent: attempt.timeSpent,
           startedAt: attempt.startedAt,
-          // Score is initially hidden
           score: null,
           maxScore: null,
           percentage: null,
@@ -1191,30 +1214,97 @@ export const classActions = {
             matchingMap.get(pair.questionId)!.push(pair);
           });
 
-          // Construct Review Array with Strict Typing
+          // Construct Review Array
           const reviewItems: QuizResultReviewItem[] = questions.map((q) => {
             const userResponse = responses.find((r) => r.questionId === q.id);
 
             let correctAnswer: CorrectAnswerType = null;
+            // Initialize as null. We will populate it based on type.
+            let finalUserAnswer: ResultReviewAnswer = null;
 
             if (q.type === "true_false") {
               correctAnswer = q.correctBoolean ?? false;
+              // Direct assignment is safe for these types
+              if (userResponse?.answer) {
+                finalUserAnswer = userResponse.answer as ResultReviewAnswer;
+              }
             } else if (q.type === "multiple_choice") {
               const opts = optionsMap.get(q.id) || [];
               correctAnswer = opts
                 .filter((o) => o.isCorrect)
                 .map((o) => ({ id: o.id, text: o.optionText }));
+
+              if (userResponse?.answer) {
+                finalUserAnswer = userResponse.answer as ResultReviewAnswer;
+              }
             } else if (q.type === "ordering") {
               const items = orderingMap.get(q.id) || [];
               correctAnswer = items
                 .sort((a, b) => a.correctPosition - b.correctPosition)
                 .map((i) => ({ id: i.id, text: i.itemText }));
+
+              if (userResponse?.answer) {
+                finalUserAnswer = userResponse.answer as ResultReviewAnswer;
+              }
             } else if (q.type === "matching") {
               const pairs = matchingMap.get(q.id) || [];
+
+              // 1. Correct Answer
               correctAnswer = pairs.map((p) => ({
                 left: p.leftItem,
                 right: p.rightItem,
               }));
+
+              // 2. Resolve User Answer
+              if (
+                userResponse?.answer &&
+                userResponse.answer.type === "matching"
+              ) {
+                // Create a lookup map for this specific question: ID -> { left, right }
+                const pairLookup = new Map<
+                  string,
+                  { left: string | null; right: string }
+                >();
+                pairs.forEach((p) => {
+                  pairLookup.set(p.id, {
+                    left: p.leftItem,
+                    right: p.rightItem,
+                  });
+                });
+
+                const rawMatches = userResponse.answer.matches; // Record<string, string>
+                const resolvedMatches: {
+                  left: string | null;
+                  right: string | null;
+                }[] = [];
+
+                Object.entries(rawMatches).forEach(([leftId, rightValue]) => {
+                  const leftPair = pairLookup.get(leftId);
+                  let rightText: string | null = null;
+
+                  // Resolve Right Text (Check if ID or Text)
+                  if (pairLookup.has(rightValue)) {
+                    rightText = pairLookup.get(rightValue)?.right ?? null;
+                  } else {
+                    rightText = rightValue;
+                  }
+
+                  resolvedMatches.push({
+                    left: leftPair?.left ?? null,
+                    right: rightText,
+                  });
+                });
+
+                // Construct the RESOLVED object explicitly
+                finalUserAnswer = {
+                  type: "matching",
+                  matches: resolvedMatches,
+                };
+              }
+            } else if (q.type === "essay") {
+              if (userResponse?.answer) {
+                finalUserAnswer = userResponse.answer as ResultReviewAnswer;
+              }
             }
 
             return {
@@ -1222,7 +1312,7 @@ export const classActions = {
               questionText: q.question,
               type: q.type,
               points: q.points,
-              userAnswer: userResponse?.answer ?? null, // Use null if no answer
+              userAnswer: finalUserAnswer,
               isCorrect: userResponse?.isCorrect ?? null,
               pointsEarned: userResponse?.pointsEarned ?? null,
               correctAnswer: correctAnswer,
@@ -1454,20 +1544,43 @@ export const classActions = {
       const { quizId } = input;
       const userId = ctx.auth.user.id;
 
-      // 1. Fetch Quiz Settings (need maxAttempts)
+      // 1. Fetch Quiz Settings (Added startDate/endDate)
       const [quizData] = await db
         .select({
           maxAttempts: quiz.maxAttempts,
           timeLimit: quiz.timeLimit,
+          startDate: quiz.startDate,
+          endDate: quiz.endDate,
         })
         .from(quiz)
         .where(eq(quiz.id, quizId));
 
       if (!quizData) throw new TRPCError({ code: "NOT_FOUND" });
 
-      // 2. Check previous attempts
+      // --- NEW: DATE VALIDATION ---
+      const now = new Date();
+
+      if (quizData.startDate && now < new Date(quizData.startDate)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "This quiz has not opened yet.",
+        });
+      }
+
+      if (quizData.endDate && now > new Date(quizData.endDate)) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "This quiz has already closed.",
+        });
+      }
+      // -----------------------------
+
+      // 2. Fetch ALL previous attempts for this user
       const previousAttempts = await db
-        .select({ id: quizAttempt.id, status: quizAttempt.status })
+        .select({
+          id: quizAttempt.id,
+          status: quizAttempt.status,
+        })
         .from(quizAttempt)
         .where(
           and(
@@ -1476,37 +1589,32 @@ export const classActions = {
           ),
         );
 
-      // Validate Max Attempts (e.g., if max is 1 and they have 1, they can't start)
-      // Note: Adjust logic if you allow re-taking completed quizzes.
-      // Usually, we check if they have *completed* attempts.
-      if (previousAttempts.length >= (quizData.maxAttempts || 1)) {
-        // Check if any are 'in_progress' or if they simply used all tokens
-        const inProgress = previousAttempts.find(
-          (a) => a.status === "in_progress",
-        );
-        // For simplicity, let's just check count for now.
-        // You might want to check specific logic:
-        // "If maxAttempts is 2, and they have 2 'submitted' rows, block them."
+      // 3. Check for existing 'in_progress' attempt
+      const inProgressAttempt = previousAttempts.find(
+        (a) => a.status === "in_progress",
+      );
+
+      if (inProgressAttempt) {
+        return { attemptId: inProgressAttempt.id, isNew: false };
       }
 
-      // 3. Check if there is an existing 'in_progress' attempt
-      const [existingAttempt] = await db
-        .select()
-        .from(quizAttempt)
-        .where(
-          and(
-            eq(quizAttempt.quizId, quizId),
-            eq(quizAttempt.studentId, userId),
-            eq(quizAttempt.status, "in_progress"),
-          ),
-        );
+      // 4. Check Max Attempts Limit
+      // We count 'submitted', 'graded', or 'expired' as consumed attempts.
+      const consumedAttempts = previousAttempts.filter((a) =>
+        ["submitted", "graded", "expired"].includes(a.status),
+      ).length;
 
-      if (existingAttempt) {
-        // Return the existing one instead of creating duplicate
-        return { attemptId: existingAttempt.id, isNew: false };
+      // Default to 1 attempt if null
+      const maxAllowed = quizData.maxAttempts ?? 1;
+
+      if (consumedAttempts >= maxAllowed) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `You have reached the maximum number of attempts (${maxAllowed}).`,
+        });
       }
 
-      // 4. Create New Attempt
+      // 5. Create New Attempt
       const [newAttempt] = await db
         .insert(quizAttempt)
         .values({
@@ -1515,7 +1623,6 @@ export const classActions = {
           attemptNumber: previousAttempts.length + 1,
           status: "in_progress",
           startedAt: new Date(),
-          // Calculate expiry if needed? Or handle in frontend.
         })
         .returning();
 
@@ -1818,4 +1925,87 @@ export const classActions = {
         maxScore: maxPossibleScore,
       };
     }),
+  getMyTeachingAssignments: protectedProcedure.query(async ({ ctx }) => {
+    const teacherId = ctx.auth.user.id;
+
+    // Fetch classes with their stats
+    const classes = await db
+      .select({
+        id: classSubjects.id,
+        className: organization.name,
+        subjectName: subjectName.name,
+        organizationName: organization.name,
+      })
+      .from(classSubjects)
+      .innerJoin(subjects, eq(classSubjects.subjectId, subjects.id))
+      .innerJoin(subjectName, eq(subjects.name, subjectName.id))
+      .innerJoin(organization, eq(classSubjects.enrolledClass, organization.id))
+      .where(eq(classSubjects.teacherId, teacherId))
+      .orderBy(desc(classSubjects.enrolledAt));
+
+    // For each class, fetch the activity and submission stats
+    const classesWithStats = await Promise.all(
+      classes.map(async (cls) => {
+        // Get lessons for this class
+        const lessonsData = await db
+          .select({
+            lessonId: lesson.id,
+          })
+          .from(lesson)
+          .where(eq(lesson.classSubjectId, cls.id));
+
+        const lessonIds = lessonsData.map((l) => l.lessonId);
+
+        if (lessonIds.length === 0) {
+          return {
+            ...cls,
+            stats: {
+              totalActivities: 0,
+              totalQuizzes: 0,
+              totalAssignments: 0,
+              totalSubmissions: 0,
+              pendingGrading: 0,
+              totalStudents: 0,
+            },
+          };
+        }
+
+        // Get lesson types (activities)
+        const activities = await db
+          .select({
+            id: lessonType.id,
+            type: lessonType.type,
+          })
+          .from(lessonType)
+          .where(
+            and(
+              eq(lessonType.status, "published"),
+              lessonIds.length > 0 ? undefined : eq(lessonType.id, 0),
+            ),
+          );
+
+        // This is a simplified version - in production you'd want more efficient queries
+        // For now, we'll return basic counts
+        const totalQuizzes = activities.filter((a) => a.type === "quiz").length;
+        const totalAssignments = activities.filter(
+          (a) => a.type === "assignment",
+        ).length;
+        const totalActivities = totalQuizzes + totalAssignments;
+
+        return {
+          ...cls,
+          stats: {
+            totalActivities,
+            totalQuizzes,
+            totalAssignments,
+            totalSubmissions: 0, // Would need to join quizAttempt
+            pendingGrading: 0,
+            totalStudents: 0, // Would need to join enrolled students
+          },
+        };
+      }),
+    );
+
+    return classesWithStats;
+  }),
 };

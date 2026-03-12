@@ -26,8 +26,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import DetailedAnswerReview from "../components/Student/QuizRenderer/DetailedAnswerReview";
 
-// REMOVED: Manual interfaces to let tRPC infer types correctly from Drizzle schema
-
 interface QuizViewDetailsProps {
   lessonTypeId: number;
   classId: string;
@@ -40,13 +38,12 @@ export default function QuizViewDetails({
   const trpc = useTRPC();
   const router = useRouter();
 
-  // 1. Fetch Quiz Preview Data
-  // Types are inferred automatically from the router definition
+  // 1. Fetch Data
   const { data: quiz } = useSuspenseQuery(
     trpc.user.getQuizPreview.queryOptions({ lessonTypeId }),
   );
 
-  // 2. Mutation to Start Quiz
+  // 2. Mutation
   const startAttemptMutation = useMutation(
     trpc.user.startQuizAttempt.mutationOptions({
       onSuccess: (data) => {
@@ -60,7 +57,6 @@ export default function QuizViewDetails({
 
   // --- Logic Helpers ---
   const now = new Date();
-  // FIX: Handle potential nulls from DB safely
   const startDate = quiz.startDate ? new Date(quiz.startDate) : null;
   const endDate = quiz.endDate ? new Date(quiz.endDate) : null;
 
@@ -68,8 +64,15 @@ export default function QuizViewDetails({
   const isEnded = endDate && now > endDate;
   const isAvailable = !isNotStarted && !isEnded;
 
-  // Attempt State
+  // Attempt Logic
+  const maxAttempts = quiz.maxAttempts ?? 1;
+  const attemptsUsed = quiz.attemptsUsed ?? (quiz.latestAttempt ? 1 : 0); // Fallback safety
   const hasAttempt = !!quiz.latestAttempt;
+  const hasRemainingAttempts = attemptsUsed < maxAttempts;
+
+  // Can they click the button?
+  const canStart = isAvailable && hasRemainingAttempts;
+
   const canSeeScore = quiz.showScoreAfterSubmission || isEnded;
   const canSeeAnswers = quiz.showCorrectAnswers || isEnded;
 
@@ -90,17 +93,61 @@ export default function QuizViewDetails({
     });
   };
 
-  // --- Actions ---
   const handleStart = () => {
-    if (!isAvailable) {
-      toast.error("This quiz is currently unavailable.");
+    if (!canStart) {
+      toast.error("You cannot start this quiz.");
       return;
     }
     startAttemptMutation.mutate({ quizId: quiz.id });
   };
 
-  // Default to 'results' tab if they have an attempt, else 'details'
   const defaultTab = hasAttempt ? "results" : "details";
+
+  // --- Button Content Logic (Cleaned Up) ---
+  const getButtonContent = () => {
+    if (startAttemptMutation.isPending) {
+      return (
+        <>
+          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+          Starting...
+        </>
+      );
+    }
+
+    if (!isAvailable) {
+      return (
+        <>
+          <Lock className="h-5 w-5 mr-2" />
+          Unavailable
+        </>
+      );
+    }
+
+    if (!hasRemainingAttempts) {
+      return (
+        <>
+          <Lock className="h-5 w-5 mr-2" />
+          No Attempts Left
+        </>
+      );
+    }
+
+    if (hasAttempt) {
+      return (
+        <>
+          <RefreshCcw className="h-5 w-5 mr-2" />
+          Retake Quiz
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Play className="h-5 w-5 mr-2" />
+        Begin Quiz
+      </>
+    );
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950">
@@ -110,7 +157,7 @@ export default function QuizViewDetails({
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => router.back()}
+            onClick={() => router.push(`/class/${classId}`)}
             className="text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -119,7 +166,7 @@ export default function QuizViewDetails({
         </div>
       </header>
 
-      {/* Main Content with Tabs */}
+      {/* Main Content */}
       <main className="flex-1 relative">
         <div className="absolute inset-0 h-64 bg-gradient-to-b from-blue-50 to-transparent dark:from-blue-950/20 pointer-events-none" />
 
@@ -143,7 +190,7 @@ export default function QuizViewDetails({
           <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
               <TabsTrigger value="details">
-                {hasAttempt ? "Quiz Details" : "Start Quiz"}
+                {hasAttempt ? "Quiz Details" : "Overview"}
               </TabsTrigger>
               {hasAttempt && (
                 <TabsTrigger value="results">
@@ -183,6 +230,7 @@ export default function QuizViewDetails({
                     {quiz.timeLimit ? `${quiz.timeLimit} Mins` : "No Limit"}
                   </p>
                 </div>
+
                 {/* Attempts */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
                   <RefreshCcw className="h-8 w-8 text-green-500 mb-3" />
@@ -190,12 +238,11 @@ export default function QuizViewDetails({
                     Attempts
                   </h3>
                   <p className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                    {/* FIX: Handle null safely */}
-                    {(quiz.maxAttempts ?? 1) === 1
-                      ? "1 Attempt"
-                      : `${quiz.maxAttempts ?? 1} Allowed`}
+                    {attemptsUsed} / {maxAttempts}
                   </p>
+                  <p className="text-xs text-slate-500 mt-1">Used</p>
                 </div>
+
                 {/* Availability */}
                 <div className="bg-white dark:bg-slate-900 p-6 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col items-center text-center">
                   <CalendarDays className="h-8 w-8 text-amber-500 mb-3" />
@@ -204,7 +251,7 @@ export default function QuizViewDetails({
                   </h3>
                   <p className="text-xl font-bold text-slate-800 dark:text-slate-100">
                     {endDate
-                      ? formatDate(endDate, "No Due Date")
+                      ? formatDate(endDate, "Always Open")
                       : "Always Open"}
                   </p>
                 </div>
@@ -275,7 +322,6 @@ export default function QuizViewDetails({
                         </div>
                       )}
 
-                      {/* FIX: Handle null submittedAt safely */}
                       {quiz.latestAttempt.submittedAt && (
                         <div className="mt-4 text-xs opacity-70">
                           Submitted on:{" "}
@@ -287,16 +333,16 @@ export default function QuizViewDetails({
                     </div>
                   </Card>
 
-                  {/* Detailed Breakdown (Optional) */}
+                  {/* Detailed Breakdown */}
                   {canSeeAnswers && (
                     <DetailedAnswerReview attemptId={quiz.latestAttempt.id} />
                   )}
 
-                  {/* Retake Button Logic */}
-                  {/* FIX: Handle null maxAttempts safely */}
-                  {!isEnded && (quiz.maxAttempts ?? 1) > 1 && (
-                    <div className="text-center">
-                      <Button variant="outline" onClick={() => handleStart()}>
+                  {/* Retake Button Logic - Only show if they CAN retake */}
+                  {canStart && hasAttempt && (
+                    <div className="flex justify-center pt-4">
+                      <Button variant="outline" onClick={handleStart}>
+                        <RefreshCcw className="h-4 w-4 mr-2" />
                         Retake Quiz
                       </Button>
                     </div>
@@ -312,38 +358,29 @@ export default function QuizViewDetails({
       <footer className="sticky bottom-0 z-50 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-t border-slate-200 dark:border-slate-800">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="hidden sm:block">
-            <p className="text-sm text-slate-500">
-              {hasAttempt ? "Want to try again?" : "Ready to start?"}
-            </p>
+            {!canStart && hasAttempt ? (
+              <p className="text-sm text-red-500 font-medium">
+                No attempts remaining
+              </p>
+            ) : (
+              <p className="text-sm text-slate-500">
+                {hasAttempt ? "Want to try again?" : "Ready to start?"}
+              </p>
+            )}
           </div>
 
           <Button
             size="lg"
-            disabled={!isAvailable || startAttemptMutation.isPending}
+            disabled={!canStart || startAttemptMutation.isPending}
             onClick={handleStart}
             className={cn(
               "w-full sm:w-auto px-12 h-12 text-base font-semibold transition-all duration-200",
-              isAvailable
+              canStart
                 ? "bg-blue-600 hover:bg-blue-700 active:scale-[0.98]"
                 : "bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500 dark:text-slate-400",
             )}
           >
-            {startAttemptMutation.isPending ? (
-              <>
-                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                Starting...
-              </>
-            ) : isAvailable ? (
-              <>
-                <Play className="h-5 w-5 mr-2" />
-                Begin Quiz
-              </>
-            ) : (
-              <>
-                <Lock className="h-5 w-5 mr-2" />
-                Unavailable
-              </>
-            )}
+            {getButtonContent()}
           </Button>
         </div>
       </footer>

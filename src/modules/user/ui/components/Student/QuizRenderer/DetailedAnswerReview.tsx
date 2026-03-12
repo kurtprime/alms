@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useTRPC } from "@/trpc/client";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query"; // Changed from useSuspenseQuery
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
@@ -10,11 +10,11 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, AlertTriangle } from "lucide-react"; // Added Loader2, AlertTriangle
 import { cn } from "@/lib/utils";
 
 // ==========================================
-// TYPES (derived from your backend)
+// TYPES
 // ==========================================
 
 type QuizAnswer =
@@ -22,15 +22,18 @@ type QuizAnswer =
   | { type: "text"; text: string }
   | { type: "multiple"; optionIds: string[] }
   | { type: "ordering"; order: string[] }
-  | { type: "matching"; matches: Record<string, string> }
+  | {
+      type: "matching";
+      matches: { left: string | null; right: string | null }[];
+    }
   | { type: "boolean"; value: boolean }
   | null;
 
 type CorrectAnswer =
-  | boolean // true_false
-  | { id: string; text: string }[] // multiple_choice, ordering
-  | { left: string | null; right: string }[] // matching
-  | null; // essay
+  | boolean
+  | { id: string; text: string }[]
+  | { left: string | null; right: string }[]
+  | null;
 
 interface ReviewItem {
   questionId: number;
@@ -58,11 +61,37 @@ export default function DetailedAnswerReview({
 }: DetailedAnswerReviewProps) {
   const trpc = useTRPC();
 
-  const { data: result } = useSuspenseQuery(
-    trpc.user.getQuizResult.queryOptions({ attemptId }),
-  );
+  // Using standard useQuery to get { isPending, isError, error, data }
+  const {
+    data: result,
+    isPending,
+    isError,
+    error,
+  } = useQuery(trpc.user.getQuizResult.queryOptions({ attemptId }));
 
-  const reviewItems = (result.review ?? []) as ReviewItem[];
+  // Handle Loading State
+  if (isPending) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 space-y-4 text-slate-500">
+        <Loader2 className="h-8 w-8 animate-spin" />
+        <p>Loading review...</p>
+      </div>
+    );
+  }
+
+  // Handle Error State
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 space-y-4 text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+        <AlertTriangle className="h-8 w-8" />
+        <p className="font-medium">Failed to load review</p>
+        <p className="text-sm text-slate-500">{error?.message}</p>
+      </div>
+    );
+  }
+
+  // Handle Empty Data
+  const reviewItems = (result?.review ?? []) as ReviewItem[];
 
   if (reviewItems.length === 0) {
     return (
@@ -72,6 +101,7 @@ export default function DetailedAnswerReview({
     );
   }
 
+  // Render Data
   return (
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Answer Review</h3>
@@ -183,7 +213,7 @@ export default function DetailedAnswerReview({
 }
 
 // ==========================================
-// USER ANSWER RENDERER (strictly typed)
+// USER ANSWER RENDERER
 // ==========================================
 
 function RenderUserAnswer({ item }: { item: ReviewItem }) {
@@ -193,13 +223,12 @@ function RenderUserAnswer({ item }: { item: ReviewItem }) {
     return <span className="italic text-slate-400">No answer provided</span>;
   }
 
-  // Helper to find text from correctAnswer list (only for multiple_choice/ordering)
   const findTextFromCorrect = (id: string): string | null => {
     if (item.type === "multiple_choice" || item.type === "ordering") {
       const correct = item.correctAnswer;
-      if (Array.isArray(correct)) {
-        // At this point, correct is an array of {id, text} because we know the type
-        const found = correct.find((opt) => opt.id === id);
+      if (correct && Array.isArray(correct)) {
+        const items = correct as { id: string; text: string }[];
+        const found = items.find((opt) => opt.id === id);
         return found?.text ?? null;
       }
     }
@@ -213,11 +242,9 @@ function RenderUserAnswer({ item }: { item: ReviewItem }) {
       return (
         <span className="font-mono text-xs">
           {text ? (
-            <span>
-              <span className="font-medium">Selected:</span> {text}
-            </span>
+            <span className="font-medium text-slate-700">{text}</span>
           ) : (
-            <span>Option ID: {ans.optionId}</span>
+            <span className="opacity-70">Option ID: {ans.optionId}</span>
           )}
         </span>
       );
@@ -235,19 +262,15 @@ function RenderUserAnswer({ item }: { item: ReviewItem }) {
     case "ordering": {
       if (ans.type !== "ordering") return null;
       return (
-        <ol className="list-decimal list-inside text-xs font-mono">
-          {ans.order.map((id, i) => {
+        <ol className="list-decimal list-inside text-xs space-y-1">
+          {ans.order.map((id) => {
             const text = findTextFromCorrect(id);
             return (
               <li key={id}>
                 {text ? (
-                  <span>
-                    {i + 1}. {text}
-                  </span>
+                  text
                 ) : (
-                  <span>
-                    Item {i + 1} (ID: {id.slice(0, 4)}...)
-                  </span>
+                  <span className="opacity-70">ID: {id.slice(0, 4)}...</span>
                 )}
               </li>
             );
@@ -259,19 +282,19 @@ function RenderUserAnswer({ item }: { item: ReviewItem }) {
     case "matching": {
       if (ans.type !== "matching") return null;
       return (
-        <ul className="space-y-1 text-xs font-mono">
-          {Object.entries(ans.matches).map(([leftId, rightId]) => (
-            <li key={leftId} className="flex gap-2">
-              <span className="bg-slate-200 dark:bg-slate-700 px-1 rounded">
-                {leftId.slice(0, 4)}...
-              </span>
-              <span>→</span>
-              <span className="bg-slate-200 dark:bg-slate-700 px-1 rounded">
-                {rightId.slice(0, 4)}...
-              </span>
-            </li>
+        <div className="space-y-2">
+          {ans.matches.map((pair, idx) => (
+            <div key={idx} className="flex items-center gap-2">
+              <Badge variant="secondary" className="font-sans">
+                {pair.left ?? "???"}
+              </Badge>
+              <span className="text-slate-400">→</span>
+              <Badge variant="secondary" className="font-sans">
+                {pair.right ?? "???"}
+              </Badge>
+            </div>
           ))}
-        </ul>
+        </div>
       );
     }
 
@@ -281,16 +304,13 @@ function RenderUserAnswer({ item }: { item: ReviewItem }) {
     }
 
     default:
-      // Exhaustive check – if TypeScript errors, a new case needs handling
-      const _exhaustiveCheck = item;
       return null;
   }
 }
 
 // ==========================================
-// CORRECT ANSWER RENDERER (strictly typed)
+// CORRECT ANSWER RENDERER
 // ==========================================
-
 function RenderCorrectAnswer({ item }: { item: ReviewItem }) {
   const ans = item.correctAnswer;
 
@@ -305,11 +325,10 @@ function RenderCorrectAnswer({ item }: { item: ReviewItem }) {
   switch (item.type) {
     case "multiple_choice":
     case "ordering": {
-      // For these types, correctAnswer is always an array of {id, text}
       if (!Array.isArray(ans)) return null;
-      const typedAns = ans as { id: string; text: string }[]; // safe assertion
+      const typedAns = ans as { id: string; text: string }[];
       return (
-        <ul className="list-disc list-inside text-green-800 dark:text-green-200">
+        <ul className="list-disc list-inside text-green-800 dark:text-green-200 space-y-1">
           {typedAns.map((opt) => (
             <li key={opt.id}>{opt.text}</li>
           ))}
@@ -327,11 +346,10 @@ function RenderCorrectAnswer({ item }: { item: ReviewItem }) {
     }
 
     case "matching": {
-      // For matching, correctAnswer is an array of {left, right}
       if (!Array.isArray(ans)) return null;
       const typedAns = ans as { left: string | null; right: string }[];
       return (
-        <div className="space-y-1">
+        <div className="space-y-2">
           {typedAns.map((pair, idx) => (
             <div key={idx} className="flex items-center gap-2">
               <Badge variant="secondary">{pair.left ?? "Item"}</Badge>
@@ -348,7 +366,6 @@ function RenderCorrectAnswer({ item }: { item: ReviewItem }) {
     }
 
     default:
-      const _exhaustiveCheck = item;
-      return _exhaustiveCheck;
+      return null;
   }
 }

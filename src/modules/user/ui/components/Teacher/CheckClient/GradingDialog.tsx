@@ -92,7 +92,7 @@ export function GradingDialog({
                     type="number"
                     value={score}
                     onChange={(e) => setScore(e.target.value)}
-                    max={submission.maxScore}
+                    max={submission.maxScore ?? undefined}
                     min={0}
                     className="text-lg font-bold h-11 w-24 text-center"
                   />

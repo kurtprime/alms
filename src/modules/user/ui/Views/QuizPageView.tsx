@@ -97,7 +97,13 @@ function useQuizPersistence(quizId: number) {
 // COMPONENT
 // ============================================
 
-export default function QuizPageView({ quizId }: { quizId: number }) {
+export default function QuizPageView({
+  quizId,
+  lessonTypeId,
+}: {
+  quizId: number;
+  lessonTypeId: number;
+}) {
   const trpc = useTRPC();
   const router = useRouter();
   const { saveState, loadState, clearState } = useQuizPersistence(quizId);
@@ -105,7 +111,7 @@ export default function QuizPageView({ quizId }: { quizId: number }) {
   const attemptIdFromUrl = params.attemptId
     ? Number(params.attemptId)
     : undefined;
-
+  const classId = params.classId as string;
   // 1. Fetch Data
   const { data: quiz } = useSuspenseQuery(
     trpc.user.getQuizForTaking.queryOptions({ quizId }),
@@ -118,7 +124,7 @@ export default function QuizPageView({ quizId }: { quizId: number }) {
         clearState(); // Clear localStorage
         toast.success("Quiz Submitted!");
         // Redirect to results page
-        router.push(`/quiz/result/${data.attemptId}`);
+        router.push(`/class/${classId}/quiz/${lessonTypeId}`);
       },
       onError: (err) => {
         toast.error(err.message || "Failed to submit quiz.");
@@ -330,7 +336,7 @@ export default function QuizPageView({ quizId }: { quizId: number }) {
   if (!currentQuestion) return null;
 
   return (
-    <div className="flex h-screen bg-slate-100 dark:bg-slate-950">
+    <div className="flex h-[calc(100vh-65px)] bg-slate-100 dark:bg-slate-950">
       {/* SIDEBAR */}
       <aside className="w-80 border-r bg-white dark:bg-slate-900 hidden md:flex flex-col">
         <div className="p-4 border-b bg-slate-50 dark:bg-slate-800">
