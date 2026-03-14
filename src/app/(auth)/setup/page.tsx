@@ -1,11 +1,11 @@
-import { checkSetupStatus } from "@/modules/admin/server/createFirstAdmin";
-import { SetupForm } from "@/modules/admin/ui/admin/components/setup-form";
-import Image from "next/image";
-import { redirect } from "next/navigation";
+import { checkSetupStatus } from '@/modules/admin/server/createFirstAdmin';
+import { SetupForm } from '@/modules/admin/ui/admin/components/setup-form';
+import Image from 'next/image';
+import { redirect } from 'next/navigation';
 
 export default async function SetupPage() {
   const isEmpty = await checkSetupStatus();
-  if (!isEmpty) redirect("/");
+  if (!isEmpty) redirect('/');
   return (
     <div className="min-h-screen w-full grid grid-cols-1 md:grid-cols-2 bg-slate-100 dark:bg-slate-950">
       {/* LEFT SIDE - BRANDING / IMAGE */}
@@ -22,12 +22,10 @@ export default async function SetupPage() {
         {/* Content Overlay */}
         <div className="relative z-10 flex flex-col justify-center p-12 text-white">
           <div className="space-y-6 max-w-lg">
-            <h1 className="text-4xl font-bold leading-tight">
-              Welcome to Ark LMS
-            </h1>
+            <h1 className="text-4xl font-bold leading-tight">Welcome to Ark LMS</h1>
             <p className="text-lg text-indigo-100">
-              Set up your administrator account to start managing your classes,
-              students, and educational content in one unified platform.
+              Set up your administrator account to start managing your classes, students, and
+              educational content in one unified platform.
             </p>
 
             {/* Feature List */}
@@ -48,9 +46,7 @@ export default async function SetupPage() {
                     <polyline points="22 4 12 14.01 9 11.01" />
                   </svg>
                 </div>
-                <span className="text-sm font-medium">
-                  Complete Class Management
-                </span>
+                <span className="text-sm font-medium">Complete Class Management</span>
               </li>
               <li className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">
@@ -68,9 +64,7 @@ export default async function SetupPage() {
                     <polyline points="22 4 12 14.01 9 11.01" />
                   </svg>
                 </div>
-                <span className="text-sm font-medium">
-                  Real-time Student Tracking
-                </span>
+                <span className="text-sm font-medium">Real-time Student Tracking</span>
               </li>
               <li className="flex items-center gap-3">
                 <div className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center">

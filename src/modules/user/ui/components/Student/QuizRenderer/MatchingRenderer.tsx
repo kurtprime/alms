@@ -24,7 +24,7 @@ import { GripVertical, X } from "lucide-react";
 interface MatchingPair {
   matchingPairId: string;
   leftItem: string | null;
-  rightIem: string;
+  rightItem: string;
 }
 
 interface MatchingQuestion {
@@ -171,7 +171,7 @@ export function MatchingRenderer({ data, value, onChange }: Props) {
   const allAnswersMap = useMemo(() => {
     const map: Record<string, string> = {};
     data.matchingOptions.forEach((pair) => {
-      map[pair.matchingPairId] = pair.rightIem;
+      map[pair.matchingPairId] = pair.rightItem;
     });
     return map;
   }, [data.matchingOptions]);

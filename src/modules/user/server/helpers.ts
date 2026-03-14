@@ -9,6 +9,7 @@ import { db } from "@/index";
 import { eq } from "drizzle-orm";
 import { quizSettingsSchema } from "./userSchema";
 import z from "zod";
+import { nanoid } from "nanoid";
 
 export async function deepCloneQuiz(
   sourceQuizId: number,
@@ -32,7 +33,7 @@ export async function deepCloneQuiz(
         lessonTypeId: targetLessonTypeId, // Attach to the new lesson
         createdBy: source.createdBy,
         status: "published", // Cloned quizzes are usually published immediately
-
+        score: newSettings.scores,
         // Apply overrides from input settings
         timeLimit: newSettings.timeLimit,
         maxAttempts: newSettings.maxAttempts,
@@ -46,11 +47,15 @@ export async function deepCloneQuiz(
       })
       .returning();
 
+    // console.log("DEEP CLONE NEW QUIZ: ", newQuiz)
+
     // 3. Fetch and Clone Questions
     const questions = await tx
       .select()
       .from(quizQuestion)
       .where(eq(quizQuestion.quizId, sourceQuizId));
+
+    // console.log("Quiz Questions: ", questions)
 
     for (const q of questions) {
       // Insert New Question
@@ -72,6 +77,8 @@ export async function deepCloneQuiz(
         })
         .returning();
 
+        console.log("INSERTING NEW QUESTION: ", newQ)
+
       // 4. Clone Children based on Type
       if (q.type === "multiple_choice") {
         const options = await tx
@@ -80,8 +87,8 @@ export async function deepCloneQuiz(
           .where(eq(quizAnswerOption.questionId, q.id));
         if (options.length > 0) {
           await tx.insert(quizAnswerOption).values(
-            options.map((opt, index) => ({
-              id: `${index}`,
+            options.map((opt) => ({
+              id: `${nanoid(8)}`,
               questionId: newQ.id,
               optionText: opt.optionText,
               isCorrect: opt.isCorrect,
@@ -98,8 +105,8 @@ export async function deepCloneQuiz(
           .where(eq(quizMatchingPair.questionId, q.id));
         if (pairs.length > 0) {
           await tx.insert(quizMatchingPair).values(
-            pairs.map((p, index) => ({
-              id: `${index}`,
+            pairs.map((p) => ({
+              id: `${nanoid(8)}`,
               questionId: newQ.id,
               leftItem: p.leftItem,
               rightItem: p.rightItem,
@@ -116,8 +123,8 @@ export async function deepCloneQuiz(
           .where(eq(quizOrderingItem.questionId, q.id));
         if (items.length > 0) {
           await tx.insert(quizOrderingItem).values(
-            items.map((i, index) => ({
-              id: `${index}`,
+            items.map((i) => ({
+              id: `${nanoid(8)}`,
               questionId: newQ.id,
               itemText: i.itemText,
               correctPosition: i.correctPosition,

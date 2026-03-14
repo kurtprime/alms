@@ -537,7 +537,7 @@ export const lessonActions = {
           matchingPairId: quizMatchingPair.id,
           questionId: quizMatchingPair.questionId,
           leftItem: quizMatchingPair.leftItem,
-          rightIem: quizMatchingPair.rightItem,
+          rightItem: quizMatchingPair.rightItem,
           orderIndex: quizMatchingPair.orderIndex,
           points: quizMatchingPair.points,
           leftImageBase64Jpg: quizMatchingPair.leftImageBase64Jpg,
@@ -945,34 +945,12 @@ export const lessonActions = {
         // Calculate total score by fetching related data for each question type
         let totalScore = 0;
 
+        console.log("QUESTIONS!: ", questions)
+        
         for (const question of questions) {
-          if (question.type === "essay") {
             totalScore += question.points || 0;
-          } else if (question.type === "matching") {
-            const pairs = await db
-              .select({ points: quizMatchingPair.points })
-              .from(quizMatchingPair)
-              .where(eq(quizMatchingPair.questionId, question.id));
-            totalScore += pairs.reduce((sum, p) => sum + (p.points || 0), 0);
-          } else if (question.type === "ordering") {
-            const items = await db
-              .select({ points: quizOrderingItem.points })
-              .from(quizOrderingItem)
-              .where(eq(quizOrderingItem.questionId, question.id));
-            totalScore += items.reduce((sum, i) => sum + (i.points || 0), 0);
-          } else {
-            // multiple_choice, true_false
-            const options = await db
-              .select({ points: quizAnswerOption.points })
-              .from(quizAnswerOption)
-              .where(
-                and(
-                  eq(quizAnswerOption.questionId, question.id),
-                  eq(quizAnswerOption.isCorrect, true),
-                ),
-              );
-            totalScore += options.reduce((sum, o) => sum + (o.points || 0), 0);
-          }
+            console.log("TOTAL POINTS: ", totalScore)
+         
         }
 
         return {

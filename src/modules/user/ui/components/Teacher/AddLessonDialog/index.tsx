@@ -206,6 +206,7 @@ export function AddLessonDialog({
                                   value={field.value ?? null}
                                   onChange={field.onChange}
                                   classId={classId}
+                                  setScore={(val)=> {form.setValue("quizSettings.scores", val)}}
                                   lessonTypeId={lessonTypeId}
                                 />
                                 <FormMessage />

@@ -21,7 +21,7 @@ export interface MultipleChoiceOption {
 export interface MatchingPair {
   matchingPairId: string;
   leftItem: string | null;
-  rightIem: string; // Note: kept typo from prompt, fix in backend if possible
+  rightItem: string; // Note: kept typo from prompt, fix in backend if possible
   leftImageBase64Jpg: string | null;
   rightImageBase64Jpg: string | null;
 }

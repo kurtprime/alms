@@ -1,13 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-"use client";
+'use client';
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import {
   Form,
   FormControl,
@@ -15,25 +15,30 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { Loader2, ShieldCheck, Eye, EyeOff } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { authClient } from "@/lib/auth-client";
-import { createFirstAdmin } from "@/modules/admin/server/createFirstAdmin";
+  FormDescription,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
+import { Loader2, ShieldCheck, Eye, EyeOff, AtSign } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { createFirstAdmin } from '@/modules/admin/server/createFirstAdmin';
 
 // Schema
 const setupSchema = z
   .object({
-    name: z.string().min(2, "Name is required"),
-    email: z.string().email("Invalid email"),
-    password: z.string().min(8, "Min 8 characters"),
+    name: z.string().min(2, 'Name is required'),
+    username: z
+      .string()
+      .min(3, 'Username must be at least 3 characters')
+      .max(20, 'Username must be less than 20 characters')
+      .regex(/^[a-zA-Z0-9_]+$/, 'No spaces or special characters (only _ allowed)'),
+    email: z.string().email('Invalid email'),
+    password: z.string().min(8, 'Min 8 characters'),
     confirmPassword: z.string(),
   })
   .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
   });
 
 export function SetupForm() {
@@ -44,34 +49,35 @@ export function SetupForm() {
 
   const form = useForm<z.infer<typeof setupSchema>>({
     resolver: zodResolver(setupSchema),
-    defaultValues: { name: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: {
+      name: '',
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    },
   });
 
   const { isSubmitting } = form.formState;
 
   const onSubmit = async (values: z.infer<typeof setupSchema>) => {
-    const { email, password, name, confirmPassword } = values;
-
     setIsPending(true);
 
     try {
-      if (confirmPassword !== password)
-        throw new Error("password does not match");
       const formData = new FormData();
-      formData.append("name", values.name);
-      formData.append("email", values.email);
-      formData.append("password", values.password);
+      formData.append('name', values.name);
+      formData.append('username', values.username); // Added Username
+      formData.append('email', values.email);
+      formData.append('password', values.password);
 
       // Call the Server Action
       await createFirstAdmin(formData);
 
-      // If successful, the server action redirects.
-      // We set success state just in case redirect takes a moment.
       setIsSuccess(true);
     } catch (error: any) {
       console.error(error);
-      toast.error("Setup Failed", {
-        description: error.message || "Something went wrong.",
+      toast.error('Setup Failed', {
+        description: error.message || 'Something went wrong.',
       });
       setIsPending(false);
     }
@@ -92,9 +98,7 @@ export function SetupForm() {
                 <ShieldCheck className="h-10 w-10 text-green-600" />
               </div>
               <h3 className="text-2xl font-bold">You&apos;re all set!</h3>
-              <p className="text-muted-foreground mt-2">
-                Redirecting to login...
-              </p>
+              <p className="text-muted-foreground mt-2">Redirecting to login...</p>
             </motion.div>
           ) : (
             <motion.div
@@ -103,7 +107,7 @@ export function SetupForm() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
             >
-              {/* Mobile Header (Only shows on small screens) */}
+              {/* Mobile Header */}
               <div className="mb-8 text-center md:hidden">
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-indigo-600 mb-4">
                   <ShieldCheck className="h-7 w-7 text-white" />
@@ -115,16 +119,11 @@ export function SetupForm() {
               {/* Desktop Header */}
               <div className="hidden md:block mb-6">
                 <h1 className="text-2xl font-bold">Create Admin Account</h1>
-                <p className="text-slate-500 text-sm">
-                  Fill in the details below to get started.
-                </p>
+                <p className="text-slate-500 text-sm">Fill in the details below to get started.</p>
               </div>
 
               <Form {...form}>
-                <form
-                  onSubmit={form.handleSubmit(onSubmit)}
-                  className="space-y-5"
-                >
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                   <FormField
                     control={form.control}
                     name="name"
@@ -139,6 +138,31 @@ export function SetupForm() {
                             disabled={isSubmitting}
                           />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* USERNAME FIELD */}
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              placeholder="admin_user"
+                              {...field}
+                              className="h-11 pl-9"
+                              disabled={isSubmitting}
+                              autoComplete="username"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormDescription>This will be used to login.</FormDescription>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -173,7 +197,7 @@ export function SetupForm() {
                         <FormControl>
                           <div className="relative">
                             <Input
-                              type={showPassword ? "text" : "password"}
+                              type={showPassword ? 'text' : 'password'}
                               placeholder="••••••••"
                               {...field}
                               className="h-11 pr-10"
@@ -224,11 +248,7 @@ export function SetupForm() {
                     className="w-full h-11 font-semibold"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      "Create Account"
-                    )}
+                    {isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Create Account'}
                   </Button>
                 </form>
               </Form>
