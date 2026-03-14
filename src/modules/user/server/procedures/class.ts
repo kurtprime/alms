@@ -20,11 +20,11 @@ import {
   subjectName,
   subjects,
   user,
-} from "@/db/schema";
-import { db } from "@/index";
-import { serializeMDX } from "@/lib/mdx";
-import { protectedProcedure } from "@/trpc/init";
-import { TRPCError } from "@trpc/server";
+} from '@/db/schema';
+import { db } from '@/index';
+import { serializeMDX } from '@/lib/mdx';
+import { protectedProcedure } from '@/trpc/init';
+import { TRPCError } from '@trpc/server';
 import {
   and,
   eq,
@@ -38,20 +38,20 @@ import {
   sql,
   desc,
   count,
-} from "drizzle-orm";
-import z from "zod";
-import { lessonTypeOptionSchema, StudentGradeRow } from "../userSchema";
+} from 'drizzle-orm';
+import z from 'zod';
+import { lessonTypeOptionSchema, StudentGradeRow } from '../userSchema';
 
 type ResultReviewAnswer =
-  | { type: "option"; optionId: string }
-  | { type: "text"; text: string }
-  | { type: "multiple"; optionIds: string[] }
-  | { type: "ordering"; order: string[] }
+  | { type: 'option'; optionId: string }
+  | { type: 'text'; text: string }
+  | { type: 'multiple'; optionIds: string[] }
+  | { type: 'ordering'; order: string[] }
   | {
-      type: "matching";
+      type: 'matching';
       matches: { left: string | null; right: string | null }[];
     } // THE FIX
-  | { type: "boolean"; value: boolean }
+  | { type: 'boolean'; value: boolean }
   | null;
 
 type CorrectAnswerType =
@@ -91,7 +91,7 @@ export const classActions = {
     .input(
       z.object({
         classId: z.string(),
-      }),
+      })
     )
     .query(async ({ ctx, input }) => {
       const { classId } = input;
@@ -107,35 +107,24 @@ export const classActions = {
           userImage: user.image,
         })
         .from(classSubjects)
-        .innerJoin(
-          organization,
-          eq(classSubjects.enrolledClass, organization.id),
-        )
+        .innerJoin(organization, eq(classSubjects.enrolledClass, organization.id))
         .innerJoin(member, eq(member.organizationId, organization.id))
         .innerJoin(user, eq(member.userId, user.id))
         .where(
           and(
-            eq(member.role, "student"),
+            eq(member.role, 'student'),
             eq(classSubjects.id, classId),
             or(
               exists(
                 db
                   .select({ id: member.id })
                   .from(member)
-                  .innerJoin(
-                    classSubjects,
-                    eq(member.organizationId, classSubjects.enrolledClass),
-                  )
-                  .where(
-                    and(
-                      eq(member.userId, auth.user.id),
-                      eq(classSubjects.id, classId),
-                    ),
-                  ),
+                  .innerJoin(classSubjects, eq(member.organizationId, classSubjects.enrolledClass))
+                  .where(and(eq(member.userId, auth.user.id), eq(classSubjects.id, classId)))
               ),
-              eq(classSubjects.teacherId, auth.user.id),
-            ),
-          ),
+              eq(classSubjects.teacherId, auth.user.id)
+            )
+          )
         );
 
       return students;
@@ -144,7 +133,7 @@ export const classActions = {
     .input(z.object({ classId: z.string(), lessonTypeId: z.int().optional() }))
     .query(async ({ input, ctx }) => {
       const { classId, lessonTypeId } = input;
-      const isTeacher = ctx.auth.user.role === "teacher";
+      const isTeacher = ctx.auth.user.role === 'teacher';
 
       //TODO: increase the security level for un enrolled students
 
@@ -160,9 +149,7 @@ export const classActions = {
         })
         .from(lesson)
         .where(
-          isTeacher
-            ? eq(lesson.classSubjectId, classId)
-            : and(eq(lesson.classSubjectId, classId)),
+          isTeacher ? eq(lesson.classSubjectId, classId) : and(eq(lesson.classSubjectId, classId))
         );
 
       if (lessons.length === 0) return [];
@@ -176,10 +163,7 @@ export const classActions = {
         .where(
           isTeacher
             ? inArray(lessonType.lessonId, lessonIds)
-            : and(
-                inArray(lessonType.lessonId, lessonIds),
-                eq(lessonType.status, "published"),
-              ),
+            : and(inArray(lessonType.lessonId, lessonIds), eq(lessonType.status, 'published'))
         );
 
       if (allLessonTypes.length === 0) {
@@ -198,12 +182,10 @@ export const classActions = {
         .where(inArray(lessonDocument.lessonTypeId, lessonTypeIds));
 
       // 4. Separate quiz and assignment type IDs
-      const quizTypeIds = allLessonTypes
-        .filter((lt) => lt.type === "quiz")
-        .map((lt) => lt.id);
+      const quizTypeIds = allLessonTypes.filter((lt) => lt.type === 'quiz').map((lt) => lt.id);
 
       const assignmentTypeIds = allLessonTypes
-        .filter((lt) => lt.type === "assignment")
+        .filter((lt) => lt.type === 'assignment')
         .map((lt) => lt.id);
 
       // 5. Get quiz settings (quiz-specific fields)
@@ -220,6 +202,7 @@ export const classActions = {
                 showCorrectAnswers: quiz.showCorrectAnswers,
                 startDate: quiz.startDate,
                 endDate: quiz.endDate,
+                scores: quiz.score,
               })
               .from(quiz)
               .where(inArray(quiz.lessonTypeId, quizTypeIds))
@@ -243,41 +226,34 @@ export const classActions = {
       // 7. Serialize MDX and attach documents + settings
       const lessonTypesWithSerializedMDXAndDocs = await Promise.all(
         allLessonTypes.map(async (item) => {
-          const documents = allDocuments.filter(
-            (doc) => doc.lessonTypeId === item.id,
-          );
+          const documents = allDocuments.filter((doc) => doc.lessonTypeId === item.id);
 
           // Get quiz settings if type is quiz
           const quizSettings =
-            item.type === "quiz"
-              ? (allQuizSettings.find((qs) => qs.lessonTypeId === item.id) ??
-                null)
+            item.type === 'quiz'
+              ? (allQuizSettings.find((qs) => qs.lessonTypeId === item.id) ?? null)
               : null;
 
           // Get assignment settings if type is assignment
           const assignmentSettings =
-            item.type === "assignment"
-              ? (allAssignmentSettings.find(
-                  (as) => as.lessonTypeId === item.id,
-                ) ?? null)
+            item.type === 'assignment'
+              ? (allAssignmentSettings.find((as) => as.lessonTypeId === item.id) ?? null)
               : null;
 
           return {
             ...item,
-            serializedMarkup: await serializeMDX(item.markup ?? ""),
+            serializedMarkup: await serializeMDX(item.markup ?? ''),
             documents,
             quizSettings,
             assignmentSettings,
           };
-        }),
+        })
       );
 
       // 8. Map lessons with their lesson types
       const lessonsWithTypes = lessons.map((l) => ({
         ...l,
-        lessonTypes: lessonTypesWithSerializedMDXAndDocs.filter(
-          (lt) => lt.lessonId === l.id,
-        ),
+        lessonTypes: lessonTypesWithSerializedMDXAndDocs.filter((lt) => lt.lessonId === l.id),
       }));
 
       return lessonsWithTypes;
@@ -286,11 +262,11 @@ export const classActions = {
     .input(
       z.object({
         classId: z.string(),
-      }),
+      })
     )
     .query(async ({ input, ctx }) => {
-      if (ctx.auth.user.role !== "teacher")
-        throw new TRPCError({ code: "FORBIDDEN", message: "Not Authorize" });
+      if (ctx.auth.user.role !== 'teacher')
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Not Authorize' });
       //todo: create a more secure way of fetching lesson from teachers to student
       const { classId } = input;
       const lessons = await db
@@ -306,16 +282,16 @@ export const classActions = {
         .where(
           and(
             eq(lesson.classSubjectId, classId),
-            not(eq(lesson.status, "archived")),
-            isNotNull(lesson.terms),
-          ),
+            not(eq(lesson.status, 'archived')),
+            isNotNull(lesson.terms)
+          )
         )
         .groupBy(
           lesson.id, // Group by all non-aggregated columns
           lesson.name,
           lesson.terms,
           lesson.status,
-          lesson.classSubjectId,
+          lesson.classSubjectId
         ).orderBy(sql`
         CASE ${lesson.terms}
           WHEN 'prelims' THEN 1
@@ -342,16 +318,16 @@ export const classActions = {
         .where(
           and(
             eq(lessonType.id, lessonTypeId),
-            eq(lessonType.type, "handout"),
+            eq(lessonType.type, 'handout'),
             eq(lesson.classSubjectId, classId),
-            eq(lessonType.status, "published"),
-          ),
+            eq(lessonType.status, 'published')
+          )
         );
 
       if (!result) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Lesson Handout not found",
+          code: 'NOT_FOUND',
+          message: 'Lesson Handout not found',
         });
       }
 
@@ -364,7 +340,7 @@ export const classActions = {
         .where(eq(lessonDocument.lessonTypeId, item.id));
 
       // 3. Serialize MDX
-      const serializedMarkup = await serializeMDX(item.markup ?? "");
+      const serializedMarkup = await serializeMDX(item.markup ?? '');
 
       // 4. Return the object in the same format as the first function
       return {
@@ -377,7 +353,7 @@ export const classActions = {
     .input(
       z.object({
         lessonTypeId: z.number(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       const { lessonTypeId } = input;
@@ -411,7 +387,7 @@ export const classActions = {
     .input(
       z.object({
         lessonTypeId: z.number(),
-      }),
+      })
     )
     .query(async ({ input, ctx }) => {
       const { lessonTypeId } = input;
@@ -420,12 +396,7 @@ export const classActions = {
       const [result] = await db
         .select()
         .from(markAsDone)
-        .where(
-          and(
-            eq(markAsDone.lessonTypeId, lessonTypeId),
-            eq(markAsDone.userId, auth.user.id),
-          ),
-        );
+        .where(and(eq(markAsDone.lessonTypeId, lessonTypeId), eq(markAsDone.userId, auth.user.id)));
 
       return result?.isDone ?? false;
     }),
@@ -436,7 +407,7 @@ export const classActions = {
         privacy: z.enum(privacyEnum.enumValues),
         lessonTypeId: z.number(),
         text: z.string().min(2).max(2000),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       const userId = ctx.auth.user.id;
@@ -452,20 +423,15 @@ export const classActions = {
           })
           .where(
             // Security: Ensure the user owns this comment
-            and(
-              eq(comment.id, id),
-              eq(comment.userId, userId),
-              eq(comment.privacy, privacy),
-            ),
+            and(eq(comment.id, id), eq(comment.userId, userId), eq(comment.privacy, privacy))
           )
           .returning();
 
         // If nothing returned, the ID didn't exist OR user didn't own it
         if (!updatedComment) {
           throw new TRPCError({
-            code: "NOT_FOUND",
-            message:
-              "Comment not found or you do not have permission to edit it.",
+            code: 'NOT_FOUND',
+            message: 'Comment not found or you do not have permission to edit it.',
           });
         }
 
@@ -490,7 +456,7 @@ export const classActions = {
       z.object({
         privacy: z.enum(privacyEnum.enumValues),
         lessonTypeId: z.number(),
-      }),
+      })
     )
     .query(async ({ input, ctx }) => {
       const { lessonTypeId, privacy } = input;
@@ -505,12 +471,12 @@ export const classActions = {
       // SECURITY CHECK:
       // If the user is asking for 'private' comments,
       // we MUST ensure they are the Author or the Teacher.
-      if (privacy === "private") {
+      if (privacy === 'private') {
         conditions.push(
           or(
             eq(comment.userId, currentUserId),
-            eq(classSubjects.teacherId, currentUserId),
-          ) as SQL<unknown>,
+            eq(classSubjects.teacherId, currentUserId)
+          ) as SQL<unknown>
         );
       }
 
@@ -578,23 +544,20 @@ export const classActions = {
         .from(lessonType)
         .innerJoin(lesson, eq(lesson.id, lessonType.lessonId))
         .innerJoin(quiz, eq(quiz.lessonTypeId, lessonType.id))
-        .leftJoin(
-          lessonDocument,
-          eq(lessonDocument.lessonTypeId, lessonType.id),
-        )
+        .leftJoin(lessonDocument, eq(lessonDocument.lessonTypeId, lessonType.id))
         .where(
           and(
             eq(lessonType.id, lessonTypeId),
-            eq(lessonType.type, "assignment"),
+            eq(lessonType.type, 'assignment'),
             eq(lesson.classSubjectId, classId),
-            eq(lessonType.status, "published"),
-          ),
+            eq(lessonType.status, 'published')
+          )
         );
 
       if (rows.length === 0) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Assignment not found",
+          code: 'NOT_FOUND',
+          message: 'Assignment not found',
         });
       }
 
@@ -624,16 +587,8 @@ export const classActions = {
           },
         })
         .from(quizAttempt)
-        .leftJoin(
-          assignmentDocument,
-          eq(assignmentDocument.quizAttemptId, quizAttempt.id),
-        )
-        .where(
-          and(
-            eq(quizAttempt.quizId, quizId),
-            eq(quizAttempt.studentId, userId),
-          ),
-        )
+        .leftJoin(assignmentDocument, eq(assignmentDocument.quizAttemptId, quizAttempt.id))
+        .where(and(eq(quizAttempt.quizId, quizId), eq(quizAttempt.studentId, userId)))
         .orderBy(desc(quizAttempt.createdAt));
 
       // 3. Process/Group the data
@@ -646,12 +601,10 @@ export const classActions = {
       // --- STRICT TYPING START ---
 
       // Extract the document type from the query result
-      type AssignmentDocType = NonNullable<
-        (typeof attemptRows)[number]["document"]
-      >;
+      type AssignmentDocType = NonNullable<(typeof attemptRows)[number]['document']>;
 
       // Define the shape of the final Attempt object
-      type ProcessedAttempt = Omit<(typeof attemptRows)[number], "document"> & {
+      type ProcessedAttempt = Omit<(typeof attemptRows)[number], 'document'> & {
         documents: AssignmentDocType[];
       };
 
@@ -690,7 +643,7 @@ export const classActions = {
       // --- STRICT TYPING END ---
 
       // 4. Serialize MDX
-      const serializedMarkup = await serializeMDX(baseData.markup ?? "");
+      const serializedMarkup = await serializeMDX(baseData.markup ?? '');
 
       // 5. Return combined object
       return {
@@ -728,16 +681,8 @@ export const classActions = {
           assignmentDocument: assignmentDocument,
         })
         .from(quizAttempt)
-        .leftJoin(
-          assignmentDocument,
-          eq(assignmentDocument.quizAttemptId, quizAttempt.id),
-        )
-        .where(
-          and(
-            eq(quizAttempt.studentId, auth.user.id),
-            eq(quizAttempt.quizId, quizId),
-          ),
-        );
+        .leftJoin(assignmentDocument, eq(assignmentDocument.quizAttemptId, quizAttempt.id))
+        .where(and(eq(quizAttempt.studentId, auth.user.id), eq(quizAttempt.quizId, quizId)));
 
       return result;
     }),
@@ -746,28 +691,25 @@ export const classActions = {
     .query(async ({ ctx, input }) => {
       const { classId } = input;
       const userId = ctx.auth.user.id;
-      const isTeacher = ctx.auth.user.role === "teacher";
+      const isTeacher = ctx.auth.user.role === 'teacher';
 
       // Security Check: Ensure user is part of the class (Teacher or Student)
       const membership = await db
         .select()
         .from(member)
         .innerJoin(organization, eq(organization.id, member.organizationId))
-        .innerJoin(
-          classSubjects,
-          eq(classSubjects.enrolledClass, organization.id),
-        )
+        .innerJoin(classSubjects, eq(classSubjects.enrolledClass, organization.id))
         .where(
           and(
             eq(classSubjects.id, classId),
-            or(eq(member.userId, userId), eq(classSubjects.teacherId, userId)),
-          ),
+            or(eq(member.userId, userId), eq(classSubjects.teacherId, userId))
+          )
         );
 
       if (!membership) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Not a member of this class",
+          code: 'FORBIDDEN',
+          message: 'Not a member of this class',
         });
       }
 
@@ -803,17 +745,17 @@ export const classActions = {
     .input(
       z.object({
         classId: z.string(),
-        message: z.string().min(1, "Message cannot be empty"),
-      }),
+        message: z.string().min(1, 'Message cannot be empty'),
+      })
     )
     .mutation(async ({ ctx, input }) => {
       const { classId, message } = input;
       const userId = ctx.auth.user.id;
 
-      if (ctx.auth.user.role !== "teacher") {
+      if (ctx.auth.user.role !== 'teacher') {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only teachers can post announcements",
+          code: 'FORBIDDEN',
+          message: 'Only teachers can post announcements',
         });
       }
 
@@ -853,13 +795,13 @@ export const classActions = {
       // });
 
       if (!existing) {
-        throw new TRPCError({ code: "NOT_FOUND" });
+        throw new TRPCError({ code: 'NOT_FOUND' });
       }
 
-      if (existing.createdBy !== userId && ctx.auth.user.role !== "teacher") {
+      if (existing.createdBy !== userId && ctx.auth.user.role !== 'teacher') {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You cannot delete this announcement",
+          code: 'FORBIDDEN',
+          message: 'You cannot delete this announcement',
         });
       }
 
@@ -891,11 +833,8 @@ export const classActions = {
         .from(member)
         .innerJoin(user, eq(user.id, member.userId))
         .innerJoin(organization, eq(organization.id, member.organizationId))
-        .innerJoin(
-          classSubjects,
-          eq(classSubjects.enrolledClass, organization.id),
-        )
-        .where(and(eq(member.role, "student"), eq(classSubjects.id, classId)));
+        .innerJoin(classSubjects, eq(classSubjects.enrolledClass, organization.id))
+        .where(and(eq(member.role, 'student'), eq(classSubjects.id, classId)));
 
       // 2. Get all Assessments (Quizzes/Assignments) for this class
       // We assume you have a way to link lessonType -> class.
@@ -907,11 +846,12 @@ export const classActions = {
           type: lessonType.type,
           maxScore: quiz.score,
           quizId: quiz.id,
+          lessonTypeId: lessonType.id,
         })
         .from(lessonType)
         .innerJoin(quiz, eq(quiz.lessonTypeId, lessonType.id))
         // Add joins to verify classId if needed
-        .where(not(inArray(lessonType.type, ["handout"]))); // Filter by class logic needed
+        .where(not(inArray(lessonType.type, ['handout']))); // Filter by class logic needed
 
       // 3. Get all Attempts/Submissions for these students & assessments
       // This is simplified. In reality, you'd fetch attempts where studentId IN studentIds AND quizId IN assessmentIds
@@ -929,13 +869,13 @@ export const classActions = {
           and(
             inArray(
               quizAttempt.studentId,
-              students.map((s) => s.userId),
+              students.map((s) => s.userId)
             ),
             inArray(
               quizAttempt.quizId,
-              assessments.map((a) => a.quizId),
-            ),
-          ),
+              assessments.map((a) => a.quizId)
+            )
+          )
         );
 
       // 4. Format Data for Frontend
@@ -993,6 +933,7 @@ export const classActions = {
           title: a.title,
           type: a.type,
           maxScore: a.maxScore,
+          lessonTypeId: a.lessonTypeId,
         })),
         rows,
       };
@@ -1003,7 +944,7 @@ export const classActions = {
         lessonTypeId: z.number(),
         studentId: z.string(),
         score: z.number().nullable(),
-      }),
+      })
     )
     .mutation(async ({ ctx, input }) => {
       // Check if user is teacher
@@ -1022,7 +963,7 @@ export const classActions = {
     .input(
       z.object({
         lessonTypeId: z.number(),
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       const { lessonTypeId } = input;
@@ -1040,8 +981,8 @@ export const classActions = {
 
       if (!result) {
         throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create quiz",
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'Failed to create quiz',
         });
       }
 
@@ -1060,22 +1001,17 @@ export const classActions = {
         .where(eq(quiz.lessonTypeId, lessonTypeId))
         .limit(1);
 
-      if (!quizData) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!quizData) throw new TRPCError({ code: 'NOT_FOUND' });
 
       // 2. Fetch ALL attempts for counting
       const attempts = await db
         .select({ status: quizAttempt.status })
         .from(quizAttempt)
-        .where(
-          and(
-            eq(quizAttempt.quizId, quizData.id),
-            eq(quizAttempt.studentId, userId),
-          ),
-        );
+        .where(and(eq(quizAttempt.quizId, quizData.id), eq(quizAttempt.studentId, userId)));
 
       // 3. Calculate Used attempts
       const attemptsUsed = attempts.filter((a) =>
-        ["submitted", "graded", "expired"].includes(a.status),
+        ['submitted', 'graded', 'expired'].includes(a.status)
       ).length;
 
       // 4. Find latest FINISHED attempt (SQL Style)
@@ -1088,8 +1024,8 @@ export const classActions = {
             eq(quizAttempt.quizId, quizData.id),
             eq(quizAttempt.studentId, userId),
             // Only show results for finished quizzes
-            inArray(quizAttempt.status, ["submitted", "graded", "expired"]),
-          ),
+            inArray(quizAttempt.status, ['submitted', 'graded', 'expired'])
+          )
         )
         .orderBy(desc(quizAttempt.createdAt))
         .limit(1);
@@ -1101,45 +1037,66 @@ export const classActions = {
       };
     }),
   getQuizResult: protectedProcedure
-    .input(z.object({ attemptId: z.number() }))
+    .input(z.object({ attemptId: z.number(), studentId: z.string().optional() }))
     .query(async ({ input, ctx }): Promise<QuizResultResponse> => {
-      const { attemptId } = input;
-      const userId = ctx.auth.user.id;
+      // --- 1. AUTHORIZATION LOGIC ---
+      const currentUserId = ctx.auth.user.id;
 
-      // 1. Fetch Attempt and Quiz Settings
+      // TODO: Adjust this check based on your actual auth schema (e.g., ctx.auth.user.role)
+      // Assuming your user object has a 'role' field
+      const isTeacher = ctx.auth.user.role === 'teacher';
+
+      let targetUserId = currentUserId; // Default to the current user (Student viewing own quiz)
+
+      if (input.studentId) {
+        if (isTeacher) {
+          // Teacher is requesting a specific student's result
+          targetUserId = input.studentId;
+        } else {
+          // A non-teacher (Student) is trying to pass a studentId
+          // We check if they are trying to hack by passing someone else's ID
+          if (input.studentId !== currentUserId) {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: 'You are not authorized to view this result.',
+            });
+          }
+          // If it's their own ID, we just keep targetUserId as currentUserId
+        }
+      }
+      // If input.studentId is undefined, we just use currentUserId (Teacher viewing own, or Student viewing own)
+
+      // --- 2. FETCH ATTEMPT ---
+      // We use targetUserId here. This ensures a teacher can't see the result
+      // unless they explicitly request the correct student, and students can't see others.
       const [attempt] = await db
         .select()
         .from(quizAttempt)
-        .where(
-          and(eq(quizAttempt.id, attemptId), eq(quizAttempt.studentId, userId)),
-        )
+        .where(and(eq(quizAttempt.id, input.attemptId), eq(quizAttempt.studentId, targetUserId)))
         .limit(1);
 
       if (!attempt) {
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Attempt not found",
+          code: 'NOT_FOUND',
+          message: 'Attempt not found or access denied',
         });
       }
 
-      if (attempt.status === "in_progress") {
+      if (attempt.status === 'in_progress') {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Quiz is still in progress",
+          code: 'BAD_REQUEST',
+          message: 'Quiz is still in progress',
         });
       }
 
-      const [quizData] = await db
-        .select()
-        .from(quiz)
-        .where(eq(quiz.id, attempt.quizId))
-        .limit(1);
+      // --- 3. FETCH QUIZ SETTINGS ---
+      const [quizData] = await db.select().from(quiz).where(eq(quiz.id, attempt.quizId)).limit(1);
 
       if (!quizData) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Quiz not found' });
       }
 
-      // 2. Construct Base Response
+      // --- 4. CONSTRUCT BASE RESPONSE ---
       const response: QuizResultResponse = {
         quiz: quizData,
         attempt: {
@@ -1154,19 +1111,25 @@ export const classActions = {
         },
       };
 
-      // 3. Logic: Show Score?
-      if (quizData.showScoreAfterSubmission) {
+      // --- 5. LOGIC: SHOW SCORE? ---
+      // Teachers always see scores. Students respect the setting.
+      const canShowScore = isTeacher || quizData.showScoreAfterSubmission;
+
+      if (canShowScore) {
         response.attempt.score = attempt.score;
         response.attempt.maxScore = attempt.maxScore;
         response.attempt.percentage = attempt.percentage;
       }
 
-      // 4. Logic: Show Correct Answers / Detailed Review?
-      if (quizData.showCorrectAnswers) {
+      // --- 6. LOGIC: SHOW CORRECT ANSWERS / DETAILED REVIEW? ---
+      // Teachers always see details. Students respect the setting.
+      const canShowAnswers = isTeacher || quizData.showCorrectAnswers;
+
+      if (canShowAnswers) {
         const responses = await db
           .select()
           .from(quizQuestionResponse)
-          .where(eq(quizQuestionResponse.attemptId, attemptId));
+          .where(eq(quizQuestionResponse.attemptId, input.attemptId));
 
         const questionIds = responses.map((r) => r.questionId);
 
@@ -1195,22 +1158,19 @@ export const classActions = {
           // Map related data for quick lookup
           const optionsMap = new Map<number, typeof mcOptions>();
           mcOptions.forEach((opt) => {
-            if (!optionsMap.has(opt.questionId))
-              optionsMap.set(opt.questionId, []);
+            if (!optionsMap.has(opt.questionId)) optionsMap.set(opt.questionId, []);
             optionsMap.get(opt.questionId)!.push(opt);
           });
 
           const orderingMap = new Map<number, typeof orderingItems>();
           orderingItems.forEach((item) => {
-            if (!orderingMap.has(item.questionId))
-              orderingMap.set(item.questionId, []);
+            if (!orderingMap.has(item.questionId)) orderingMap.set(item.questionId, []);
             orderingMap.get(item.questionId)!.push(item);
           });
 
           const matchingMap = new Map<number, typeof matchingPairs>();
           matchingPairs.forEach((pair) => {
-            if (!matchingMap.has(pair.questionId))
-              matchingMap.set(pair.questionId, []);
+            if (!matchingMap.has(pair.questionId)) matchingMap.set(pair.questionId, []);
             matchingMap.get(pair.questionId)!.push(pair);
           });
 
@@ -1219,16 +1179,14 @@ export const classActions = {
             const userResponse = responses.find((r) => r.questionId === q.id);
 
             let correctAnswer: CorrectAnswerType = null;
-            // Initialize as null. We will populate it based on type.
             let finalUserAnswer: ResultReviewAnswer = null;
 
-            if (q.type === "true_false") {
+            if (q.type === 'true_false') {
               correctAnswer = q.correctBoolean ?? false;
-              // Direct assignment is safe for these types
               if (userResponse?.answer) {
                 finalUserAnswer = userResponse.answer as ResultReviewAnswer;
               }
-            } else if (q.type === "multiple_choice") {
+            } else if (q.type === 'multiple_choice') {
               const opts = optionsMap.get(q.id) || [];
               correctAnswer = opts
                 .filter((o) => o.isCorrect)
@@ -1237,7 +1195,7 @@ export const classActions = {
               if (userResponse?.answer) {
                 finalUserAnswer = userResponse.answer as ResultReviewAnswer;
               }
-            } else if (q.type === "ordering") {
+            } else if (q.type === 'ordering') {
               const items = orderingMap.get(q.id) || [];
               correctAnswer = items
                 .sort((a, b) => a.correctPosition - b.correctPosition)
@@ -1246,7 +1204,7 @@ export const classActions = {
               if (userResponse?.answer) {
                 finalUserAnswer = userResponse.answer as ResultReviewAnswer;
               }
-            } else if (q.type === "matching") {
+            } else if (q.type === 'matching') {
               const pairs = matchingMap.get(q.id) || [];
 
               // 1. Correct Answer
@@ -1256,33 +1214,19 @@ export const classActions = {
               }));
 
               // 2. Resolve User Answer
-              if (
-                userResponse?.answer &&
-                userResponse.answer.type === "matching"
-              ) {
-                // Create a lookup map for this specific question: ID -> { left, right }
-                const pairLookup = new Map<
-                  string,
-                  { left: string | null; right: string }
-                >();
+              if (userResponse?.answer && userResponse.answer.type === 'matching') {
+                const pairLookup = new Map<string, { left: string | null; right: string }>();
                 pairs.forEach((p) => {
-                  pairLookup.set(p.id, {
-                    left: p.leftItem,
-                    right: p.rightItem,
-                  });
+                  pairLookup.set(p.id, { left: p.leftItem, right: p.rightItem });
                 });
 
                 const rawMatches = userResponse.answer.matches; // Record<string, string>
-                const resolvedMatches: {
-                  left: string | null;
-                  right: string | null;
-                }[] = [];
+                const resolvedMatches: { left: string | null; right: string | null }[] = [];
 
                 Object.entries(rawMatches).forEach(([leftId, rightValue]) => {
                   const leftPair = pairLookup.get(leftId);
                   let rightText: string | null = null;
 
-                  // Resolve Right Text (Check if ID or Text)
                   if (pairLookup.has(rightValue)) {
                     rightText = pairLookup.get(rightValue)?.right ?? null;
                   } else {
@@ -1295,13 +1239,12 @@ export const classActions = {
                   });
                 });
 
-                // Construct the RESOLVED object explicitly
                 finalUserAnswer = {
-                  type: "matching",
+                  type: 'matching',
                   matches: resolvedMatches,
                 };
               }
-            } else if (q.type === "essay") {
+            } else if (q.type === 'essay') {
               if (userResponse?.answer) {
                 finalUserAnswer = userResponse.answer as ResultReviewAnswer;
               }
@@ -1349,9 +1292,9 @@ export const classActions = {
         .from(quiz)
         .where(eq(quiz.id, quizId));
 
-      console.log("QUIZ DATA: ", quizData);
+      console.log('QUIZ DATA: ', quizData);
       if (!quizData) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Quiz not found" });
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Quiz not found' });
       }
 
       // 2. Authorization & Availability Checks
@@ -1359,13 +1302,8 @@ export const classActions = {
       const [attemptData] = await db
         .select({ count: count() })
         .from(quizAttempt)
-        .where(
-          and(
-            eq(quizAttempt.quizId, quizId),
-            eq(quizAttempt.studentId, userId),
-          ),
-        );
-      console.log("Attempt Data: ", attemptData);
+        .where(and(eq(quizAttempt.quizId, quizId), eq(quizAttempt.studentId, userId)));
+      console.log('Attempt Data: ', attemptData);
       // Note: You might need to fetch 'maxAttempts' from quiz or lesson settings
       // if (attemptData.count >= maxAttempts) throw new TRPCError({ code: "FORBIDDEN", message: "No attempts left" });
 
@@ -1384,7 +1322,7 @@ export const classActions = {
         .where(eq(quizQuestion.quizId, quizId))
         .orderBy(quizQuestion.orderIndex);
 
-      console.log("RAW QUESTIONS", questionsRaw);
+      console.log('RAW QUESTIONS', questionsRaw);
       if (questionsRaw.length === 0) {
         return { ...quizData, questions: [] };
       }
@@ -1432,7 +1370,7 @@ export const classActions = {
         .from(quizOrderingItem)
         .where(inArray(quizOrderingItem.questionId, questionIds));
 
-      console.log("Ordering Items: ", orderingItems);
+      console.log('Ordering Items: ', orderingItems);
 
       // 5. Construct Response Structure
       const questions = questionsRaw
@@ -1447,10 +1385,10 @@ export const classActions = {
           };
 
           switch (q.type) {
-            case "multiple_choice":
+            case 'multiple_choice':
               return {
                 ...base,
-                type: "multiple_choice" as const,
+                type: 'multiple_choice' as const,
                 multipleChoices: mcOptions
                   .filter((opt) => opt.questionId === q.id)
                   .map((opt) => ({
@@ -1460,20 +1398,20 @@ export const classActions = {
                   })),
               };
 
-            case "true_false":
+            case 'true_false':
               return {
                 ...base,
-                type: "true_false" as const,
+                type: 'true_false' as const,
                 // DO NOT return correctBoolean
               };
 
-            case "essay":
+            case 'essay':
               return {
                 ...base,
-                type: "essay" as const,
+                type: 'essay' as const,
               };
 
-            case "matching": {
+            case 'matching': {
               // SECURITY: Decouple left and right items
               const pairs = matchingPairs.filter((p) => p.questionId === q.id);
               const leftItems = pairs.map((p) => ({
@@ -1493,12 +1431,12 @@ export const classActions = {
 
               return {
                 ...base,
-                type: "matching" as const,
+                type: 'matching' as const,
                 matchingOptions: pairs.map((p) => ({
                   matchingPairId: p.id,
                   leftItem: p.leftItem,
                   leftImageBase64Jpg: p.leftImageBase64Jpg,
-                  rightIem: p.rightItem, // Sending this for your specific types
+                  rightItem: p.rightItem, // Sending this for your specific types
                   rightImageBase64Jpg: p.rightImageBase64Jpg,
                 })),
                 // Ideally, send decoupled lists to frontend, but adapting to your previous Renderer:
@@ -1507,7 +1445,7 @@ export const classActions = {
               };
             }
 
-            case "ordering": {
+            case 'ordering': {
               const items = orderingItems
                 .filter((i) => i.questionId === q.id)
                 .map((i) => ({
@@ -1519,7 +1457,7 @@ export const classActions = {
 
               return {
                 ...base,
-                type: "ordering" as const,
+                type: 'ordering' as const,
                 orderingOptions: items,
               };
             }
@@ -1555,22 +1493,22 @@ export const classActions = {
         .from(quiz)
         .where(eq(quiz.id, quizId));
 
-      if (!quizData) throw new TRPCError({ code: "NOT_FOUND" });
+      if (!quizData) throw new TRPCError({ code: 'NOT_FOUND' });
 
       // --- NEW: DATE VALIDATION ---
       const now = new Date();
 
       if (quizData.startDate && now < new Date(quizData.startDate)) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "This quiz has not opened yet.",
+          code: 'FORBIDDEN',
+          message: 'This quiz has not opened yet.',
         });
       }
 
       if (quizData.endDate && now > new Date(quizData.endDate)) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "This quiz has already closed.",
+          code: 'FORBIDDEN',
+          message: 'This quiz has already closed.',
         });
       }
       // -----------------------------
@@ -1582,17 +1520,10 @@ export const classActions = {
           status: quizAttempt.status,
         })
         .from(quizAttempt)
-        .where(
-          and(
-            eq(quizAttempt.quizId, quizId),
-            eq(quizAttempt.studentId, userId),
-          ),
-        );
+        .where(and(eq(quizAttempt.quizId, quizId), eq(quizAttempt.studentId, userId)));
 
       // 3. Check for existing 'in_progress' attempt
-      const inProgressAttempt = previousAttempts.find(
-        (a) => a.status === "in_progress",
-      );
+      const inProgressAttempt = previousAttempts.find((a) => a.status === 'in_progress');
 
       if (inProgressAttempt) {
         return { attemptId: inProgressAttempt.id, isNew: false };
@@ -1601,7 +1532,7 @@ export const classActions = {
       // 4. Check Max Attempts Limit
       // We count 'submitted', 'graded', or 'expired' as consumed attempts.
       const consumedAttempts = previousAttempts.filter((a) =>
-        ["submitted", "graded", "expired"].includes(a.status),
+        ['submitted', 'graded', 'expired'].includes(a.status)
       ).length;
 
       // Default to 1 attempt if null
@@ -1609,7 +1540,7 @@ export const classActions = {
 
       if (consumedAttempts >= maxAllowed) {
         throw new TRPCError({
-          code: "FORBIDDEN",
+          code: 'FORBIDDEN',
           message: `You have reached the maximum number of attempts (${maxAllowed}).`,
         });
       }
@@ -1621,7 +1552,7 @@ export const classActions = {
           quizId,
           studentId: userId,
           attemptNumber: previousAttempts.length + 1,
-          status: "in_progress",
+          status: 'in_progress',
           startedAt: new Date(),
         })
         .returning();
@@ -1637,10 +1568,10 @@ export const classActions = {
           z.object({
             questionId: z.number(),
             answer: z.any(), // string, boolean, array, or object
-          }),
+          })
         ),
         timeSpent: z.number(), // Time spent in seconds
-      }),
+      })
     )
     .mutation(async ({ input, ctx }) => {
       const { quizId, attemptId, answers, timeSpent } = input;
@@ -1658,14 +1589,14 @@ export const classActions = {
             and(
               eq(quizAttempt.id, attemptId),
               eq(quizAttempt.studentId, userId),
-              eq(quizAttempt.status, "in_progress"),
-            ),
+              eq(quizAttempt.status, 'in_progress')
+            )
           );
 
         if (!existing) {
           throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Active attempt not found.",
+            code: 'NOT_FOUND',
+            message: 'Active attempt not found.',
           });
         }
         attempt = existing;
@@ -1679,8 +1610,8 @@ export const classActions = {
             and(
               eq(quizAttempt.quizId, quizId),
               eq(quizAttempt.studentId, userId),
-              eq(quizAttempt.status, "in_progress"),
-            ),
+              eq(quizAttempt.status, 'in_progress')
+            )
           );
 
         if (existing) {
@@ -1692,7 +1623,7 @@ export const classActions = {
               quizId,
               studentId: userId,
               attemptNumber: 1, // Simplified: should check previous count
-              status: "in_progress",
+              status: 'in_progress',
               startedAt: new Date(Date.now() - timeSpent * 1000),
             })
             .returning();
@@ -1701,15 +1632,12 @@ export const classActions = {
       }
 
       // 2. Fetch Questions & Correct Answers
-      const questions = await db
-        .select()
-        .from(quizQuestion)
-        .where(eq(quizQuestion.quizId, quizId));
+      const questions = await db.select().from(quizQuestion).where(eq(quizQuestion.quizId, quizId));
 
       if (questions.length === 0) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "No questions found for this quiz.",
+          code: 'BAD_REQUEST',
+          message: 'No questions found for this quiz.',
         });
       }
 
@@ -1718,20 +1646,11 @@ export const classActions = {
       // Fetch related data for grading
       const [mcOptions, orderingItems, matchingPairs] = await Promise.all([
         // MC Options
-        db
-          .select()
-          .from(quizAnswerOption)
-          .where(inArray(quizAnswerOption.questionId, questionIds)),
+        db.select().from(quizAnswerOption).where(inArray(quizAnswerOption.questionId, questionIds)),
         // Ordering Items
-        db
-          .select()
-          .from(quizOrderingItem)
-          .where(inArray(quizOrderingItem.questionId, questionIds)),
+        db.select().from(quizOrderingItem).where(inArray(quizOrderingItem.questionId, questionIds)),
         // Matching Pairs
-        db
-          .select()
-          .from(quizMatchingPair)
-          .where(inArray(quizMatchingPair.questionId, questionIds)),
+        db.select().from(quizMatchingPair).where(inArray(quizMatchingPair.questionId, questionIds)),
       ]);
 
       // Group data by questionId for faster lookup
@@ -1743,15 +1662,13 @@ export const classActions = {
 
       const orderingMap = new Map<number, typeof orderingItems>();
       orderingItems.forEach((item) => {
-        if (!orderingMap.has(item.questionId))
-          orderingMap.set(item.questionId, []);
+        if (!orderingMap.has(item.questionId)) orderingMap.set(item.questionId, []);
         orderingMap.get(item.questionId)!.push(item);
       });
 
       const matchingMap = new Map<number, typeof matchingPairs>();
       matchingPairs.forEach((pair) => {
-        if (!matchingMap.has(pair.questionId))
-          matchingMap.set(pair.questionId, []);
+        if (!matchingMap.has(pair.questionId)) matchingMap.set(pair.questionId, []);
         matchingMap.get(pair.questionId)!.push(pair);
       });
 
@@ -1768,15 +1685,11 @@ export const classActions = {
         let isCorrect: boolean | null = false;
         let pointsEarned = 0;
 
-        if (
-          userAnswer === undefined ||
-          userAnswer === null ||
-          userAnswer === ""
-        ) {
+        if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
           // Skipped question
           pointsEarned = 0;
           isCorrect = false;
-        } else if (q.type === "multiple_choice") {
+        } else if (q.type === 'multiple_choice') {
           // userAnswer is expected to be the optionId (string)
           const options = optionsMap.get(q.id) || [];
           const selectedOption = options.find((opt) => opt.id === userAnswer);
@@ -1788,7 +1701,7 @@ export const classActions = {
             isCorrect = false;
             pointsEarned = 0;
           }
-        } else if (q.type === "true_false") {
+        } else if (q.type === 'true_false') {
           // userAnswer is boolean
           if (userAnswer === q.correctBoolean) {
             isCorrect = true;
@@ -1797,7 +1710,7 @@ export const classActions = {
             isCorrect = false;
             pointsEarned = 0;
           }
-        } else if (q.type === "ordering") {
+        } else if (q.type === 'ordering') {
           // userAnswer is string[] (array of item IDs)
           const items = orderingMap.get(q.id) || [];
           // Sort correct items by position
@@ -1814,7 +1727,7 @@ export const classActions = {
             isCorrect = false;
             pointsEarned = 0;
           }
-        } else if (q.type === "matching") {
+        } else if (q.type === 'matching') {
           // userAnswer is Record<string, string> mapping pairId -> selectedRightId
           // Note: Based on your MatchingRenderer, the value maps pairId to the correct pairId?
           // Let's assume userAnswer is { [pairId]: selectedRightId }
@@ -1846,7 +1759,7 @@ export const classActions = {
             // Partial credit? For now: 0
             pointsEarned = 0;
           }
-        } else if (q.type === "essay") {
+        } else if (q.type === 'essay') {
           // Essays require manual grading
           isCorrect = null;
           pointsEarned = 0;
@@ -1857,30 +1770,26 @@ export const classActions = {
         let answerPayload: typeof quizQuestionResponse.$inferInsert.answer;
 
         // Helper to map raw answer to Schema Type
-        if (
-          userAnswer === undefined ||
-          userAnswer === null ||
-          userAnswer === ""
-        ) {
+        if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
           answerPayload = null;
-        } else if (q.type === "multiple_choice") {
+        } else if (q.type === 'multiple_choice') {
           // Assuming userAnswer is the optionId (string)
-          answerPayload = { type: "option", optionId: String(userAnswer) };
-        } else if (q.type === "true_false") {
+          answerPayload = { type: 'option', optionId: String(userAnswer) };
+        } else if (q.type === 'true_false') {
           // userAnswer is boolean
-          answerPayload = { type: "boolean", value: Boolean(userAnswer) };
-        } else if (q.type === "ordering") {
+          answerPayload = { type: 'boolean', value: Boolean(userAnswer) };
+        } else if (q.type === 'ordering') {
           // userAnswer is string[]
-          answerPayload = { type: "ordering", order: userAnswer as string[] };
-        } else if (q.type === "matching") {
+          answerPayload = { type: 'ordering', order: userAnswer as string[] };
+        } else if (q.type === 'matching') {
           // userAnswer is Record<string, string>
           answerPayload = {
-            type: "matching",
+            type: 'matching',
             matches: userAnswer as Record<string, string>,
           };
-        } else if (q.type === "essay") {
+        } else if (q.type === 'essay') {
           // userAnswer is string
-          answerPayload = { type: "text", text: String(userAnswer) };
+          answerPayload = { type: 'text', text: String(userAnswer) };
         } else {
           answerPayload = null;
         }
@@ -1902,8 +1811,8 @@ export const classActions = {
         }
 
         // Update Attempt
-        const hasEssay = questions.some((q) => q.type === "essay");
-        const finalStatus = hasEssay ? "submitted" : "graded";
+        const hasEssay = questions.some((q) => q.type === 'essay');
+        const finalStatus = hasEssay ? 'submitted' : 'graded';
 
         await tx
           .update(quizAttempt)
@@ -1979,17 +1888,15 @@ export const classActions = {
           .from(lessonType)
           .where(
             and(
-              eq(lessonType.status, "published"),
-              lessonIds.length > 0 ? undefined : eq(lessonType.id, 0),
-            ),
+              eq(lessonType.status, 'published'),
+              lessonIds.length > 0 ? undefined : eq(lessonType.id, 0)
+            )
           );
 
         // This is a simplified version - in production you'd want more efficient queries
         // For now, we'll return basic counts
-        const totalQuizzes = activities.filter((a) => a.type === "quiz").length;
-        const totalAssignments = activities.filter(
-          (a) => a.type === "assignment",
-        ).length;
+        const totalQuizzes = activities.filter((a) => a.type === 'quiz').length;
+        const totalAssignments = activities.filter((a) => a.type === 'assignment').length;
         const totalActivities = totalQuizzes + totalAssignments;
 
         return {
@@ -2003,7 +1910,7 @@ export const classActions = {
             totalStudents: 0, // Would need to join enrolled students
           },
         };
-      }),
+      })
     );
 
     return classesWithStats;

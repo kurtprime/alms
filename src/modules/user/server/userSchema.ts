@@ -1,7 +1,7 @@
-import { lessonTypeEnum } from "@/db/schema";
-import { AppRouter } from "@/trpc/routers/_app";
-import { inferRouterOutputs } from "@trpc/server";
-import z from "zod";
+import { lessonTypeEnum } from '@/db/schema';
+import { AppRouter } from '@/trpc/routers/_app';
+import { inferRouterOutputs } from '@trpc/server';
+import z from 'zod';
 
 // ============================================
 // LESSON TYPE
@@ -16,11 +16,11 @@ const dateSchema = z
     (val) => {
       if (val === null || val === undefined) return true;
       if (val instanceof Date) return true;
-      if (typeof val === "string") return !isNaN(new Date(val).getTime());
-      if (typeof val === "number") return true;
+      if (typeof val === 'string') return !isNaN(new Date(val).getTime());
+      if (typeof val === 'number') return true;
       return false;
     },
-    { message: "Invalid date" },
+    { message: 'Invalid date' }
   )
   .optional();
 
@@ -36,6 +36,7 @@ export const quizSettingsSchema = z.object({
   showScoreAfterSubmission: z.boolean(),
   showCorrectAnswers: z.boolean(),
   startDate: dateSchema,
+  scores: z.number(),
   endDate: dateSchema,
 });
 
@@ -58,7 +59,7 @@ export type AssignmentSettings = z.infer<typeof assignmentSettingsSchema>;
 const baseLessonSchema = z.object({
   lessonId: z.string(),
   lessonTypeId: z.number().int(),
-  title: z.string().min(1, "Title is required"),
+  title: z.string().min(1, 'Title is required'),
   markDownDescription: z.string(),
 });
 
@@ -66,16 +67,16 @@ const baseLessonSchema = z.object({
 // INDIVIDUAL LESSON SCHEMAS
 // ============================================
 const handoutSchema = baseLessonSchema.extend({
-  lessonType: z.literal("handout"),
+  lessonType: z.literal('handout'),
 });
 
 const quizSchema = baseLessonSchema.extend({
-  lessonType: z.literal("quiz"),
+  lessonType: z.literal('quiz'),
   quizSettings: quizSettingsSchema,
 });
 
 const assignmentSchema = baseLessonSchema.extend({
-  lessonType: z.literal("assignment"),
+  lessonType: z.literal('assignment'),
   quizSettings: assignmentSettingsSchema,
 });
 
@@ -89,7 +90,7 @@ export type AssignmentLesson = z.infer<typeof assignmentSchema>;
 // ============================================
 // DISCRIMINATED UNION SCHEMA - USE THIS ONE
 // ============================================
-export const lessonTeacherSchema = z.discriminatedUnion("lessonType", [
+export const lessonTeacherSchema = z.discriminatedUnion('lessonType', [
   handoutSchema,
   quizSchema,
   assignmentSchema,
@@ -105,25 +106,19 @@ export const addLessonTeacherSchema = lessonTeacherSchema;
 // TYPE GUARDS
 // ============================================
 export function isQuizLesson(data: LessonTeacherData): data is QuizLesson {
-  return data.lessonType === "quiz";
+  return data.lessonType === 'quiz';
 }
 
-export function isAssignmentLesson(
-  data: LessonTeacherData,
-): data is AssignmentLesson {
-  return data.lessonType === "assignment";
+export function isAssignmentLesson(data: LessonTeacherData): data is AssignmentLesson {
+  return data.lessonType === 'assignment';
 }
 
-export function isHandoutLesson(
-  data: LessonTeacherData,
-): data is HandoutLesson {
-  return data.lessonType === "handout";
+export function isHandoutLesson(data: LessonTeacherData): data is HandoutLesson {
+  return data.lessonType === 'handout';
 }
 
-export function hasQuizSettings(
-  data: LessonTeacherData,
-): data is QuizLesson | AssignmentLesson {
-  return data.lessonType === "quiz" || data.lessonType === "assignment";
+export function hasQuizSettings(data: LessonTeacherData): data is QuizLesson | AssignmentLesson {
+  return data.lessonType === 'quiz' || data.lessonType === 'assignment';
 }
 
 // ============================================
@@ -133,6 +128,7 @@ export const defaultQuizSettings: QuizSettings = {
   quizId: 0,
   timeLimit: 30,
   maxAttempts: 3,
+  scores: 0,
   shuffleQuestions: false,
   showScoreAfterSubmission: false,
   showCorrectAnswers: false,
@@ -147,32 +143,30 @@ export const defaultAssignmentSettings: AssignmentSettings = {
   endDate: undefined,
 };
 
-export function getDefaultLessonValues(
-  lessonType: LessonType,
-): LessonTeacherData {
+export function getDefaultLessonValues(lessonType: LessonType): LessonTeacherData {
   const baseDefaults = {
-    lessonId: "",
+    lessonId: '',
     lessonTypeId: 0,
-    title: "",
-    markDownDescription: "",
+    title: '',
+    markDownDescription: '',
   };
 
   switch (lessonType) {
-    case "handout":
+    case 'handout':
       return {
         ...baseDefaults,
-        lessonType: "handout" as const,
+        lessonType: 'handout' as const,
       };
-    case "quiz":
+    case 'quiz':
       return {
         ...baseDefaults,
-        lessonType: "quiz" as const,
+        lessonType: 'quiz' as const,
         quizSettings: defaultQuizSettings,
       };
-    case "assignment":
+    case 'assignment':
       return {
         ...baseDefaults,
-        lessonType: "assignment" as const,
+        lessonType: 'assignment' as const,
         quizSettings: defaultAssignmentSettings,
       };
     default:
@@ -189,8 +183,9 @@ export const lessonTypeOptionSchema = z.object({
 export type AssessmentColumn = {
   id: number;
   title: string | null;
-  type: "quiz" | "assignment" | "handout";
+  type: 'quiz' | 'assignment' | 'handout';
   maxScore: number | null;
+  lessonTypeId: number;
 };
 
 export type StudentGradeRow = {
@@ -215,22 +210,14 @@ export type Expand<T> = T extends infer O ? { [K in keyof O]: O[K] } : never;
 // TRPC ROUTER TYPES
 // ============================================
 export type UserGetCurrentSectionInfo =
-  inferRouterOutputs<AppRouter>["user"]["getCurrentSectionInfo"];
-export type UserGetLessonsInClass =
-  inferRouterOutputs<AppRouter>["user"]["getAllLessonsInClass"];
+  inferRouterOutputs<AppRouter>['user']['getCurrentSectionInfo'];
+export type UserGetLessonsInClass = inferRouterOutputs<AppRouter>['user']['getAllLessonsInClass'];
 export type UserGetAllLessonsWithContentsInClass =
-  inferRouterOutputs<AppRouter>["user"]["getAllLessonsWithContentsInClass"];
-export type UserAddLessonType =
-  inferRouterOutputs<AppRouter>["user"]["createLessonType"];
-export type AdminLessonDocument =
-  inferRouterOutputs<AppRouter>["admin"]["getLessonDocument"];
-export type UserViewLessonHandout =
-  inferRouterOutputs<AppRouter>["user"]["getLessonHandout"];
-export type UserCommentData =
-  inferRouterOutputs<AppRouter>["user"]["getCommentsInLessonType"];
-export type UserViewLessonAssignment =
-  inferRouterOutputs<AppRouter>["user"]["getLessonAssignment"];
-export type UserGetQuizForTaking =
-  inferRouterOutputs<AppRouter>["user"]["getQuizForTaking"];
-export type UserGetActivityPerClass =
-  inferRouterOutputs<AppRouter>["user"]["getActivityPerClass"];
+  inferRouterOutputs<AppRouter>['user']['getAllLessonsWithContentsInClass'];
+export type UserAddLessonType = inferRouterOutputs<AppRouter>['user']['createLessonType'];
+export type AdminLessonDocument = inferRouterOutputs<AppRouter>['admin']['getLessonDocument'];
+export type UserViewLessonHandout = inferRouterOutputs<AppRouter>['user']['getLessonHandout'];
+export type UserCommentData = inferRouterOutputs<AppRouter>['user']['getCommentsInLessonType'];
+export type UserViewLessonAssignment = inferRouterOutputs<AppRouter>['user']['getLessonAssignment'];
+export type UserGetQuizForTaking = inferRouterOutputs<AppRouter>['user']['getQuizForTaking'];
+export type UserGetActivityPerClass = inferRouterOutputs<AppRouter>['user']['getActivityPerClass'];

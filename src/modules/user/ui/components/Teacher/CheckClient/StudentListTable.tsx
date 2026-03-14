@@ -221,7 +221,8 @@ export function StudentListTable({ submissions, classId, activityId }: Props) {
                 {/* Date */}
                 <TableCell className="text-right text-sm text-slate-500 dark:text-slate-400">
                   {sub.submittedAt
-                    ? new Date(sub.submittedAt).toLocaleDateString(undefined, {
+                    ? new Date(sub.submittedAt).toLocaleDateString('en-US', {
+                        timeZone: 'Asia/Manila',
                         month: "short",
                         day: "numeric",
                         hour: "2-digit",

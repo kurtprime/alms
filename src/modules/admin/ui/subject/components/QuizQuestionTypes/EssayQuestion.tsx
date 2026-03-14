@@ -1,13 +1,13 @@
 import {
   AdminGetEssayQuizQuestion,
   updateEssayQuestionDetailSchema,
-} from "@/modules/admin/server/adminSchema";
-import { zodResolver } from "@hookform/resolvers/zod";
-import React, { useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
-import z from "zod";
-import { useAutoSaveEssayQuestion } from "../../hooks/use-auto-save";
-import { toast } from "sonner";
+} from '@/modules/admin/server/adminSchema';
+import { zodResolver } from '@hookform/resolvers/zod';
+import React, { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+import z from 'zod';
+import { useAutoSaveEssayQuestion } from '../../hooks/use-auto-save';
+import { toast } from 'sonner';
 import {
   Form,
   FormControl,
@@ -15,21 +15,17 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { ImageIcon, InfoIcon, Trash2, X } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import ResponsiveDialog from "@/components/responsive-dialog";
-import { ImageCropper } from "@/components/image-cropper";
-import { SaveStatusBadge } from "./MultipleChoiceQuestion";
+} from '@/components/ui/form';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { ImageIcon, InfoIcon, Trash2, X } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import ResponsiveDialog from '@/components/responsive-dialog';
+import { ImageCropper } from '@/components/image-cropper';
+import { SaveStatusBadge } from './MultipleChoiceQuestion';
 
 interface EssayQuestionInterface {
   initialData: AdminGetEssayQuizQuestion;
@@ -48,7 +44,7 @@ export default function EssayQuestion({
   const form = useForm<EssayData>({
     resolver: zodResolver(updateEssayQuestionDetailSchema),
     defaultValues: {
-      question: initialData?.question ?? "",
+      question: initialData?.question ?? '',
       points: initialData?.points ?? 5,
       required: initialData?.required ?? true,
       imageBase64Jpg: initialData?.imageBase64Jpg ?? undefined,
@@ -60,7 +56,7 @@ export default function EssayQuestion({
 
   const [openCropImage, setOpenCropImag] = useState(false);
   const onCropComplete = (baseImage64: string) => {
-    form.setValue("imageBase64Jpg", baseImage64, {
+    form.setValue('imageBase64Jpg', baseImage64, {
       shouldDirty: true,
     });
     setOpenCropImag(false);
@@ -68,7 +64,7 @@ export default function EssayQuestion({
   const { isSaving, errorMessage } = useAutoSaveEssayQuestion({
     data: {
       ...formValues,
-      id: initialData.id,
+      id: +initialData.id,
     } as EssayData,
     enabled: isDirty,
     onError: (e) => toast.error(e),
@@ -84,18 +80,13 @@ export default function EssayQuestion({
   return (
     <>
       <Form {...form}>
-        <form
-          className="space-y-6 w-full mx-auto px-5"
-          onSubmit={form.handleSubmit(onSubmit)}
-        >
+        <form className="space-y-6 w-full mx-auto px-5" onSubmit={form.handleSubmit(onSubmit)}>
           <div className="flex flex-row  gap-4 justify-between items-center">
             <span className="flex gap-2 items-center">
-              <Badge className="text-sm h-8">
-                Question {(orderIndex ?? 0) + 1} - Essay
-              </Badge>
+              <Badge className="text-sm h-8">Question {(orderIndex ?? 0) + 1} - Essay</Badge>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant={"ghost"} className="rounded-full size-6">
+                  <Button variant={'ghost'} className="rounded-full size-6">
                     <InfoIcon />
                   </Button>
                 </TooltipTrigger>
@@ -115,10 +106,7 @@ export default function EssayQuestion({
                       <FormLabel>Required Question</FormLabel>
                     </div>
                     <FormControl>
-                      <Switch
-                        checked={field.value ?? false}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Switch checked={field.value ?? false} onCheckedChange={field.onChange} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -136,7 +124,8 @@ export default function EssayQuestion({
                         min={1}
                         className="w-15"
                         type="number"
-                        {...field}
+                        value={+field.value}
+                        onChange={(e) => field.onChange(+e.target.value)}
                       />
                     </FormControl>
                   </FormItem>
@@ -164,7 +153,7 @@ export default function EssayQuestion({
                 <div className="relative">
                   <Button
                     className="w-10 absolute"
-                    variant={"ghost"}
+                    variant={'ghost'}
                     onClick={() => setOpenCropImag(true)}
                   >
                     <ImageIcon />
@@ -178,13 +167,13 @@ export default function EssayQuestion({
                   </FormControl>
                 </div>
 
-                {form.getValues("imageBase64Jpg") && (
+                {form.getValues('imageBase64Jpg') && (
                   <picture className="relative">
                     <Button
                       className="absolute right-0 w-auto"
-                      variant={"outline"}
+                      variant={'outline'}
                       onClick={() => {
-                        form.setValue("imageBase64Jpg", null, {
+                        form.setValue('imageBase64Jpg', null, {
                           shouldDirty: true,
                         });
                       }}
@@ -194,7 +183,7 @@ export default function EssayQuestion({
                     </Button>
                     <img
                       className="max-h-50 mx-auto"
-                      src={form.getValues("imageBase64Jpg") ?? undefined}
+                      src={form.getValues('imageBase64Jpg') ?? undefined}
                       alt="Question Image"
                     />
                   </picture>
@@ -204,11 +193,7 @@ export default function EssayQuestion({
             )}
           />
           <div className="flex justify-end">
-            <SaveStatusBadge
-              isSaving={isSaving}
-              isDirty={isDirty}
-              error={errorMessage}
-            />
+            <SaveStatusBadge isSaving={isSaving} isDirty={isDirty} error={errorMessage} />
           </div>
         </form>
       </Form>

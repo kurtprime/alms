@@ -219,6 +219,8 @@ export const lessonActions = {
           }
 
           // B. Deep Clone the Template/Source
+          console.log("Debugging Quiz: ",quizId, lessonTypeId, input.quizSettings)
+          
           await deepCloneQuiz(quizId, lessonTypeId, input.quizSettings);
         }
       } else if (lessonTypeEnum === "assignment") {

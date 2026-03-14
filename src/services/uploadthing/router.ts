@@ -1,71 +1,72 @@
-import { createUploadthing, type FileRouter } from "uploadthing/next";
-import { UploadThingError } from "uploadthing/server";
-import z from "zod";
-import { db } from "@/index";
+import { createUploadthing, type FileRouter } from 'uploadthing/next';
+import { UploadThingError } from 'uploadthing/server';
+import z from 'zod';
+import { db } from '@/index';
 import {
   assignmentDocument,
   lessonDocument,
   mdxEditorImageUpload,
   quizAttempt,
   user,
-} from "@/db/schema";
-import { getCurrentUser } from "@/lib/auth-server";
-import { eq } from "drizzle-orm";
+} from '@/db/schema';
+import { getCurrentUser } from '@/lib/auth-server';
+import { eq } from 'drizzle-orm';
 
 const f = createUploadthing();
 
 const fileTypes = {
-  pdf: { maxFileSize: "4MB", maxFileCount: 10 },
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-    maxFileSize: "8MB",
+  pdf: { maxFileSize: '4MB', maxFileCount: 10 },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
+    maxFileSize: '8MB',
     maxFileCount: 10, // .docx files
   },
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-    maxFileSize: "16MB", // .pptx files
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': {
+    maxFileSize: '16MB', // .pptx files
     maxFileCount: 10,
   },
-  "application/msword": {
-    maxFileSize: "8MB", // .doc files (older Word format)
+  'application/msword': {
+    maxFileSize: '8MB', // .doc files (older Word format)
     maxFileCount: 10,
   },
-  "application/vnd.ms-powerpoint": {
-    maxFileSize: "16MB", // .ppt files (older PowerPoint format)
+  'application/vnd.ms-powerpoint': {
+    maxFileSize: '16MB', // .ppt files (older PowerPoint format)
     maxFileCount: 10,
   },
 } as const;
 
 // Valid file types for Assignments (Documents, Images, Archives)
 const assignmentFileTypes = {
-  "application/pdf": { maxFileSize: "16MB", maxFileCount: 5 },
-  "image/png": { maxFileSize: "8MB", maxFileCount: 5 },
-  "image/jpeg": { maxFileSize: "8MB", maxFileCount: 5 },
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document": {
-    maxFileSize: "8MB",
+  'application/pdf': { maxFileSize: '16MB', maxFileCount: 5 },
+  'image/png': { maxFileSize: '8MB', maxFileCount: 5 },
+  'image/jpeg': { maxFileSize: '8MB', maxFileCount: 5 },
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
+    maxFileSize: '8MB',
     maxFileCount: 5,
   }, // docx
-  "application/msword": { maxFileSize: "8MB", maxFileCount: 5 }, // doc
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation": {
-    maxFileSize: "16MB",
+  'application/msword': { maxFileSize: '8MB', maxFileCount: 5 }, // doc
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': {
+    maxFileSize: '16MB',
     maxFileCount: 5,
   }, // pptx
-  "application/vnd.ms-powerpoint": { maxFileSize: "16MB", maxFileCount: 5 }, // ppt
-  "application/zip": { maxFileSize: "32MB", maxFileCount: 1 }, // For multiple files compressed
-  "application/x-zip-compressed": { maxFileSize: "32MB", maxFileCount: 1 },
+  'application/vnd.ms-powerpoint': { maxFileSize: '16MB', maxFileCount: 5 }, // ppt
+  'application/zip': { maxFileSize: '32MB', maxFileCount: 1 }, // For multiple files compressed
+  'application/x-zip-compressed': { maxFileSize: '32MB', maxFileCount: 1 },
 } as const;
+
+export type AssignmentMimeType = keyof typeof assignmentFileTypes;
 
 export const customFileRouter = {
   documentLessonUploader: f(fileTypes)
     .input(
       z.object({
         lessonId: z.int(),
-      }),
+      })
     )
     .middleware(async ({ input, files }) => {
       const { lessonId } = input;
       const currentUser = await getCurrentUser();
 
-      if (!currentUser?.user?.id)
-        throw new UploadThingError("Unauthorize user");
+      if (!currentUser?.user?.id) throw new UploadThingError('Unauthorize user');
 
       const userId = currentUser.user.id;
 
@@ -106,11 +107,11 @@ export const customFileRouter = {
       //   },
       // });
 
-      return { message: "File uploaded Successfully" };
+      return { message: 'File uploaded Successfully' };
     }),
   mdxImageUploader: f({
     image: {
-      maxFileSize: "4MB",
+      maxFileSize: '4MB',
       maxFileCount: 1,
     },
   })
@@ -122,13 +123,13 @@ export const customFileRouter = {
     })
     .onUploadComplete(async ({ metadata, file }) => {
       const { key, ufsUrl } = file;
-      console.log("inserting " + metadata.lessonTypeId);
+      console.log('inserting ' + metadata.lessonTypeId);
       await db.insert(mdxEditorImageUpload).values({
         lessonTypeId: metadata.lessonTypeId,
         fileKey: key,
         fileUrl: ufsUrl,
       });
-      console.log("SUCCESS");
+      console.log('SUCCESS');
 
       return {
         success: true,
@@ -140,7 +141,7 @@ export const customFileRouter = {
 
   imageUploader: f({
     image: {
-      maxFileSize: "4MB",
+      maxFileSize: '4MB',
       maxFileCount: 1,
     },
   })
@@ -148,7 +149,7 @@ export const customFileRouter = {
       const currentUser = await getCurrentUser();
 
       if (!currentUser?.user?.id) {
-        throw new UploadThingError("Unauthorized");
+        throw new UploadThingError('Unauthorized');
       }
 
       return { userId: currentUser.user.id };
@@ -167,7 +168,7 @@ export const customFileRouter = {
     }),
   profileImage: f({
     image: {
-      maxFileSize: "1MB",
+      maxFileSize: '1MB',
       maxFileCount: 1,
     },
   })
@@ -176,7 +177,7 @@ export const customFileRouter = {
       return { userId: user.id };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.log("Profile image uploaded:", file.url);
+      console.log('Profile image uploaded:', file.url);
       return { url: file.url };
     }),
 
@@ -186,13 +187,13 @@ export const customFileRouter = {
         lessonTypeId: z.number(),
         quizId: z.number(),
         attemptNumber: z.number(),
-      }),
+      })
     )
     .middleware(async ({ input }) => {
       const currentUser = await getCurrentUser();
 
       if (!currentUser?.user?.id) {
-        throw new UploadThingError("Unauthorized user");
+        throw new UploadThingError('Unauthorized user');
       }
 
       const userId = currentUser.user.id;
@@ -211,12 +212,12 @@ export const customFileRouter = {
           attemptNumber: attemptNumber,
           startedAt: new Date(),
           submittedAt: new Date(), // Mark as submitted immediately on upload start
-          status: "submitted",
+          status: 'submitted',
         })
         .returning({ id: quizAttempt.id });
 
       if (!newAttempt) {
-        throw new UploadThingError("Failed to create attempt");
+        throw new UploadThingError('Failed to create attempt');
       }
 
       return {
@@ -240,7 +241,7 @@ export const customFileRouter = {
         fileType: type,
       });
 
-      return { message: "File linked to attempt successfully" };
+      return { message: 'File linked to attempt successfully' };
     }),
 } satisfies FileRouter;
 
