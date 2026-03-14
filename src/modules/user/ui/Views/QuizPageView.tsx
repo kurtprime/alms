@@ -1,16 +1,16 @@
 // src/modules/user/ui/Views/QuizPageView.tsx
-"use client";
+'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { useTRPC } from "@/trpc/client";
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { useParams, useRouter } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useTRPC } from '@/trpc/client';
+import { useMutation, useSuspenseQuery } from '@tanstack/react-query';
+import { useParams, useRouter } from 'next/navigation';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Loader2,
   Clock,
@@ -20,32 +20,24 @@ import {
   CheckCircle2,
   AlertTriangle,
   Menu,
-} from "lucide-react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
-import { MultipleChoiceRenderer } from "../components/Student/QuizRenderer/MultipleChoiceRenderer";
-import { TrueFalseRenderer } from "../components/Student/QuizRenderer/TrueFalseRenderer";
-import { EssayRenderer } from "../components/Student/QuizRenderer/EssayRenderer";
-import { OrderingRenderer } from "../components/Student/QuizRenderer/OrderingRenderer";
-import { MatchingRenderer } from "../components/Student/QuizRenderer/MatchingRenderer";
+} from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { MultipleChoiceRenderer } from '../components/Student/QuizRenderer/MultipleChoiceRenderer';
+import { TrueFalseRenderer } from '../components/Student/QuizRenderer/TrueFalseRenderer';
+import { EssayRenderer } from '../components/Student/QuizRenderer/EssayRenderer';
+import { OrderingRenderer } from '../components/Student/QuizRenderer/OrderingRenderer';
+import { MatchingRenderer } from '../components/Student/QuizRenderer/MatchingRenderer';
 
 // ============================================
 // TYPES
 // ============================================
 
-import { inferRouterOutputs } from "@trpc/server";
-import { AppRouter } from "@/trpc/routers/_app";
+import { inferRouterOutputs } from '@trpc/server';
+import { AppRouter } from '@/trpc/routers/_app';
 
-type QuizOutput = inferRouterOutputs<AppRouter>["user"]["getQuizForTaking"];
+type QuizOutput = inferRouterOutputs<AppRouter>['user']['getQuizForTaking'];
 type SuccessfulQuizResponse = Extract<QuizOutput, { questions: unknown[] }>;
-export type StudentQuizQuestion = NonNullable<
-  SuccessfulQuizResponse["questions"][number]
->;
+export type StudentQuizQuestion = NonNullable<SuccessfulQuizResponse['questions'][number]>;
 
 type AnswerState = Record<number, unknown>;
 
@@ -64,7 +56,7 @@ function useQuizPersistence(quizId: number) {
         // Ignore storage errors (e.g., quota exceeded)
       }
     },
-    [storageKey],
+    [storageKey]
   );
 
   const loadState = useCallback(() => {
@@ -108,29 +100,25 @@ export default function QuizPageView({
   const router = useRouter();
   const { saveState, loadState, clearState } = useQuizPersistence(quizId);
   const params = useParams();
-  const attemptIdFromUrl = params.attemptId
-    ? Number(params.attemptId)
-    : undefined;
+  const attemptIdFromUrl = params.attemptId ? Number(params.attemptId) : undefined;
   const classId = params.classId as string;
   // 1. Fetch Data
-  const { data: quiz } = useSuspenseQuery(
-    trpc.user.getQuizForTaking.queryOptions({ quizId }),
-  );
+  const { data: quiz } = useSuspenseQuery(trpc.user.getQuizForTaking.queryOptions({ quizId }));
 
   // Destructure mutate directly for stable reference
   const { mutate } = useMutation(
     trpc.user.submitQuiz.mutationOptions({
       onSuccess: (data) => {
         clearState(); // Clear localStorage
-        toast.success("Quiz Submitted!");
+        toast.success('Quiz Submitted!');
         // Redirect to results page
         router.push(`/class/${classId}/quiz/${lessonTypeId}`);
       },
       onError: (err) => {
-        toast.error(err.message || "Failed to submit quiz.");
+        toast.error(err.message || 'Failed to submit quiz.');
         setIsSubmitting(false);
       },
-    }),
+    })
   );
 
   // 2. Load Saved Data (Synchronously)
@@ -140,14 +128,10 @@ export default function QuizPageView({
   const [currentIndex, setCurrentIndex] = useState(0);
 
   // Initialize Answers from LocalStorage
-  const [answers, setAnswers] = useState<AnswerState>(
-    savedState?.answers || {},
-  );
+  const [answers, setAnswers] = useState<AnswerState>(savedState?.answers || {});
 
   // Initialize Start Time from LocalStorage (Critical for Timer)
-  const [startTime] = useState<number>(
-    () => savedState?.startTime || Date.now(),
-  );
+  const [startTime] = useState<number>(() => savedState?.startTime || Date.now());
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -161,9 +145,7 @@ export default function QuizPageView({
     return Math.max(0, remaining);
   }, [quiz.timeLimit, startTime]);
 
-  const [timeLeft, setTimeLeft] = useState<number | null>(
-    calculateRemainingTime,
-  );
+  const [timeLeft, setTimeLeft] = useState<number | null>(calculateRemainingTime);
 
   const questions = (quiz.questions || []) as StudentQuizQuestion[];
   const currentQuestion = questions[currentIndex];
@@ -178,7 +160,7 @@ export default function QuizPageView({
     if (Object.keys(answers).length === 0 && !savedState?.startTime) return;
 
     saveState({ answers, startTime });
-  }, [answers, startTime, saveState]);
+  }, [answers, startTime, saveState, savedState?.startTime]);
 
   // ==========================================
   // HANDLERS
@@ -187,18 +169,14 @@ export default function QuizPageView({
   const formatTime = useCallback((ms: number) => {
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((ms % (1000 * 60)) / 1000);
-    return `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   }, []);
 
   const isAnswered = useCallback(
     (qId: number) => {
-      return (
-        answers[qId] !== undefined &&
-        answers[qId] !== "" &&
-        answers[qId] !== null
-      );
+      return answers[qId] !== undefined && answers[qId] !== '' && answers[qId] !== null;
     },
-    [answers],
+    [answers]
   );
 
   // FIXED: Use 'mutate' directly instead of 'submitMutation.mutate'
@@ -207,11 +185,7 @@ export default function QuizPageView({
       if (!force) {
         const unanswered = questions.filter((q) => !answers[q.id]);
         if (unanswered.length > 0) {
-          if (
-            !confirm(
-              `You have ${unanswered.length} unanswered questions. Submit anyway?`,
-            )
-          ) {
+          if (!confirm(`You have ${unanswered.length} unanswered questions. Submit anyway?`)) {
             return;
           }
         }
@@ -219,9 +193,7 @@ export default function QuizPageView({
 
       setIsSubmitting(true);
 
-      const spent = quiz.timeLimit
-        ? quiz.timeLimit * 60 - Math.floor((timeLeft || 0) / 1000)
-        : 0;
+      const spent = quiz.timeLimit ? quiz.timeLimit * 60 - Math.floor((timeLeft || 0) / 1000) : 0;
 
       // FIXED: Use 'mutate' directly
       mutate({
@@ -243,7 +215,7 @@ export default function QuizPageView({
       mutate, // FIXED: 'mutate' is stable
       attemptIdFromUrl,
       setIsSubmitting,
-    ],
+    ]
   );
 
   // Ref for handleSubmit to avoid useEffect dependency issues
@@ -256,7 +228,7 @@ export default function QuizPageView({
     (questionId: number, value: unknown) => {
       setAnswers((prev) => ({ ...prev, [questionId]: value }));
     },
-    [setAnswers],
+    [setAnswers]
   );
 
   const handleNext = useCallback(() => {
@@ -284,7 +256,7 @@ export default function QuizPageView({
       if (remaining <= 0) {
         clearInterval(interval);
         setTimeLeft(0);
-        toast.error("Time is up! Submitting quiz...");
+        toast.error('Time is up! Submitting quiz...');
         handleSubmitRef.current(true);
       } else {
         setTimeLeft(remaining);
@@ -305,13 +277,9 @@ export default function QuizPageView({
         <div className="text-center">
           <Clock className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold">Time Expired</h2>
-          <p className="text-muted-foreground mb-4">
-            Your quiz time has expired.
-          </p>
+          <p className="text-muted-foreground mb-4">Your quiz time has expired.</p>
           <Button onClick={() => handleSubmit(true)}>
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Submit Now
           </Button>
         </div>
@@ -325,9 +293,7 @@ export default function QuizPageView({
         <div className="text-center">
           <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold">No Questions Found</h2>
-          <p className="text-muted-foreground">
-            This quiz hasn&apos;t been set up yet.
-          </p>
+          <p className="text-muted-foreground">This quiz hasn&apos;t been set up yet.</p>
         </div>
       </div>
     );
@@ -357,11 +323,10 @@ export default function QuizPageView({
                 variant="outline"
                 size="icon"
                 className={cn(
-                  "h-10 w-10 relative",
-                  currentIndex === idx &&
-                    "border-blue-500 ring-2 ring-blue-200",
+                  'h-10 w-10 relative',
+                  currentIndex === idx && 'border-blue-500 ring-2 ring-blue-200',
                   isAnswered(q.id) &&
-                    "bg-green-100 dark:bg-green-900 border-green-400 text-green-700 dark:text-green-300",
+                    'bg-green-100 dark:bg-green-900 border-green-400 text-green-700 dark:text-green-300'
                 )}
                 onClick={() => setCurrentIndex(idx)}
               >
@@ -374,21 +339,14 @@ export default function QuizPageView({
         <div className="p-4 border-t">
           <div className="flex items-center justify-between text-sm mb-4">
             <span className="flex items-center gap-2 text-green-600">
-              <CheckCircle2 className="h-4 w-4" /> Answered:{" "}
-              {Object.keys(answers).length}
+              <CheckCircle2 className="h-4 w-4" /> Answered: {Object.keys(answers).length}
             </span>
             <span className="text-muted-foreground">
               Remaining: {questions.length - Object.keys(answers).length}
             </span>
           </div>
-          <Button
-            className="w-full h-11"
-            onClick={() => handleSubmit()}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            ) : null}
+          <Button className="w-full h-11" onClick={() => handleSubmit()} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Submit Quiz
           </Button>
         </div>
@@ -416,10 +374,7 @@ export default function QuizPageView({
                     key={q.id}
                     variant="outline"
                     size="icon"
-                    className={cn(
-                      "h-10 w-10",
-                      isAnswered(q.id) && "bg-green-100 border-green-400",
-                    )}
+                    className={cn('h-10 w-10', isAnswered(q.id) && 'bg-green-100 border-green-400')}
                     onClick={() => setCurrentIndex(idx)}
                   >
                     {idx + 1}
@@ -463,53 +418,39 @@ export default function QuizPageView({
             {/* RENDERER SWITCH */}
             <Card className="border-none shadow-none bg-transparent">
               <CardContent className="p-0">
-                {currentQuestion.type === "multiple_choice" && (
+                {currentQuestion.type === 'multiple_choice' && (
                   <MultipleChoiceRenderer
                     data={currentQuestion}
                     value={answers[currentQuestion.id] as string | undefined}
-                    onChange={(val) =>
-                      handleAnswerChange(currentQuestion.id, val)
-                    }
+                    onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                   />
                 )}
-                {currentQuestion.type === "true_false" && (
+                {currentQuestion.type === 'true_false' && (
                   <TrueFalseRenderer
                     data={currentQuestion}
                     value={answers[currentQuestion.id] as boolean | undefined}
-                    onChange={(val) =>
-                      handleAnswerChange(currentQuestion.id, val)
-                    }
+                    onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                   />
                 )}
-                {currentQuestion.type === "essay" && (
+                {currentQuestion.type === 'essay' && (
                   <EssayRenderer
                     data={currentQuestion}
                     value={answers[currentQuestion.id] as string | undefined}
-                    onChange={(val) =>
-                      handleAnswerChange(currentQuestion.id, val)
-                    }
+                    onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                   />
                 )}
-                {currentQuestion.type === "ordering" && (
+                {currentQuestion.type === 'ordering' && (
                   <OrderingRenderer
                     data={currentQuestion}
                     value={answers[currentQuestion.id] as string[] | undefined}
-                    onChange={(val) =>
-                      handleAnswerChange(currentQuestion.id, val)
-                    }
+                    onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                   />
                 )}
-                {currentQuestion.type === "matching" && (
+                {currentQuestion.type === 'matching' && (
                   <MatchingRenderer
                     data={currentQuestion}
-                    value={
-                      answers[currentQuestion.id] as
-                        | Record<string, string>
-                        | undefined
-                    }
-                    onChange={(val) =>
-                      handleAnswerChange(currentQuestion.id, val)
-                    }
+                    value={answers[currentQuestion.id] as Record<string, string> | undefined}
+                    onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                   />
                 )}
               </CardContent>
@@ -520,28 +461,18 @@ export default function QuizPageView({
         {/* Bottom Navigation Bar */}
         <div className="sticky bottom-0 bg-white dark:bg-slate-900 border-t p-4">
           <div className="max-w-3xl mx-auto flex items-center justify-between">
-            <Button
-              variant="ghost"
-              onClick={handlePrev}
-              disabled={currentIndex === 0}
-            >
+            <Button variant="ghost" onClick={handlePrev} disabled={currentIndex === 0}>
               <ChevronLeft className="h-4 w-4 mr-2" />
               Previous
             </Button>
 
             {currentIndex < questions.length - 1 ? (
-              <Button
-                onClick={handleNext}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
+              <Button onClick={handleNext} className="bg-blue-600 hover:bg-blue-700">
                 Next
                 <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             ) : (
-              <Button
-                onClick={() => handleSubmit()}
-                className="bg-green-600 hover:bg-green-700"
-              >
+              <Button onClick={() => handleSubmit()} className="bg-green-600 hover:bg-green-700">
                 <Flag className="h-4 w-4 mr-2" />
                 Finish Quiz
               </Button>

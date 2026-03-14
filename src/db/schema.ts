@@ -1,36 +1,32 @@
-import { relations } from "drizzle-orm";
+import { relations } from 'drizzle-orm';
 
-import { user, session, account } from "./schemas/auth-schema";
-import {
-  organization,
-  member,
-  invitation,
-} from "./schemas/organization-schema";
-import { subjects, classSubjects, subjectName } from "./schemas/subject-schema";
+import { user, session, account } from './schemas/auth-schema';
+import { organization, member, invitation } from './schemas/organization-schema';
+import { subjects, classSubjects, subjectName } from './schemas/subject-schema';
 import {
   quiz,
   quizAnswerOption,
   quizMatchingPair,
   quizOrderingItem,
   quizQuestion,
-} from "./schemas/activity-schema";
+} from './schemas/activity-schema';
 
-export * from "./schemas/auth-schema";
-export * from "./schemas/organization-schema";
-export * from "./schemas/subject-schema";
-export * from "./schemas/lesson-schema";
-export * from "./schemas/file-schema";
-export * from "./schemas/activity-schema";
-export * from "./schemas/data-schema";
+export * from './schemas/auth-schema';
+export * from './schemas/organization-schema';
+export * from './schemas/subject-schema';
+export * from './schemas/lesson-schema';
+export * from './schemas/file-schema';
+export * from './schemas/activity-schema';
+export * from './schemas/data-schema';
 
 // User relations
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),
   accounts: many(account),
   memberships: many(member), // User can be in multiple organizations
-  invitationsSent: many(invitation, { relationName: "inviter" }),
-  taughtSubjects: many(classSubjects, { relationName: "teacher" }), // Teacher for class subjects
-  assignedSubjects: many(classSubjects, { relationName: "assigner" }), // Admin who assigned subjects
+  invitationsSent: many(invitation, { relationName: 'inviter' }),
+  taughtSubjects: many(classSubjects, { relationName: 'teacher' }), // Teacher for class subjects
+  assignedSubjects: many(classSubjects, { relationName: 'assigner' }), // Admin who assigned subjects
 }));
 
 // Session relations
@@ -57,7 +53,7 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
-  classes: many(classSubjects, { relationName: "class" }), // Organizations acting as classes
+  classes: many(classSubjects, { relationName: 'class' }), // Organizations acting as classes
 }));
 
 // Member relations
@@ -81,7 +77,7 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
   inviter: one(user, {
     fields: [invitation.inviterId],
     references: [user.id],
-    relationName: "inviter",
+    relationName: 'inviter',
   }),
 }));
 
@@ -99,7 +95,7 @@ export const classSubjectRelations = relations(classSubjects, ({ one }) => ({
   enrolledClass: one(organization, {
     fields: [classSubjects.enrolledClass],
     references: [organization.id],
-    relationName: "class",
+    relationName: 'class',
   }),
   subject: one(subjects, {
     fields: [classSubjects.subjectId],
@@ -108,7 +104,7 @@ export const classSubjectRelations = relations(classSubjects, ({ one }) => ({
   teacher: one(user, {
     fields: [classSubjects.teacherId],
     references: [user.id],
-    relationName: "teacher",
+    relationName: 'teacher',
   }),
 }));
 
@@ -125,48 +121,36 @@ export const quizRelations = relations(quiz, ({ many }) => ({
   questions: many(quizQuestion),
 }));
 
-export const quizQuestionRelations = relations(
-  quizQuestion,
-  ({ one, many }) => ({
-    quiz: one(quiz, {
-      fields: [quizQuestion.quizId],
-      references: [quiz.id],
-    }),
-    matchingPairs: many(quizMatchingPair),
-    orderingItems: many(quizOrderingItem),
-    answerOptions: many(quizAnswerOption),
+export const quizQuestionRelations = relations(quizQuestion, ({ one, many }) => ({
+  quiz: one(quiz, {
+    fields: [quizQuestion.quizId],
+    references: [quiz.id],
   }),
-);
+  matchingPairs: many(quizMatchingPair),
+  orderingItems: many(quizOrderingItem),
+  answerOptions: many(quizAnswerOption),
+}));
 
-export const quizMatchingPairRelations = relations(
-  quizMatchingPair,
-  ({ one }) => ({
-    question: one(quizQuestion, {
-      fields: [quizMatchingPair.questionId],
-      references: [quizQuestion.id],
-    }),
+export const quizMatchingPairRelations = relations(quizMatchingPair, ({ one }) => ({
+  question: one(quizQuestion, {
+    fields: [quizMatchingPair.questionId],
+    references: [quizQuestion.id],
   }),
-);
+}));
 
-export const quizOrderingItemRelations = relations(
-  quizOrderingItem,
-  ({ one }) => ({
-    question: one(quizQuestion, {
-      fields: [quizOrderingItem.questionId],
-      references: [quizQuestion.id],
-    }),
+export const quizOrderingItemRelations = relations(quizOrderingItem, ({ one }) => ({
+  question: one(quizQuestion, {
+    fields: [quizOrderingItem.questionId],
+    references: [quizQuestion.id],
   }),
-);
+}));
 
-export const quizAnswerOptionRelations = relations(
-  quizAnswerOption,
-  ({ one }) => ({
-    question: one(quizQuestion, {
-      fields: [quizAnswerOption.questionId],
-      references: [quizQuestion.id],
-    }),
+export const quizAnswerOptionRelations = relations(quizAnswerOption, ({ one }) => ({
+  question: one(quizQuestion, {
+    fields: [quizAnswerOption.questionId],
+    references: [quizQuestion.id],
   }),
-);
+}));
 
 // SubjectName relations
 export const subjectNameRelations = relations(subjectName, ({ many }) => ({

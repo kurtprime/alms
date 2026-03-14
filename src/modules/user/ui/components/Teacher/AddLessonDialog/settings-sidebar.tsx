@@ -1,39 +1,26 @@
-"use client";
+'use client';
 
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-} from "@/components/ui/form";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { CalendarIcon, Clock, Info, Plus, RotateCcw } from "lucide-react";
-import { UseFormReturn } from "react-hook-form";
-import { LessonTeacherData } from "./types";
-import LessonSelect from "../LessonSelect";
-import { lessonTypeEnum } from "@/db/schema";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { format, set } from "date-fns";
-import { Calendar } from "@/components/ui/calendar";
-import { Switch } from "@/components/ui/switch";
-import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
-} from "@/components/ui/hover-card";
+import { FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { CalendarIcon, Clock, Info, Plus, RotateCcw } from 'lucide-react';
+import { UseFormReturn } from 'react-hook-form';
+import { LessonTeacherData } from './types';
+import LessonSelect from '../LessonSelect';
+import { lessonTypeEnum } from '@/db/schema';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, set } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Switch } from '@/components/ui/switch';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 
 interface SettingsSidebarProps {
   form: UseFormReturn<LessonTeacherData>;
   classId: string;
-  lessonType: (typeof lessonTypeEnum)["enumValues"][number];
+  lessonType: (typeof lessonTypeEnum)['enumValues'][number];
   onOpenAddNewLesson: (open: boolean) => void;
 }
 
@@ -74,9 +61,7 @@ export function SettingsSidebar({
 
             {/* Quick Actions */}
             <div className="space-y-3">
-              <FormLabel className="text-sm font-medium">
-                Quick Actions
-              </FormLabel>
+              <FormLabel className="text-sm font-medium">Quick Actions</FormLabel>
               <div className="space-y-2">
                 <Button
                   type="button"
@@ -90,7 +75,7 @@ export function SettingsSidebar({
                 </Button>
               </div>
 
-              {lessonType === "quiz" && (
+              {lessonType === 'quiz' && (
                 <>
                   <Separator />
                   <FormField
@@ -98,9 +83,7 @@ export function SettingsSidebar({
                     name="quizSettings.maxAttempts"
                     render={({ field }) => (
                       <FormItem className="flex flex-col gap-2">
-                        <Label className="text-xs text-muted-foreground">
-                          Attempts
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">Attempts</Label>
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button
@@ -110,9 +93,7 @@ export function SettingsSidebar({
                               className="w-32 justify-start"
                             >
                               <RotateCcw className="mr-2 h-4 w-4" />
-                              {field.value === 99
-                                ? "Unlimited"
-                                : `${field.value} attempts`}
+                              {field.value === 99 ? 'Unlimited' : `${field.value} attempts`}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
@@ -124,13 +105,9 @@ export function SettingsSidebar({
                                   type="button"
                                   size="sm"
                                   onClick={() => field.onChange(attempts)}
-                                  className={
-                                    field.value === attempts ? "bg-accent" : ""
-                                  }
+                                  className={field.value === attempts ? 'bg-accent' : ''}
                                 >
-                                  {attempts === 99
-                                    ? "Unlimited"
-                                    : `${attempts} attempts`}
+                                  {attempts === 99 ? 'Unlimited' : `${attempts} attempts`}
                                 </Button>
                               ))}
                             </div>
@@ -145,20 +122,17 @@ export function SettingsSidebar({
                     name="quizSettings.timeLimit"
                     render={({ field }) => (
                       <FormItem className="flex flex-col gap-2">
-                        <Label className="text-xs text-muted-foreground">
-                          Time Limit
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">Time Limit</Label>
                         <Popover>
                           <PopoverTrigger onChange={field.onChange} asChild>
                             <Button
+                              type="button"
                               variant="outline"
                               size="sm"
                               className="w-32 justify-start"
                             >
                               <Clock className="mr-2 h-4 w-4" />
-                              {field.value === 0
-                                ? "No limit"
-                                : `${field.value} min`}
+                              {field.value === 0 ? 'No limit' : `${field.value} min`}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
@@ -167,11 +141,10 @@ export function SettingsSidebar({
                                 <Button
                                   key={min}
                                   variant="ghost"
+                                  type="button"
                                   size="sm"
                                   onClick={() => field.onChange(min)}
-                                  className={
-                                    field.value === min ? "bg-accent" : ""
-                                  }
+                                  className={field.value === min ? 'bg-accent' : ''}
                                 >
                                   {min} min
                                 </Button>
@@ -179,8 +152,9 @@ export function SettingsSidebar({
                               <Button
                                 variant="ghost"
                                 size="sm"
+                                type="button"
                                 onClick={() => field.onChange(0)}
-                                className={field.value === 0 ? "bg-accent" : ""}
+                                className={field.value === 0 ? 'bg-accent' : ''}
                               >
                                 No limit
                               </Button>
@@ -196,10 +170,7 @@ export function SettingsSidebar({
                       name="quizSettings.shuffleQuestions"
                       render={({ field }) => (
                         <FormItem className="flex flex-col  gap-4">
-                          <Label
-                            htmlFor="shuffle"
-                            className="text-xs text-muted-foreground"
-                          >
+                          <Label htmlFor="shuffle" className="text-xs text-muted-foreground">
                             Shuffle Questions
                           </Label>
                           <div className="flex gap-2 items-center">
@@ -215,8 +186,7 @@ export function SettingsSidebar({
                                 <Info className="size-4 text-muted-foreground" />
                               </HoverCardTrigger>
                               <HoverCardContent className="w-64 text-sm">
-                                Questions will appear in random order for each
-                                student.
+                                Questions will appear in random order for each student.
                               </HoverCardContent>
                             </HoverCard>
                           </div>
@@ -228,10 +198,7 @@ export function SettingsSidebar({
                       name="quizSettings.showCorrectAnswers"
                       render={({ field }) => (
                         <FormItem className="flex flex-col gap-4">
-                          <Label
-                            htmlFor="showAnswers"
-                            className="text-xs text-muted-foreground"
-                          >
+                          <Label htmlFor="showAnswers" className="text-xs text-muted-foreground">
                             Show Answers
                           </Label>
                           <div className="flex items-center gap-2">
@@ -247,9 +214,8 @@ export function SettingsSidebar({
                                 <Info className="size-4 text-muted-foreground" />
                               </HoverCardTrigger>
                               <HoverCardContent className="w-64 text-sm">
-                                After a student submits the quiz, they will be
-                                able to see the correct answers for each
-                                question.
+                                After a student submits the quiz, they will be able to see the
+                                correct answers for each question.
                               </HoverCardContent>
                             </HoverCard>
                           </div>
@@ -261,10 +227,7 @@ export function SettingsSidebar({
                       name="quizSettings.showScoreAfterSubmission"
                       render={({ field }) => (
                         <FormItem className="flex flex-col gap-4">
-                          <Label
-                            htmlFor="showScore"
-                            className="text-xs text-muted-foreground"
-                          >
+                          <Label htmlFor="showScore" className="text-xs text-muted-foreground">
                             Show Score
                           </Label>
                           <div className="flex items-center gap-2">
@@ -280,8 +243,8 @@ export function SettingsSidebar({
                                 <Info className="size-4 text-muted-foreground" />
                               </HoverCardTrigger>
                               <HoverCardContent className="w-64 text-sm">
-                                After a student submits the quiz, they will be
-                                able to see their score for each question.
+                                After a student submits the quiz, they will be able to see their
+                                score for each question.
                               </HoverCardContent>
                             </HoverCard>
                           </div>
@@ -294,28 +257,22 @@ export function SettingsSidebar({
                     name="quizSettings.endDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col gap-2">
-                        <FormLabel className="text-xs text-muted-foreground">
-                          Due Date
-                        </FormLabel>
+                        <FormLabel className="text-xs text-muted-foreground">Due Date</FormLabel>
                         <FormControl>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
+                                type="button"
                                 className="justify-start gap-2 min-w-[200px]"
                               >
                                 <CalendarIcon className="h-4 w-4 shrink-0" />
                                 {field.value ? (
                                   <span className="text-sm">
-                                    {format(
-                                      field.value as Date,
-                                      "MMM d, h:mm a",
-                                    )}
+                                    {format(field.value as Date, 'MMM d, h:mm a')}
                                   </span>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">
-                                    No Due Date
-                                  </span>
+                                  <span className="text-sm text-muted-foreground">No Due Date</span>
                                 )}
                               </Button>
                             </PopoverTrigger>
@@ -323,11 +280,7 @@ export function SettingsSidebar({
                               <div className="flex flex-col gap-3">
                                 <Calendar
                                   mode="single"
-                                  selected={
-                                    field.value
-                                      ? new Date(field.value)
-                                      : undefined
-                                  }
+                                  selected={field.value ? new Date(field.value) : undefined}
                                   onSelect={(date) => {
                                     if (date) {
                                       field.onChange(date);
@@ -340,17 +293,12 @@ export function SettingsSidebar({
                                     <Input
                                       type="time"
                                       step="60"
-                                      value={format(
-                                        field.value as Date,
-                                        "HH:mm",
-                                      )}
+                                      value={format(field.value as Date, 'HH:mm')}
                                       onChange={(e) => {
                                         const [hours, minutes] = e.target.value
-                                          .split(":")
+                                          .split(':')
                                           .map(Number);
-                                        field.onChange(
-                                          set(field.value!, { hours, minutes }),
-                                        );
+                                        field.onChange(set(field.value!, { hours, minutes }));
                                       }}
                                     />
                                   </div>
@@ -365,7 +313,7 @@ export function SettingsSidebar({
                 </>
               )}
 
-              {lessonType === "assignment" && (
+              {lessonType === 'assignment' && (
                 <>
                   <Separator />
                   {/* Max Attempts */}
@@ -374,9 +322,7 @@ export function SettingsSidebar({
                     name="quizSettings.maxAttempts"
                     render={({ field }) => (
                       <FormItem className="flex flex-col gap-2">
-                        <Label className="text-xs text-muted-foreground">
-                          Attempts
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">Attempts</Label>
                         <Popover>
                           <PopoverTrigger asChild>
                             <Button
@@ -386,9 +332,7 @@ export function SettingsSidebar({
                               className="w-32 justify-start"
                             >
                               <RotateCcw className="mr-2 h-4 w-4" />
-                              {field.value === 99
-                                ? "Unlimited"
-                                : `${field.value} attempts`}
+                              {field.value === 99 ? 'Unlimited' : `${field.value} attempts`}
                             </Button>
                           </PopoverTrigger>
                           <PopoverContent className="w-40 p-2">
@@ -400,13 +344,9 @@ export function SettingsSidebar({
                                   type="button"
                                   size="sm"
                                   onClick={() => field.onChange(attempts)}
-                                  className={
-                                    field.value === attempts ? "bg-accent" : ""
-                                  }
+                                  className={field.value === attempts ? 'bg-accent' : ''}
                                 >
-                                  {attempts === 99
-                                    ? "Unlimited"
-                                    : `${attempts} attempts`}
+                                  {attempts === 99 ? 'Unlimited' : `${attempts} attempts`}
                                 </Button>
                               ))}
                             </div>
@@ -420,15 +360,11 @@ export function SettingsSidebar({
                     name="quizSettings.scores"
                     render={({ field }) => (
                       <FormItem>
-                        <Label className="text-xs text-muted-foreground">
-                          Scores
-                        </Label>
+                        <Label className="text-xs text-muted-foreground">Scores</Label>
                         <FormControl>
                           <Input
                             value={field.value}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => field.onChange(Number(e.target.value))}
                             type="number"
                           />
                         </FormControl>
@@ -440,28 +376,22 @@ export function SettingsSidebar({
                     name="quizSettings.endDate"
                     render={({ field }) => (
                       <FormItem className="flex flex-col gap-2">
-                        <FormLabel className="text-xs text-muted-foreground">
-                          Due Date
-                        </FormLabel>
+                        <FormLabel className="text-xs text-muted-foreground">Due Date</FormLabel>
                         <FormControl>
                           <Popover>
                             <PopoverTrigger asChild>
                               <Button
                                 variant="outline"
+                                type="button"
                                 className="justify-start gap-2 min-w-[200px]"
                               >
                                 <CalendarIcon className="h-4 w-4 shrink-0" />
                                 {field.value ? (
                                   <span className="text-sm">
-                                    {format(
-                                      field.value as Date,
-                                      "MMM d, h:mm a",
-                                    )}
+                                    {format(field.value as Date, 'MMM d, h:mm a')}
                                   </span>
                                 ) : (
-                                  <span className="text-sm text-muted-foreground">
-                                    No Due Date
-                                  </span>
+                                  <span className="text-sm text-muted-foreground">No Due Date</span>
                                 )}
                               </Button>
                             </PopoverTrigger>
@@ -469,11 +399,7 @@ export function SettingsSidebar({
                               <div className="flex flex-col gap-3">
                                 <Calendar
                                   mode="single"
-                                  selected={
-                                    field.value
-                                      ? new Date(field.value)
-                                      : undefined
-                                  }
+                                  selected={field.value ? new Date(field.value) : undefined}
                                   onSelect={(date) => {
                                     if (date) {
                                       field.onChange(date);
@@ -486,17 +412,12 @@ export function SettingsSidebar({
                                     <Input
                                       type="time"
                                       step="60"
-                                      value={format(
-                                        field.value as Date,
-                                        "HH:mm",
-                                      )}
+                                      value={format(field.value as Date, 'HH:mm')}
                                       onChange={(e) => {
                                         const [hours, minutes] = e.target.value
-                                          .split(":")
+                                          .split(':')
                                           .map(Number);
-                                        field.onChange(
-                                          set(field.value!, { hours, minutes }),
-                                        );
+                                        field.onChange(set(field.value!, { hours, minutes }));
                                       }}
                                     />
                                   </div>

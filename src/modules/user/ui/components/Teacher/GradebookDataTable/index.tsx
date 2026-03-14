@@ -29,14 +29,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { AssessmentColumn, StudentGradeRow } from '@/modules/user/server/userSchema';
 import {
@@ -77,7 +69,7 @@ interface GradebookProps {
 }
 
 // ============================================
-// MOBILE CARD COMPONENT
+// MOBILE CARD COMPONENT (Optimized)
 // ============================================
 
 function StudentGradeCard({
@@ -86,27 +78,20 @@ function StudentGradeCard({
   assessments,
   classId,
   isTeacher,
-  openDropdown,
-  inputValue,
-  isUpdating,
-  setOpenDropdown,
-  setInputValue,
-  updateScore,
+  updatingCellId,
+  onUpdate,
 }: {
   student: StudentGradeRow['student'];
   grades: StudentGradeRow['grades'];
   assessments: AssessmentColumn[];
   classId: string;
   isTeacher: boolean;
-  inputValue: string;
-  isUpdating: boolean;
-  openDropdown: string | null;
-  setOpenDropdown: (id: string | null) => void;
-  setInputValue: (value: string) => void;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  updateScore: any; //TODO: create a function for update Score;
+  updatingCellId: string | null; // ID of the cell currently updating
+  onUpdate: (args: { quizId: number; studentId: string; score: number | null }) => void;
 }) {
   const [isExpanded, setIsExpanded] = React.useState(false);
+  const [activeInput, setActiveInput] = React.useState<string | null>(null);
+  const [inputValue, setInputValue] = React.useState<string>('');
 
   // Calculate average
   let totalScore = 0;
@@ -129,7 +114,6 @@ function StudentGradeCard({
 
   return (
     <Card className="overflow-hidden">
-      {/* Card Header - Always Visible */}
       <div
         className="p-4 cursor-pointer hover:bg-slate-50 transition-colors"
         onClick={() => setIsExpanded(!isExpanded)}
@@ -163,10 +147,8 @@ function StudentGradeCard({
         </div>
       </div>
 
-      {/* Expanded Content */}
       {isExpanded && (
         <CardContent className="pt-0 space-y-3">
-          {/* Assessments List */}
           {assessments.map((assessment) => {
             const grade = grades[assessment.id.toString()];
             const score = grade?.score;
@@ -174,7 +156,8 @@ function StudentGradeCard({
             const percentage = score != null ? Math.round((score / max) * 100) : null;
 
             const cellId = `${student.id}-${assessment.id}`;
-            const isOpen = openDropdown === cellId;
+            const isThisUpdating = updatingCellId === cellId;
+            const isInputActive = activeInput === cellId;
 
             return (
               <div key={assessment.id} className="flex items-center justify-between py-2 border-t">
@@ -186,93 +169,65 @@ function StudentGradeCard({
                 </div>
 
                 {isTeacher ? (
-                  <DropdownMenu
-                    open={isOpen}
-                    onOpenChange={(o) => {
-                      if (o) {
-                        setOpenDropdown(cellId);
+                  <div
+                    className={cn(
+                      'flex flex-col items-center justify-center p-2 rounded-md min-w-[70px] cursor-pointer hover:ring-2 hover:ring-blue-200',
+                      percentage !== null
+                        ? percentage >= 75
+                          ? 'bg-green-50'
+                          : percentage >= 50
+                            ? 'bg-amber-50'
+                            : 'bg-red-50'
+                        : 'bg-slate-50'
+                    )}
+                    onClick={() => {
+                      if (!isInputActive) {
+                        setActiveInput(cellId);
                         setInputValue(score !== null ? String(score) : '');
-                      } else {
-                        setOpenDropdown(null);
                       }
                     }}
                   >
-                    <DropdownMenuTrigger asChild>
-                      <div
-                        className={cn(
-                          'flex flex-col items-center justify-center p-2 rounded-md min-w-[70px] cursor-pointer hover:ring-2 hover:ring-blue-200',
-                          percentage !== null
-                            ? percentage >= 75
-                              ? 'bg-green-50'
-                              : percentage >= 50
-                                ? 'bg-amber-50'
-                                : 'bg-red-50'
-                            : 'bg-slate-50'
-                        )}
-                      >
-                        {score != null ? (
-                          <>
-                            <span className={cn('text-sm font-bold', getScoreColor(percentage))}>
-                              {score}/{max}
-                            </span>
-                            <span className="text-[10px] text-slate-500">{percentage}%</span>
-                          </>
-                        ) : (
-                          <span className="text-slate-300 text-xs">No grade</span>
-                        )}
-                      </div>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-56 p-2">
-                      <div className="mb-2 text-center">
-                        <p className="text-xs text-slate-500">Edit Score</p>
-                        <p className="font-semibold text-sm">{assessment.title}</p>
-                      </div>
-                      <div className="flex items-center gap-1 mb-2">
+                    {isInputActive ? (
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                         <Input
                           type="number"
                           value={inputValue}
                           onChange={(e) => setInputValue(e.target.value)}
-                          className="h-8"
-                          placeholder={`Score (Max: ${max})`}
-                          disabled={isUpdating}
+                          className="h-7 w-12 text-xs"
+                          placeholder="Score"
+                          disabled={isThisUpdating}
                         />
                         <Button
                           size="icon"
-                          className="h-8 w-8 shrink-0"
+                          className="h-7 w-7"
+                          disabled={isThisUpdating}
                           onClick={() => {
                             const newScore = inputValue === '' ? null : parseFloat(inputValue);
-                            if (inputValue !== '' && isNaN(newScore as number)) {
-                              toast.error('Invalid number');
-                              return;
-                            }
-                            updateScore({
-                              lessonTypeId: assessment.id,
+                            if (inputValue !== '' && isNaN(newScore as number)) return;
+                            onUpdate({
+                              quizId: assessment.id,
                               studentId: student.id,
                               score: newScore,
                             });
+                            setActiveInput(null); // Close input on save
                           }}
-                          disabled={isUpdating}
                         >
-                          {isUpdating ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                          {isThisUpdating ? (
+                            <Loader2 className="h-3 w-3 animate-spin" />
                           ) : (
-                            <Check className="h-4 w-4" />
+                            <Check className="h-3 w-3" />
                           )}
                         </Button>
                       </div>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild className="cursor-pointer">
-                        <a
-                          href={`/check/${classId}/${assessment.id}/${student.id}`}
-                          target="_blank"
-                          className="flex items-center justify-between w-full"
-                        >
-                          <span>View Activity</span>
-                          <ExternalLink className="h-4 w-4" />
-                        </a>
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                    ) : (
+                      <>
+                        <span className={cn('text-sm font-bold', getScoreColor(percentage))}>
+                          {score != null ? score : '--'}/{max}
+                        </span>
+                        <span className="text-[10px] text-slate-500">{percentage}%</span>
+                      </>
+                    )}
+                  </div>
                 ) : (
                   <div
                     className={cn(
@@ -286,16 +241,10 @@ function StudentGradeCard({
                         : 'bg-slate-50'
                     )}
                   >
-                    {score != null ? (
-                      <>
-                        <span className={cn('text-sm font-bold', getScoreColor(percentage))}>
-                          {score}/{max}
-                        </span>
-                        <span className="text-[10px] text-slate-500">{percentage}%</span>
-                      </>
-                    ) : (
-                      <span className="text-slate-300 text-xs">No grade</span>
-                    )}
+                    <span className={cn('text-sm font-bold', getScoreColor(percentage))}>
+                      {score != null ? score : '--'}/{max}
+                    </span>
+                    <span className="text-[10px] text-slate-500">{percentage}%</span>
                   </div>
                 )}
               </div>
@@ -314,30 +263,77 @@ function StudentGradeCard({
 export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps) {
   const trpc = useTRPC();
   const queryClient = useQueryClient();
-
   const isMobile = useIsMobile();
 
-  // --- STATE ---
   const [globalFilter, setGlobalFilter] = React.useState('');
-  const [openDropdown, setOpenDropdown] = React.useState<string | null>(null);
-  const [inputValue, setInputValue] = React.useState<string>('');
 
-  // --- MUTATION ---
-  const { mutate: updateScore, isPending: isUpdating } = useMutation(
+  // Track which specific cell is saving: "studentId-assessmentId"
+  const [updatingCellId, setUpdatingCellId] = React.useState<string | null>(null);
+
+  // --- MUTATION WITH OPTIMISTIC UPDATE ---
+  const { mutate: updateScore } = useMutation(
     trpc.user.updateGrade.mutationOptions({
-      onSuccess: () => {
-        toast.success('Score updated');
-        queryClient.invalidateQueries(trpc.user.getGradebookData.queryOptions({ classId }));
-        setOpenDropdown(null);
+      onMutate: async (variables) => {
+        const cellId = `${variables.studentId}-${variables.quizId}`;
+        setUpdatingCellId(cellId); // Set loading state for this specific cell
+
+        // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+        await queryClient.cancelQueries({
+          queryKey: trpc.user.getGradebookData.queryKey({ classId }),
+        });
+
+        // Snapshot the previous value
+        const previousGradebook = queryClient.getQueryData(
+          trpc.user.getGradebookData.queryKey({ classId })
+        );
+
+        // Optimistically update to the new value
+        queryClient.setQueryData(trpc.user.getGradebookData.queryKey({ classId }), (old) => {
+          if (!old) return old;
+
+          return {
+            ...old,
+            rows: old.rows.map((row: StudentGradeRow) => {
+              if (row.student.id === variables.studentId) {
+                return {
+                  ...row,
+                  grades: {
+                    ...row.grades,
+                    [variables.quizId]: {
+                      ...row.grades[variables.quizId],
+                      score: variables.score,
+                      // Optionally calculate percentage optimistically here if needed
+                    },
+                  },
+                };
+              }
+              return row;
+            }),
+          };
+        });
+
+        return { previousGradebook };
       },
-      onError: (e) => {
-        toast.error(e.message);
+      onError: (err, variables, context) => {
+        // Rollback on error
+        queryClient.setQueryData(
+          trpc.user.getGradebookData.queryKey({ classId }),
+          context?.previousGradebook
+        );
+        toast.error(err.message || 'Failed to update grade');
+      },
+      onSettled: () => {
+        setUpdatingCellId(null); // Clear loading state
+        // Refetch in background to ensure sync (optional, as optimistic update is already shown)
+        queryClient.invalidateQueries({
+          queryKey: trpc.user.getGradebookData.queryKey({ classId }),
+        });
       },
     })
   );
 
   // --- EXPORT LOGIC ---
-  const handleExport = () => {
+  const handleExport = React.useCallback(() => {
     if (!data.rows.length) return;
     const headers = [
       'Student Name',
@@ -352,7 +348,6 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
         const grade = row.grades[assessment.id.toString()];
         const score = grade?.score;
         const max = assessment.maxScore ?? 100;
-
         if (score != null && assessment.maxScore) {
           rowData.push(`${score}/${max}`);
           totalScore += score;
@@ -372,9 +367,10 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Gradebook');
     XLSX.writeFile(workbook, `Gradebook_${new Date().toISOString().split('T')[0]}.xlsx`);
-  };
+  }, [data]);
 
   // --- TABLE COLUMNS ---
+  // NOTE: Removed 'data.assessments' from dependency to prevent column reset on refetch
   const columns: ColumnDef<StudentGradeRow>[] = React.useMemo(() => {
     const studentCol: ColumnDef<StudentGradeRow> = {
       id: 'student',
@@ -403,6 +399,8 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
       },
     };
 
+    // Use data.assessments inside, but don't put it in the dependency array
+    // This prevents the table from resetting when data refetches
     const assessmentCols: ColumnDef<StudentGradeRow>[] = data.assessments.map((assessment) => ({
       id: `assessment-${assessment.id}`,
       header: () => (
@@ -423,7 +421,7 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
         const percentage = score != null ? Math.round((score / max) * 100) : null;
 
         const cellId = `${row.original.student.id}-${assessment.id}`;
-        const isOpen = openDropdown === cellId;
+        const isThisUpdating = updatingCellId === cellId;
 
         let statusColor = 'text-slate-400';
         let bgColor = 'bg-slate-50';
@@ -441,22 +439,11 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
         }
 
         return (
-          <DropdownMenu
-            open={isOpen}
-            onOpenChange={(o) => {
-              if (o) {
-                setOpenDropdown(cellId);
-                setInputValue(score !== null ? String(score) : '');
-              } else {
-                setOpenDropdown(null);
-              }
-            }}
-          >
+          <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <div
                 className={cn(
-                  'flex flex-col items-center justify-center p-2 rounded-md min-w-[70px]',
-                  isTeacher && 'cursor-pointer hover:ring-2 hover:ring-blue-200',
+                  'flex flex-col items-center justify-center p-2 rounded-md min-w-[70px] cursor-pointer hover:ring-2 hover:ring-blue-200',
                   bgColor
                 )}
               >
@@ -481,43 +468,55 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
                   <p className="text-xs text-slate-500">Edit Score</p>
                   <p className="font-semibold text-sm">{assessment.title}</p>
                 </div>
-
                 <div className="flex items-center gap-1 mb-2">
                   <Input
                     type="number"
-                    value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
+                    defaultValue={score !== null ? String(score) : ''}
                     className="h-8"
                     placeholder={`Score (Max: ${max})`}
-                    disabled={isUpdating}
+                    disabled={isThisUpdating}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        const target = e.target as HTMLInputElement;
+                        const newScore = target.value === '' ? null : parseFloat(target.value);
+                        if (target.value !== '' && isNaN(newScore as number)) return;
+                        updateScore({
+                          quizId: assessment.id,
+                          studentId: row.original.student.id,
+                          score: newScore,
+                        });
+                      }
+                      // console.log(row.original.grades);
+                    }}
                   />
                   <Button
                     size="icon"
                     className="h-8 w-8 shrink-0"
-                    onClick={() => {
-                      const newScore = inputValue === '' ? null : parseFloat(inputValue);
-                      if (inputValue !== '' && isNaN(newScore as number)) {
-                        toast.error('Invalid number');
-                        return;
-                      }
+                    onClick={(e) => {
+                      const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                      const newScore = input.value === '' ? null : parseFloat(input.value);
+                      if (input.value !== '' && isNaN(newScore as number)) return;
                       updateScore({
-                        lessonTypeId: assessment.id,
+                        quizId: assessment.id,
                         studentId: row.original.student.id,
                         score: newScore,
                       });
+                      console.log(
+                        'ROW ORIGINAL GRADES',
+                        row.original.grades[assessment.id.toString()]
+                      );
+                      console.log('MAX SCORE', assessment.maxScore);
                     }}
-                    disabled={isUpdating}
+                    disabled={isThisUpdating}
                   >
-                    {isUpdating ? (
+                    {isThisUpdating ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Check className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
-
                 <DropdownMenuSeparator />
-
                 <DropdownMenuItem asChild className="cursor-pointer">
                   <a
                     href={`/check/${classId}/${assessment.lessonTypeId}/${row.original.student.id}`}
@@ -564,7 +563,8 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
     };
 
     return [studentCol, ...assessmentCols, avgCol];
-  }, [data.assessments, openDropdown, isTeacher, isUpdating, inputValue, classId, updateScore]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [classId, isTeacher, updatingCellId, updateScore]); // Removed 'data.assessments'
 
   const table = useReactTable({
     data: data.rows,
@@ -575,14 +575,12 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
     getFilteredRowModel: getFilteredRowModel(),
   });
 
-  // Filter data for mobile view
   const filteredData = React.useMemo(() => {
     if (!globalFilter) return data.rows;
     const search = globalFilter.toLowerCase();
     return data.rows.filter((row) => row.student.name?.toLowerCase().includes(search));
   }, [data.rows, globalFilter]);
 
-  // --- RENDER ---
   return (
     <div className="space-y-4 w-full p-5 md:p-10">
       {/* Toolbar */}
@@ -597,25 +595,6 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
           />
         </div>
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          {/* View Toggle - Mobile/Desktop */}
-          <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 lg:hidden">
-            <Button
-              variant={isMobile ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => {}}
-            >
-              <Smartphone className="h-4 w-4" />
-            </Button>
-            <Button
-              variant={!isMobile ? 'default' : 'ghost'}
-              size="sm"
-              className="h-8 px-3"
-              onClick={() => {}}
-            >
-              <Monitor className="h-4 w-4" />
-            </Button>
-          </div>
           <Button
             variant="outline"
             size="sm"
@@ -629,58 +608,7 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
         </div>
       </div>
 
-      {/* Stats Summary - Only show on mobile when there's data */}
-      {data.rows.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          <Card className="py-3">
-            <CardContent className="py-0 flex flex-col items-center">
-              <User className="h-4 w-4 text-slate-500 mb-1" />
-              <p className="text-lg font-bold">{data.rows.length}</p>
-              <p className="text-xs text-slate-500">Students</p>
-            </CardContent>
-          </Card>
-          <Card className="py-3">
-            <CardContent className="py-0 flex flex-col items-center">
-              <FileText className="h-4 w-4 text-slate-500 mb-1" />
-              <p className="text-lg font-bold">{data.assessments.length}</p>
-              <p className="text-xs text-slate-500">Activities</p>
-            </CardContent>
-          </Card>
-          <Card className="py-3">
-            <CardContent className="py-0 flex flex-col items-center">
-              <Calculator className="h-4 w-4 text-slate-500 mb-1" />
-              <p className="text-lg font-bold">
-                {data.rows.reduce((sum, r) => {
-                  let hasGrade = false;
-                  data.assessments.forEach((a) => {
-                    if (r.grades[a.id.toString()]?.score != null) hasGrade = true;
-                  });
-                  return sum + (hasGrade ? 1 : 0);
-                }, 0)}
-              </p>
-              <p className="text-xs text-slate-500">Graded</p>
-            </CardContent>
-          </Card>
-          <Card className="py-3">
-            <CardContent className="py-0 flex flex-col items-center">
-              <MoreHorizontal className="h-4 w-4 text-slate-500 mb-1" />
-              <p className="text-lg font-bold">
-                {data.rows.length * data.assessments.length -
-                  data.rows.reduce((sum, r) => {
-                    let count = 0;
-                    data.assessments.forEach((a) => {
-                      if (r.grades[a.id.toString()]?.score != null) count++;
-                    });
-                    return sum + count;
-                  }, 0)}
-              </p>
-              <p className="text-xs text-slate-500">Pending</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* MOBILE VIEW: Card-based layout */}
+      {/* MOBILE VIEW */}
       {isMobile ? (
         <div className="space-y-3">
           {filteredData.length > 0 ? (
@@ -692,12 +620,8 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
                 assessments={data.assessments}
                 classId={classId}
                 isTeacher={isTeacher}
-                openDropdown={openDropdown}
-                inputValue={inputValue}
-                isUpdating={isUpdating}
-                setOpenDropdown={setOpenDropdown}
-                setInputValue={setInputValue}
-                updateScore={updateScore}
+                updatingCellId={updatingCellId}
+                onUpdate={updateScore}
               />
             ))
           ) : (
@@ -710,9 +634,9 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
           )}
         </div>
       ) : (
-        /* DESKTOP VIEW: Table */
+        /* DESKTOP VIEW */
         <div className="rounded-md border">
-          <ScrollArea className="whitespace-nowrap w-sceen md:w-[calc(100vw-340px)] ">
+          <ScrollArea className="whitespace-nowrap w-sceen md:w-[calc(100vw-340px)]">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -739,11 +663,7 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
               <TableBody>
                 {table.getRowModel().rows?.length ? (
                   table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      className="group"
-                      data-state={row.getIsSelected() && 'selected'}
-                    >
+                    <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                       {row.getVisibleCells().map((cell) => {
                         const isSticky = cell.column.id === 'student';
                         return (
