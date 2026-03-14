@@ -913,6 +913,7 @@ export const classActions = {
 
           grades[a.quizId] = latestAttempts
             ? {
+                id: latestAttempts.id,
                 score: latestAttempts.score,
                 maxScore: latestAttempts.maxScore,
                 status: latestAttempts.status,
@@ -938,23 +939,67 @@ export const classActions = {
         rows,
       };
     }),
+
   updateGrade: protectedProcedure
     .input(
       z.object({
-        lessonTypeId: z.number(),
+        quizId: z.number(),
         studentId: z.string(),
         score: z.number().nullable(),
       })
     )
-    .mutation(async ({ ctx, input }) => {
-      // Check if user is teacher
-      // Logic:
-      // 1. Find the quizAttempt for this student and lessonType (quiz/assignment).
-      // 2. If exists, update score.
-      // 3. If not, maybe create one? Or throw error?
+    .mutation(async ({ input }) => {
+      const { quizId, studentId, score } = input;
 
-      // Example:
-      // await db.update(quizAttempt).set({ score: input.score }).where(...)
+      // 1. Find the Quiz to get the default MaxScore
+      const [quizRecord] = await db.select().from(quiz).where(eq(quiz.id, quizId)).limit(1);
+
+      if (!quizRecord) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Quiz not found' });
+      }
+
+      // 2. Find existing attempt for this student
+      const [existingAttempt] = await db
+        .select()
+        .from(quizAttempt)
+        .where(and(eq(quizAttempt.quizId, quizId), eq(quizAttempt.studentId, studentId)))
+        .limit(1);
+
+      // 3. Resolve Max Score
+      // Priority: Existing Attempt -> Quiz Definition -> 100 (Safe fallback)
+      const maxScore = existingAttempt?.maxScore ?? quizRecord.score ?? 100;
+
+      // 4. Calculate Percentage
+      const percentage = score !== null ? Math.round((score / maxScore) * 100) : null;
+
+      // 5. UPSERT LOGIC
+      if (existingAttempt) {
+        // --- UPDATE EXISTING ATTEMPT ---
+        await db
+          .update(quizAttempt)
+          .set({
+            score: score,
+            maxScore: maxScore, // Update maxScore in case it was null before
+            percentage: percentage,
+            status: 'graded', // Ensure status is updated
+            submittedAt: existingAttempt.submittedAt ?? new Date(), // Ensure submittedAt exists
+          })
+          .where(eq(quizAttempt.id, existingAttempt.id));
+      } else {
+        // --- CREATE NEW ATTEMPT (Manual Grading) ---
+        // This handles the case where student hasn't submitted, but teacher wants to give a grade
+        await db.insert(quizAttempt).values({
+          quizId: quizId,
+          studentId: studentId,
+          score: score,
+          maxScore: maxScore,
+          percentage: percentage,
+          status: 'graded',
+          attemptNumber: 1,
+          startedAt: new Date(),
+          submittedAt: new Date(),
+        });
+      }
 
       return { success: true };
     }),
@@ -1340,6 +1385,7 @@ export const classActions = {
           optionText: quizAnswerOption.optionText,
           imageBase64Jpg: quizAnswerOption.imageBase64Jpg,
           // Explicitly DO NOT select 'isCorrect'
+          isCorrect: quizAnswerOption.isCorrect,
         })
         .from(quizAnswerOption)
         .where(inArray(quizAnswerOption.questionId, questionIds));
@@ -1385,18 +1431,22 @@ export const classActions = {
           };
 
           switch (q.type) {
-            case 'multiple_choice':
+            case 'multiple_choice': {
+              const options = mcOptions.filter((opt) => opt.questionId === q.id);
+              // Count correct answers to determine if it's multi-select
+              const correctCount = options.filter((opt) => opt.isCorrect).length;
+
               return {
                 ...base,
                 type: 'multiple_choice' as const,
-                multipleChoices: mcOptions
-                  .filter((opt) => opt.questionId === q.id)
-                  .map((opt) => ({
-                    multipleChoiceId: opt.id,
-                    optionText: opt.optionText,
-                    imageBase64Jpg: opt.imageBase64Jpg,
-                  })),
+                multipleAnswer: correctCount > 1, // Send this flag
+                multipleChoices: options.map((opt) => ({
+                  multipleChoiceId: opt.id,
+                  optionText: opt.optionText,
+                  imageBase64Jpg: opt.imageBase64Jpg,
+                })),
               };
+            }
 
             case 'true_false':
               return {

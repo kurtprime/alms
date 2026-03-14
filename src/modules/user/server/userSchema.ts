@@ -197,6 +197,7 @@ export type StudentGradeRow = {
   grades: Record<
     string,
     {
+      id: number;
       score: number | null;
       maxScore: number | null; // ADDED THIS
       status: string;

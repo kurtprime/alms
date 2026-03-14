@@ -4,59 +4,57 @@ import {
   quizMatchingPair,
   quizOrderingItem,
   quizQuestion,
-} from "@/db/schema";
-import { db } from "@/index";
-import { eq } from "drizzle-orm";
-import { quizSettingsSchema } from "./userSchema";
-import z from "zod";
-import { nanoid } from "nanoid";
+} from '@/db/schema';
+import { db } from '@/index';
+import { eq } from 'drizzle-orm';
+import { quizSettingsSchema } from './userSchema';
+import z from 'zod';
+import { nanoid } from 'nanoid';
 
 export async function deepCloneQuiz(
   sourceQuizId: number,
   targetLessonTypeId: number,
-  newSettings: z.infer<typeof quizSettingsSchema>, // Replace 'any' with your specific settings type
+  newSettings: z.infer<typeof quizSettingsSchema>
 ) {
   return await db.transaction(async (tx) => {
     // 1. Fetch Source Quiz
-    const [source] = await tx
-      .select()
-      .from(quiz)
-      .where(eq(quiz.id, sourceQuizId));
-    if (!source) throw new Error("Source quiz not found");
+    const [source] = await tx.select().from(quiz).where(eq(quiz.id, sourceQuizId));
+    if (!source) throw new Error('Source quiz not found');
 
-    // 2. Create NEW Quiz (The Clone)
+    // 2. Fetch Source Questions FIRST (to calculate total score)
+    const questions = await tx
+      .select()
+      .from(quizQuestion)
+      .where(eq(quizQuestion.quizId, sourceQuizId));
+
+    // 3. Calculate Total Score from Question Points
+    const calculatedTotalScore = questions.reduce((sum, q) => sum + (q.points || 0), 0);
+
+    // 4. Create NEW Quiz with calculated score
     const [newQuiz] = await tx
       .insert(quiz)
       .values({
         name: source.name,
         description: source.description,
-        lessonTypeId: targetLessonTypeId, // Attach to the new lesson
+        lessonTypeId: targetLessonTypeId,
         createdBy: source.createdBy,
-        status: "published", // Cloned quizzes are usually published immediately
-        score: newSettings.scores,
+        status: 'published',
+
+        // ✅ USE CALCULATED SCORE
+        score: calculatedTotalScore,
+
         // Apply overrides from input settings
         timeLimit: newSettings.timeLimit,
         maxAttempts: newSettings.maxAttempts,
         shuffleQuestions: newSettings.shuffleQuestions,
         showScoreAfterSubmission: newSettings.showScoreAfterSubmission,
         showCorrectAnswers: newSettings.showCorrectAnswers,
-        startDate: newSettings.startDate
-          ? new Date(newSettings.startDate)
-          : null,
+        startDate: newSettings.startDate ? new Date(newSettings.startDate) : null,
         endDate: newSettings.endDate ? new Date(newSettings.endDate) : null,
       })
       .returning();
 
-    // console.log("DEEP CLONE NEW QUIZ: ", newQuiz)
-
-    // 3. Fetch and Clone Questions
-    const questions = await tx
-      .select()
-      .from(quizQuestion)
-      .where(eq(quizQuestion.quizId, sourceQuizId));
-
-    // console.log("Quiz Questions: ", questions)
-
+    // 5. Clone Questions (Iterate over fetched questions, no need to re-fetch)
     for (const q of questions) {
       // Insert New Question
       const [newQ] = await tx
@@ -67,20 +65,16 @@ export async function deepCloneQuiz(
           type: q.type,
           points: q.points,
           orderIndex: q.orderIndex,
-
           imageBase64Jpg: q.imageBase64Jpg,
           explanation: q.explanation,
           hint: q.hint,
           required: q.required,
-          // Copy type-specific columns if stored on question (like correctBoolean)
           correctBoolean: q.correctBoolean,
         })
         .returning();
 
-        console.log("INSERTING NEW QUESTION: ", newQ)
-
-      // 4. Clone Children based on Type
-      if (q.type === "multiple_choice") {
+      // 6. Clone Children based on Type
+      if (q.type === 'multiple_choice') {
         const options = await tx
           .select()
           .from(quizAnswerOption)
@@ -95,10 +89,10 @@ export async function deepCloneQuiz(
               points: opt.points,
               imageBase64Jpg: opt.imageBase64Jpg,
               feedback: opt.feedback,
-            })),
+            }))
           );
         }
-      } else if (q.type === "matching") {
+      } else if (q.type === 'matching') {
         const pairs = await tx
           .select()
           .from(quizMatchingPair)
@@ -113,10 +107,10 @@ export async function deepCloneQuiz(
               points: p.points,
               leftImageBase64Jpg: p.leftImageBase64Jpg,
               rightImageBase64Jpg: p.rightImageBase64Jpg,
-            })),
+            }))
           );
         }
-      } else if (q.type === "ordering") {
+      } else if (q.type === 'ordering') {
         const items = await tx
           .select()
           .from(quizOrderingItem)
@@ -130,11 +124,10 @@ export async function deepCloneQuiz(
               correctPosition: i.correctPosition,
               points: i.points,
               imageBase64Jpg: i.imageBase64Jpg,
-            })),
+            }))
           );
         }
       }
-      // Essay and True/False don't have separate tables, so we are done.
     }
 
     return newQuiz;
