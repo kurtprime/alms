@@ -1,7 +1,7 @@
 // src/modules/user/ui/components/Student/QuizRenderer/MatchingRenderer.tsx
-"use client";
+'use client';
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -13,9 +13,9 @@ import {
   rectIntersection,
   DragStartEvent,
   DragEndEvent,
-} from "@dnd-kit/core";
-import { cn } from "@/lib/utils";
-import { GripVertical, X } from "lucide-react";
+} from '@dnd-kit/core';
+import { cn } from '@/lib/utils';
+import { GripVertical, X } from 'lucide-react';
 
 // ==========================================
 // TYPES
@@ -24,7 +24,9 @@ import { GripVertical, X } from "lucide-react";
 interface MatchingPair {
   matchingPairId: string;
   leftItem: string | null;
+  leftImageBase64Jpg?: string | null;
   rightItem: string;
+  rightImageBase64Jpg?: string | null;
 }
 
 interface MatchingQuestion {
@@ -37,10 +39,11 @@ interface MatchingQuestion {
 
 interface DraggableAnswerProps {
   id: string;
-  text: string;
+  text: string | null;
+  image: string | null;
 }
 
-function DraggableAnswer({ id, text }: DraggableAnswerProps) {
+function DraggableAnswer({ id, text, image }: DraggableAnswerProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id,
   });
@@ -51,22 +54,30 @@ function DraggableAnswer({ id, text }: DraggableAnswerProps) {
       {...listeners}
       {...attributes}
       className={cn(
-        "relative px-4 py-3 bg-white dark:bg-slate-800 border rounded-lg shadow-sm cursor-grab active:cursor-grabbing border-slate-200 dark:border-slate-700 transition-all",
-        isDragging && "opacity-30 scale-95 border-blue-400",
+        'relative px-4 py-3 bg-white dark:bg-slate-800 border rounded-lg shadow-sm cursor-grab active:cursor-grabbing border-slate-200 dark:border-slate-700 transition-all',
+        isDragging && 'opacity-30 scale-95 border-blue-400'
       )}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">{text}</span>
-        <GripVertical className="h-4 w-4 text-slate-400" />
+        {image ? (
+          <img src={image} alt="" className="h-6 w-6 object-cover rounded mr-2" />
+        ) : (
+          <span className="text-sm font-medium truncate">{text || 'Item'}</span>
+        )}
+        <GripVertical className="h-4 w-4 text-slate-400 flex-shrink-0" />
       </div>
     </div>
   );
 }
 
-function DragOverlayItem({ text }: { text: string }) {
+function DragOverlayItem({ text, image }: { text: string | null; image: string | null }) {
   return (
-    <div className="px-4 py-3 bg-blue-600 text-white border rounded-lg shadow-2xl cursor-grabbing scale-105 ring-2 ring-blue-300">
-      <span className="text-sm font-medium">{text}</span>
+    <div className="px-4 py-3 bg-blue-600 text-white border rounded-lg shadow-2xl cursor-grabbing scale-105 ring-2 ring-blue-300 flex items-center gap-2">
+      {image ? (
+        <img src={image} alt="" className="h-6 w-6 object-cover rounded" />
+      ) : (
+        <span className="text-sm font-medium">{text || 'Item'}</span>
+      )}
     </div>
   );
 }
@@ -74,57 +85,59 @@ function DragOverlayItem({ text }: { text: string }) {
 interface DroppableSlotProps {
   id: string;
   label: string | null;
-  currentAnswerId: string | null;
-  allAnswersMap: Record<string, string>;
+  imageLabel: string | null;
+  currentAnswer: { id: string; text: string | null; image: string | null } | null;
   onClear: () => void;
 }
 
-function DroppableSlot({
-  id,
-  label,
-  currentAnswerId,
-  allAnswersMap,
-  onClear,
-}: DroppableSlotProps) {
+function DroppableSlot({ id, label, imageLabel, currentAnswer, onClear }: DroppableSlotProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
-  const currentAnswerText = currentAnswerId
-    ? allAnswersMap[currentAnswerId]
-    : null;
 
   return (
     <div className="flex items-center gap-4">
+      {/* Left Item (Static) */}
       <div className="flex-1 font-medium text-slate-700 dark:text-slate-200 text-sm min-h-[48px] flex items-center">
-        {label}
+        {imageLabel ? (
+          <img src={imageLabel} alt="" className="h-8 w-8 object-cover rounded mr-2" />
+        ) : (
+          label
+        )}
       </div>
 
+      {/* Drop Zone */}
       <div
         ref={setNodeRef}
         className={cn(
-          "w-[200px] min-h-[48px] rounded-lg border-2 border-dashed transition-all relative flex items-center justify-center",
+          'w-[200px] min-h-[48px] rounded-lg border-2 border-dashed transition-all relative flex items-center justify-center',
           isOver
-            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30"
-            : "border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900",
-          currentAnswerId &&
-            "border-solid border-green-500 bg-green-50 dark:bg-green-900/20",
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30'
+            : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900',
+          currentAnswer && 'border-solid border-green-500 bg-green-50 dark:bg-green-900/20'
         )}
       >
-        {currentAnswerText ? (
+        {currentAnswer ? (
           <div className="w-full">
             <div className="p-2 flex items-center justify-between group">
-              <span className="text-sm truncate">{currentAnswerText}</span>
+              <div className="flex items-center gap-1 truncate">
+                {currentAnswer.image ? (
+                  <img src={currentAnswer.image} alt="" className="h-6 w-6 object-cover rounded" />
+                ) : (
+                  <span className="text-sm truncate">{currentAnswer.text}</span>
+                )}
+              </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
                   onClear();
                 }}
-                className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="p-1 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"
               >
                 <X className="h-3 w-3 text-slate-500" />
               </button>
             </div>
           </div>
         ) : (
-          <span className="text-xs text-slate-400 dark:text-slate-500">
+          <span className="text-xs text-slate-400 dark:text-slate-500 pointer-events-none">
             Drop here
           </span>
         )}
@@ -138,7 +151,9 @@ function DroppableSlot({
 // ==========================================
 
 interface Props {
-  data: MatchingQuestion;
+  data: {
+    matchingOptions: MatchingPair[];
+  };
   value: Record<string, string> | undefined;
   onChange: (value: Record<string, string>) => void;
 }
@@ -154,100 +169,73 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 export function MatchingRenderer({ data, value, onChange }: Props) {
-  // 1. State
-  const [assignments, setAssignments] = useState<Record<string, string | null>>(
-    value || {},
-  );
+  const { matchingOptions } = data;
+
+  // 1. Initialize state synchronously using the initializer function
+  // This avoids the useEffect setState error.
+  const [rightItems, setRightItems] = useState(() => {
+    const items = matchingOptions.map((p) => ({
+      id: p.matchingPairId,
+      text: p.rightItem ?? null, // Ensure null if undefined
+      image: p.rightImageBase64Jpg ?? null, // Ensure null if undefined
+    }));
+    return shuffleArray(items);
+  });
+
   const [activeId, setActiveId] = useState<string | null>(null);
 
-  // FIX: Use useMemo for shuffling - only re-shuffle when data changes
-  const shuffledAnswerIds = useMemo(() => {
-    if (data.matchingOptions.length === 0) return [];
-    const ids = data.matchingOptions.map((p) => p.matchingPairId);
-    return shuffleArray(ids);
-  }, [data.matchingOptions]);
-
-  // 2. Data Maps
-  const allAnswersMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    data.matchingOptions.forEach((pair) => {
-      map[pair.matchingPairId] = pair.rightItem;
-    });
-    return map;
-  }, [data.matchingOptions]);
-
-  const assignedIds = Object.values(assignments).filter(Boolean) as string[];
-
-  // Derive available answers from the pre-shuffled list
-  const availableAnswerIds = useMemo(() => {
-    return shuffledAnswerIds.filter((id) => !assignedIds.includes(id));
-  }, [shuffledAnswerIds, assignedIds]);
-
-  // 3. Sensors
+  // 2. Sensors
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: { distance: 5 },
-    }),
+      activationConstraint: {
+        distance: 8, // Requires moving 8px before starting drag
+      },
+    })
   );
+
+  // 3. Helpers
+  const getAnswerDetails = (id: string) => rightItems.find((r) => r.id === id);
 
   // 4. Handlers
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
+    setActiveId(event.active.id as string);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveId(null);
 
-    if (!over) return;
+    if (!over) return; // Dropped outside
 
-    const answerId = String(active.id);
-    const questionId = String(over.id);
+    const sourceId = active.id as string; // Right Item ID
+    const destId = over.id as string; // Left Slot ID
 
-    if (questionId.startsWith("slot-")) {
-      const cleanQuestionId = questionId.replace("slot-", "");
+    // Create new mapping
+    const newValue = { ...(value || {}) };
 
-      setAssignments((prev) => {
-        const updated = { ...prev };
-
-        // Clear previous slot for this answer
-        Object.keys(updated).forEach((key) => {
-          if (updated[key] === answerId) {
-            updated[key] = null;
-          }
-        });
-
-        // Assign new
-        updated[cleanQuestionId] = answerId;
-
-        // Clean value for parent
-        const cleanValue: Record<string, string> = {};
-        Object.entries(updated).forEach(([k, v]) => {
-          if (v) cleanValue[k] = v;
-        });
-        onChange(cleanValue);
-
-        return updated;
-      });
-    }
-  };
-
-  const handleClearSlot = (questionId: string) => {
-    setAssignments((prev) => {
-      const updated = { ...prev };
-      delete updated[questionId];
-
-      const cleanValue: Record<string, string> = {};
-      Object.entries(updated).forEach(([k, v]) => {
-        if (v) cleanValue[k] = v;
-      });
-      onChange(cleanValue);
-
-      return updated;
+    // Remove the dragged item if it was already in a slot
+    Object.keys(newValue).forEach((key) => {
+      if (newValue[key] === sourceId) {
+        delete newValue[key];
+      }
     });
+
+    // Add new mapping
+    newValue[destId] = sourceId;
+
+    onChange(newValue);
   };
 
-  // 5. Render
+  const handleClear = (slotId: string) => {
+    const newValue = { ...(value || {}) };
+    delete newValue[slotId];
+    onChange(newValue);
+  };
+
+  // 5. Derived Data
+  // We hide the draggable item from the list if it is currently placed in a slot
+  const placedIds = useMemo(() => new Set(Object.values(value || {})), [value]);
+
   return (
     <DndContext
       sensors={sensors}
@@ -255,49 +243,58 @@ export function MatchingRenderer({ data, value, onChange }: Props) {
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
-        {/* COLUMN 1: QUESTIONS */}
+      <div className="space-y-4">
+        {/* LEFT COLUMN (Static Labels + Drop Slots) */}
         <div className="space-y-3">
-          <h4 className="text-xs font-semibold uppercase text-slate-500 mb-2">
-            Questions
-          </h4>
-          <div className="space-y-3">
-            {data.matchingOptions.map((pair) => (
+          {matchingOptions.map((pair) => {
+            const currentAnswerId = value?.[pair.matchingPairId];
+            const currentAnswer = currentAnswerId
+              ? {
+                  ...(getAnswerDetails(currentAnswerId) || { text: 'Unknown', image: null }),
+                  id: currentAnswerId,
+                }
+              : null;
+
+            return (
               <DroppableSlot
                 key={pair.matchingPairId}
-                id={`slot-${pair.matchingPairId}`}
+                id={pair.matchingPairId} // The ID we check against in handleDragEnd
                 label={pair.leftItem}
-                currentAnswerId={assignments[pair.matchingPairId] || null}
-                allAnswersMap={allAnswersMap}
-                onClear={() => handleClearSlot(pair.matchingPairId)}
+                imageLabel={pair.leftImageBase64Jpg ?? null}
+                currentAnswer={currentAnswer}
+                onClear={() => handleClear(pair.matchingPairId)}
               />
-            ))}
-          </div>
+            );
+          })}
         </div>
 
-        {/* COLUMN 2: ANSWERS POOL */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-semibold uppercase text-slate-500 mb-2">
-            Answers
+        {/* RIGHT COLUMN (Draggable Items) */}
+        <div className="mt-6 pt-4 border-t dark:border-slate-700">
+          <h4 className="text-xs text-muted-foreground mb-3">
+            Drag items from here to the matching slots
           </h4>
-          <div className="space-y-2 p-3 bg-slate-100 dark:bg-slate-800/50 rounded-lg min-h-[100px]">
-            {availableAnswerIds.length === 0 ? (
-              <p className="text-center text-sm text-slate-400 py-4">
-                All answers have been placed.
-              </p>
-            ) : (
-              availableAnswerIds.map((id) => (
-                <DraggableAnswer key={id} id={id} text={allAnswersMap[id]} />
-              ))
-            )}
+          <div className="flex flex-wrap gap-2">
+            {rightItems.map((item) => {
+              // If item is placed in a slot, don't show it in the list
+              if (placedIds.has(item.id)) return null;
+
+              return (
+                <DraggableAnswer key={item.id} id={item.id} text={item.text} image={item.image} />
+              );
+            })}
           </div>
         </div>
-      </div>
 
-      {/* DRAG OVERLAY */}
-      <DragOverlay>
-        {activeId ? <DragOverlayItem text={allAnswersMap[activeId]} /> : null}
-      </DragOverlay>
+        {/* DRAG OVERLAY */}
+        <DragOverlay>
+          {activeId ? (
+            <DragOverlayItem
+              text={getAnswerDetails(activeId)?.text ?? null}
+              image={getAnswerDetails(activeId)?.image ?? null}
+            />
+          ) : null}
+        </DragOverlay>
+      </div>
     </DndContext>
   );
 }
