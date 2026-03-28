@@ -42,39 +42,33 @@ export type StudentQuizQuestion = NonNullable<SuccessfulQuizResponse['questions'
 type AnswerState = Record<number, unknown>;
 
 // ============================================
-// PERSISTENCE HOOK
+// PERSISTENCE HOOK (Answers Only)
 // ============================================
 
-function useQuizPersistence(quizId: number) {
-  const storageKey = `quiz-attempt-${quizId}`;
+function useAnswerPersistence(quizId: number) {
+  const storageKey = `quiz-answers-${quizId}`;
 
-  const saveState = useCallback(
-    (state: { answers: AnswerState; startTime: number }) => {
+  const saveAnswers = useCallback(
+    (answers: AnswerState) => {
       try {
-        localStorage.setItem(storageKey, JSON.stringify(state));
+        localStorage.setItem(storageKey, JSON.stringify(answers));
       } catch {
-        // Ignore storage errors (e.g., quota exceeded)
+        // Ignore quota errors
       }
     },
     [storageKey]
   );
 
-  const loadState = useCallback(() => {
+  const loadAnswers = useCallback((): AnswerState => {
     try {
       const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        return JSON.parse(saved) as {
-          answers: AnswerState;
-          startTime: number;
-        };
-      }
+      return saved ? JSON.parse(saved) : {};
     } catch {
-      // Ignore parse errors
+      return {};
     }
-    return null;
   }, [storageKey]);
 
-  const clearState = useCallback(() => {
+  const clearAnswers = useCallback(() => {
     try {
       localStorage.removeItem(storageKey);
     } catch {
@@ -82,7 +76,7 @@ function useQuizPersistence(quizId: number) {
     }
   }, [storageKey]);
 
-  return { saveState, loadState, clearState };
+  return { saveAnswers, loadAnswers, clearAnswers };
 }
 
 // ============================================
@@ -98,20 +92,42 @@ export default function QuizPageView({
 }) {
   const trpc = useTRPC();
   const router = useRouter();
-  const { saveState, loadState, clearState } = useQuizPersistence(quizId);
   const params = useParams();
-  const attemptIdFromUrl = params.attemptId ? Number(params.attemptId) : undefined;
   const classId = params.classId as string;
+  const { saveAnswers, loadAnswers, clearAnswers } = useAnswerPersistence(quizId);
+
   // 1. Fetch Data
   const { data: quiz } = useSuspenseQuery(trpc.user.getQuizForTaking.queryOptions({ quizId }));
 
-  // Destructure mutate directly for stable reference
+  // 2. Derive Timer Values from Server Data
+  const serverStartTime = quiz.attempt?.startedAt
+    ? new Date(quiz.attempt.startedAt).getTime()
+    : null;
+
+  const endTime =
+    serverStartTime && quiz.timeLimit ? serverStartTime + quiz.timeLimit * 60 * 1000 : null;
+
+  // 3. Initialize State
+  const [answers, setAnswers] = useState<AnswerState>(() => loadAnswers());
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Initialize Time Left immediately based on server time
+  const [timeLeft, setTimeLeft] = useState<number | null>(() => {
+    if (!endTime) return null;
+    const remaining = endTime - Date.now();
+    return Math.max(0, remaining);
+  });
+
+  const questions = (quiz.questions || []) as StudentQuizQuestion[];
+  const currentQuestion = questions[currentIndex];
+
+  // 4. Mutations
   const { mutate } = useMutation(
     trpc.user.submitQuiz.mutationOptions({
-      onSuccess: (data) => {
-        clearState(); // Clear localStorage
+      onSuccess: () => {
+        clearAnswers();
         toast.success('Quiz Submitted!');
-        // Redirect to results page
         router.push(`/class/${classId}/quiz/${lessonTypeId}`);
       },
       onError: (err) => {
@@ -121,69 +137,31 @@ export default function QuizPageView({
     })
   );
 
-  // 2. Load Saved Data (Synchronously)
-  const savedState = loadState();
-
-  // 3. Initialize State
-  const [currentIndex, setCurrentIndex] = useState(0);
-
-  // Initialize Answers from LocalStorage
-  const [answers, setAnswers] = useState<AnswerState>(savedState?.answers || {});
-
-  // Initialize Start Time from LocalStorage (Critical for Timer)
-  const [startTime] = useState<number>(() => savedState?.startTime || Date.now());
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Calculate Time Left based on Start Time and Current Time
-  const calculateRemainingTime = useCallback(() => {
-    if (!quiz.timeLimit) return null;
-
-    const endTime = startTime + quiz.timeLimit * 60 * 1000;
-    const remaining = endTime - Date.now();
-
-    return Math.max(0, remaining);
-  }, [quiz.timeLimit, startTime]);
-
-  const [timeLeft, setTimeLeft] = useState<number | null>(calculateRemainingTime);
-
-  const questions = (quiz.questions || []) as StudentQuizQuestion[];
-  const currentQuestion = questions[currentIndex];
-
-  // ==========================================
-  // PERSISTENCE EFFECT
-  // ==========================================
-
-  // Save state whenever answers or startTime changes
-  useEffect(() => {
-    // Don't save if we are just starting and have no answers
-    if (Object.keys(answers).length === 0 && !savedState?.startTime) return;
-
-    saveState({ answers, startTime });
-  }, [answers, startTime, saveState, savedState?.startTime]);
-
   // ==========================================
   // HANDLERS
   // ==========================================
 
-  const formatTime = useCallback((ms: number) => {
+  const formatTime = (ms: number) => {
     const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((ms % (1000 * 60)) / 1000);
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  }, []);
+  };
 
+  // FIX: Wrap isAnswered in useCallback to stabilize it
   const isAnswered = useCallback(
     (qId: number) => {
-      return answers[qId] !== undefined && answers[qId] !== '' && answers[qId] !== null;
+      const val = answers[qId];
+      if (val === undefined || val === '' || val === null) return false;
+      if (Array.isArray(val) && val.length === 0) return false;
+      return true;
     },
     [answers]
   );
 
-  // FIXED: Use 'mutate' directly instead of 'submitMutation.mutate'
   const handleSubmit = useCallback(
     async (force = false) => {
       if (!force) {
-        const unanswered = questions.filter((q) => !answers[q.id]);
+        const unanswered = questions.filter((q) => !isAnswered(q.id));
         if (unanswered.length > 0) {
           if (!confirm(`You have ${unanswered.length} unanswered questions. Submit anyway?`)) {
             return;
@@ -195,10 +173,9 @@ export default function QuizPageView({
 
       const spent = quiz.timeLimit ? quiz.timeLimit * 60 - Math.floor((timeLeft || 0) / 1000) : 0;
 
-      // FIXED: Use 'mutate' directly
       mutate({
         quizId,
-        attemptId: attemptIdFromUrl || undefined,
+        attemptId: quiz.attempt?.id,
         answers: Object.entries(answers).map(([id, val]) => ({
           questionId: Number(id),
           answer: val,
@@ -206,57 +183,41 @@ export default function QuizPageView({
         timeSpent: spent,
       });
     },
-    [
-      questions,
-      answers,
-      quizId,
-      timeLeft,
-      quiz.timeLimit,
-      mutate, // FIXED: 'mutate' is stable
-      attemptIdFromUrl,
-      setIsSubmitting,
-    ]
+    [questions, answers, quizId, quiz.timeLimit, quiz.attempt, timeLeft, mutate, isAnswered]
   );
 
-  // Ref for handleSubmit to avoid useEffect dependency issues
+  // FIX: Ref for handleSubmit to use in Interval
+  // We update the ref during render (safe for refs) instead of inside useEffect
   const handleSubmitRef = useRef(handleSubmit);
   useEffect(() => {
     handleSubmitRef.current = handleSubmit;
   }, [handleSubmit]);
 
-  const handleAnswerChange = useCallback(
-    (questionId: number, value: unknown) => {
-      setAnswers((prev) => ({ ...prev, [questionId]: value }));
-    },
-    [setAnswers]
-  );
-
-  const handleNext = useCallback(() => {
-    setCurrentIndex((prev) => Math.min(prev + 1, questions.length - 1));
-  }, [setCurrentIndex, questions.length]);
-
-  const handlePrev = useCallback(() => {
-    setCurrentIndex((prev) => Math.max(prev - 1, 0));
-  }, [setCurrentIndex]);
+  const handleAnswerChange = (qId: number, val: unknown) =>
+    setAnswers((p) => ({ ...p, [qId]: val }));
+  const handleNext = () => setCurrentIndex((p) => Math.min(p + 1, questions.length - 1));
+  const handlePrev = () => setCurrentIndex((p) => Math.max(p - 1, 0));
 
   // ==========================================
-  // TIMER EFFECT
+  // EFFECTS
   // ==========================================
 
+  // A. Persist Answers to LocalStorage
+  useEffect(() => {
+    saveAnswers(answers);
+  }, [answers, saveAnswers]);
+
+  // B. Timer Tick
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0) return;
 
     const interval = setInterval(() => {
-      // Calculate fresh remaining time to prevent drift
-      if (!quiz.timeLimit) return;
-
-      const endTime = startTime + quiz.timeLimit * 60 * 1000;
-      const remaining = endTime - Date.now();
-
+      const remaining = endTime! - Date.now();
       if (remaining <= 0) {
         clearInterval(interval);
         setTimeLeft(0);
         toast.error('Time is up! Submitting quiz...');
+        // Use the ref to get the latest handler
         handleSubmitRef.current(true);
       } else {
         setTimeLeft(remaining);
@@ -264,13 +225,28 @@ export default function QuizPageView({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timeLeft, startTime, quiz.timeLimit]);
+  }, [timeLeft, endTime]); // handleSubmit is NOT a dependency here, preventing the reset loop
 
   // ==========================================
   // RENDER
   // ==========================================
 
-  // Check if time expired (handle case where user refreshes on expired tab)
+  // Handle No Active Attempt (Redirect or Error)
+  if (!quiz.attempt) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold">No Active Attempt</h2>
+          <p className="text-muted-foreground mb-4">Please start the quiz first.</p>
+          <Button onClick={() => router.push(`/class/${classId}/quiz/${lessonTypeId}`)}>
+            Go to Quiz Details
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (timeLeft !== null && timeLeft <= 0) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -278,7 +254,7 @@ export default function QuizPageView({
           <Clock className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold">Time Expired</h2>
           <p className="text-muted-foreground mb-4">Your quiz time has expired.</p>
-          <Button onClick={() => handleSubmit(true)}>
+          <Button onClick={() => handleSubmit(true)} disabled={isSubmitting}>
             {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
             Submit Now
           </Button>
@@ -421,7 +397,7 @@ export default function QuizPageView({
                 {currentQuestion.type === 'multiple_choice' && (
                   <MultipleChoiceRenderer
                     data={currentQuestion}
-                    value={answers[currentQuestion.id] as string | undefined}
+                    value={answers[currentQuestion.id] as string | string[] | undefined}
                     onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                   />
                 )}

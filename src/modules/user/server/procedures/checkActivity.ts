@@ -15,10 +15,12 @@ import {
   user,
 } from '@/db/schema';
 import { db } from '@/index';
+import { auth } from '@/lib/auth';
 import { AssignmentMimeType } from '@/services/uploadthing/router';
 import { adminProcedure, protectedProcedure } from '@/trpc/init';
 import { TRPCError } from '@trpc/server';
 import { and, eq, sql, desc, inArray } from 'drizzle-orm';
+import { headers } from 'next/headers';
 import z from 'zod';
 
 export const checkActivityAction = {
@@ -383,5 +385,88 @@ export const checkActivityAction = {
         type: file.fileType as AssignmentMimeType,
         uploadedAt: file.uploadedAt,
       }));
+    }),
+  setOnboardingPassword: protectedProcedure
+    .input(z.object({ newPassword: z.string().min(8) }))
+    .mutation(async ({ input, ctx }) => {
+      const userId = ctx.auth.user.id;
+
+      // Better Auth's server API requires headers to identify the current session
+      // We create a minimal headers object or use `await headers()` from next/headers
+      const requestHeaders = await headers();
+
+      const result = await auth.api.setPassword({
+        body: {
+          newPassword: input.newPassword,
+        },
+        headers: requestHeaders, // Pass the request headers so BA knows WHO is calling
+      });
+
+      if (result.status) {
+        return { success: true };
+      } else {
+        throw new Error('Failed to set password');
+      }
+    }),
+  setOrUpdatePassword: protectedProcedure
+    .input(
+      z.object({
+        newPassword: z.string().min(8),
+        currentPassword: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const requestHeaders = await headers();
+
+      // Helper to safely extract error message
+      const getErrorMessage = (error: unknown): string => {
+        if (error instanceof Error) return error.message;
+        return 'An unknown error occurred';
+      };
+
+      // STRATEGY 1: Try Setting Password (For OAuth users)
+      if (!input.currentPassword) {
+        try {
+          const result = await auth.api.setPassword({
+            body: { newPassword: input.newPassword },
+            headers: requestHeaders,
+          });
+          if (result.status) return { success: true };
+        } catch (error: unknown) {
+          const message = getErrorMessage(error).toLowerCase();
+          // If error is NOT "password already set" related, throw immediately
+          if (!message.includes('password') && !message.includes('account already exists')) {
+            throw error;
+          }
+          // Otherwise, password exists -> Fall through to Strategy 2
+        }
+      }
+
+      // STRATEGY 2: Try Changing Password (For Credential users)
+      const passwordToCheck = input.currentPassword || 'password';
+
+      try {
+        const result = await auth.api.changePassword({
+          body: {
+            newPassword: input.newPassword,
+            currentPassword: passwordToCheck,
+          },
+          headers: requestHeaders,
+        });
+
+        if (result.token) {
+          return { success: true };
+        }
+      } catch (error: unknown) {
+        const message = getErrorMessage(error);
+        if (message.toLowerCase().includes('invalid password')) {
+          throw new Error(
+            'Your account has an existing password. Please enter your current password to update it.'
+          );
+        }
+        throw new Error(message);
+      }
+
+      throw new Error('Could not update password.');
     }),
 };

@@ -1,9 +1,9 @@
-"use client";
+'use client';
 
-import React from "react";
-import { useTRPC } from "@/trpc/client";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import React from 'react';
+import { useTRPC } from '@/trpc/client';
+import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 import {
   AlertCircle,
   Clock,
@@ -17,42 +17,39 @@ import {
   Loader2,
   Trophy,
   Eye,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { useSuspenseQuery, useMutation } from "@tanstack/react-query";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import DetailedAnswerReview from "../components/Student/QuizRenderer/DetailedAnswerReview";
+} from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { useSuspenseQuery, useMutation } from '@tanstack/react-query';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Card } from '@/components/ui/card';
+import DetailedAnswerReview from '../components/Student/QuizRenderer/DetailedAnswerReview';
 
 interface QuizViewDetailsProps {
   lessonTypeId: number;
   classId: string;
 }
 
-export default function QuizViewDetails({
-  lessonTypeId,
-  classId,
-}: QuizViewDetailsProps) {
+export default function QuizViewDetails({ lessonTypeId, classId }: QuizViewDetailsProps) {
   const trpc = useTRPC();
   const router = useRouter();
 
   // 1. Fetch Data
-  const { data: quiz } = useSuspenseQuery(
-    trpc.user.getQuizPreview.queryOptions({ lessonTypeId }),
-  );
+  const { data: quiz } = useSuspenseQuery(trpc.user.getQuizPreview.queryOptions({ lessonTypeId }));
 
   // 2. Mutation
   const startAttemptMutation = useMutation(
     trpc.user.startQuizAttempt.mutationOptions({
       onSuccess: (data) => {
-        router.push(`${lessonTypeId}/${quiz.id}?attemptId=${data.attemptId}`);
+        // FIX: Removed Date.now() and state logic.
+        // We simply redirect. The QuizPageView will fetch the correct server time.
+        // We construct the URL relative to the current lessonTypeId path.
+        router.push(`${lessonTypeId}/${quiz.id}/?attemptId=${data.attemptId}`);
       },
       onError: (err) => {
-        toast.error(err.message || "Failed to start quiz.");
+        toast.error(err.message || 'Failed to start quiz.');
       },
-    }),
+    })
   );
 
   // --- Logic Helpers ---
@@ -66,7 +63,7 @@ export default function QuizViewDetails({
 
   // Attempt Logic
   const maxAttempts = quiz.maxAttempts ?? 1;
-  const attemptsUsed = quiz.attemptsUsed ?? (quiz.latestAttempt ? 1 : 0); // Fallback safety
+  const attemptsUsed = quiz.attemptsUsed ?? (quiz.latestAttempt ? 1 : 0);
   const hasAttempt = !!quiz.latestAttempt;
   const hasRemainingAttempts = attemptsUsed < maxAttempts;
 
@@ -76,34 +73,34 @@ export default function QuizViewDetails({
   const canSeeScore = quiz.showScoreAfterSubmission || isEnded;
   const canSeeAnswers = quiz.showCorrectAnswers || isEnded;
 
-  const formatDate = (date: Date | string | null, fallback = "Always") => {
+  const formatDate = (date: Date | string | null, fallback = 'Always') => {
     if (!date) return fallback;
-    return new Date(date).toLocaleDateString("en-US", {
-      month: "long",
-      day: "numeric",
-      year: "numeric",
+    return new Date(date).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
     });
   };
 
   const formatTime = (date: Date | string | null) => {
-    if (!date) return "";
-    return new Date(date).toLocaleTimeString("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
     });
   };
 
   const handleStart = () => {
     if (!canStart) {
-      toast.error("You cannot start this quiz.");
+      toast.error('You cannot start this quiz.');
       return;
     }
     startAttemptMutation.mutate({ quizId: quiz.id });
   };
 
-  const defaultTab = hasAttempt ? "results" : "details";
+  const defaultTab = hasAttempt ? 'results' : 'details';
 
-  // --- Button Content Logic (Cleaned Up) ---
+  // --- Button Content Logic ---
   const getButtonContent = () => {
     if (startAttemptMutation.isPending) {
       return (
@@ -177,7 +174,7 @@ export default function QuizViewDetails({
               <AlertCircle className="h-6 w-6 text-blue-600 dark:text-blue-300" />
             </div>
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-slate-50 tracking-tight">
-              {quiz.name || "Untitled Quiz"}
+              {quiz.name || 'Untitled Quiz'}
             </h1>
             {quiz.description && (
               <p className="text-lg text-slate-600 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
@@ -189,9 +186,7 @@ export default function QuizViewDetails({
           {/* Tab System */}
           <Tabs defaultValue={defaultTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-8">
-              <TabsTrigger value="details">
-                {hasAttempt ? "Quiz Details" : "Overview"}
-              </TabsTrigger>
+              <TabsTrigger value="details">{hasAttempt ? 'Quiz Details' : 'Overview'}</TabsTrigger>
               {hasAttempt && (
                 <TabsTrigger value="results">
                   <Trophy className="h-4 w-4 mr-2" />
@@ -227,7 +222,7 @@ export default function QuizViewDetails({
                     Time Limit
                   </h3>
                   <p className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                    {quiz.timeLimit ? `${quiz.timeLimit} Mins` : "No Limit"}
+                    {quiz.timeLimit ? `${quiz.timeLimit} Mins` : 'No Limit'}
                   </p>
                 </div>
 
@@ -250,9 +245,7 @@ export default function QuizViewDetails({
                     Due Date
                   </h3>
                   <p className="text-xl font-bold text-slate-800 dark:text-slate-100">
-                    {endDate
-                      ? formatDate(endDate, "Always Open")
-                      : "Always Open"}
+                    {endDate ? formatDate(endDate, 'Always Open') : 'Always Open'}
                   </p>
                 </div>
               </div>
@@ -267,22 +260,17 @@ export default function QuizViewDetails({
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
                     <span>
-                      Once you start, the timer (if set) will begin counting
-                      down immediately.
+                      Once you start, the timer (if set) will begin counting down immediately.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
-                    <span>
-                      Ensure you have a stable internet connection to prevent
-                      data loss.
-                    </span>
+                    <span>Ensure you have a stable internet connection to prevent data loss.</span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 shrink-0" />
                     <span>
-                      Do not refresh the page or use the browser back button
-                      during the quiz.
+                      Do not refresh the page or use the browser back button during the quiz.
                     </span>
                   </li>
                 </ul>
@@ -296,15 +284,12 @@ export default function QuizViewDetails({
                   {/* Score Card */}
                   <Card className="overflow-hidden border-none shadow-lg">
                     <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 text-center text-white">
-                      <h3 className="text-lg font-medium opacity-90 mb-2">
-                        Your Score
-                      </h3>
+                      <h3 className="text-lg font-medium opacity-90 mb-2">Your Score</h3>
 
                       {canSeeScore ? (
                         <>
                           <div className="text-6xl font-bold mb-2">
-                            {quiz.latestAttempt.score ?? 0} /{" "}
-                            {quiz.latestAttempt.maxScore ?? 100}
+                            {quiz.latestAttempt.score ?? 0} / {quiz.latestAttempt.maxScore ?? 100}
                           </div>
                           <div className="text-2xl font-semibold opacity-90">
                             {quiz.latestAttempt.percentage ?? 0}%
@@ -313,9 +298,7 @@ export default function QuizViewDetails({
                       ) : (
                         <div className="py-6">
                           <Eye className="h-10 w-10 mx-auto mb-3 opacity-70" />
-                          <p className="text-xl font-semibold">
-                            Submission Received
-                          </p>
+                          <p className="text-xl font-semibold">Submission Received</p>
                           <p className="opacity-80 text-sm mt-1">
                             Scores are currently hidden by the instructor.
                           </p>
@@ -324,21 +307,16 @@ export default function QuizViewDetails({
 
                       {quiz.latestAttempt.submittedAt && (
                         <div className="mt-4 text-xs opacity-70">
-                          Submitted on:{" "}
-                          {new Date(
-                            quiz.latestAttempt.submittedAt,
-                          ).toLocaleString()}
+                          Submitted on: {new Date(quiz.latestAttempt.submittedAt).toLocaleString()}
                         </div>
                       )}
                     </div>
                   </Card>
 
                   {/* Detailed Breakdown */}
-                  {canSeeAnswers && (
-                    <DetailedAnswerReview attemptId={quiz.latestAttempt.id} />
-                  )}
+                  {canSeeAnswers && <DetailedAnswerReview attemptId={quiz.latestAttempt.id} />}
 
-                  {/* Retake Button Logic - Only show if they CAN retake */}
+                  {/* Retake Button Logic */}
                   {canStart && hasAttempt && (
                     <div className="flex justify-center pt-4">
                       <Button variant="outline" onClick={handleStart}>
@@ -359,12 +337,10 @@ export default function QuizViewDetails({
         <div className="max-w-3xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="hidden sm:block">
             {!canStart && hasAttempt ? (
-              <p className="text-sm text-red-500 font-medium">
-                No attempts remaining
-              </p>
+              <p className="text-sm text-red-500 font-medium">No attempts remaining</p>
             ) : (
               <p className="text-sm text-slate-500">
-                {hasAttempt ? "Want to try again?" : "Ready to start?"}
+                {hasAttempt ? 'Want to try again?' : 'Ready to start?'}
               </p>
             )}
           </div>
@@ -374,10 +350,10 @@ export default function QuizViewDetails({
             disabled={!canStart || startAttemptMutation.isPending}
             onClick={handleStart}
             className={cn(
-              "w-full sm:w-auto px-12 h-12 text-base font-semibold transition-all duration-200",
+              'w-full sm:w-auto px-12 h-12 text-base font-semibold transition-all duration-200',
               canStart
-                ? "bg-blue-600 hover:bg-blue-700 active:scale-[0.98]"
-                : "bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500 dark:text-slate-400",
+                ? 'bg-blue-600 hover:bg-blue-700 active:scale-[0.98]'
+                : 'bg-slate-300 dark:bg-slate-700 cursor-not-allowed text-slate-500 dark:text-slate-400'
             )}
           >
             {getButtonContent()}

@@ -41,6 +41,7 @@ import {
 } from 'drizzle-orm';
 import z from 'zod';
 import { lessonTypeOptionSchema, StudentGradeRow } from '../userSchema';
+import { inngest } from '@/services/inngest/client';
 
 type ResultReviewAnswer =
   | { type: 'option'; optionId: string }
@@ -97,37 +98,143 @@ export const classActions = {
       const { classId } = input;
       const { auth } = ctx;
 
+      // 1. Fetch Students
       const students = await db
         .selectDistinct({
-          ...getTableColumns(member),
           userId: user.id,
           userName: user.name,
           userEmail: user.email,
-          userInitial: user.middleInitial,
           userImage: user.image,
         })
         .from(classSubjects)
-        .innerJoin(organization, eq(classSubjects.enrolledClass, organization.id))
-        .innerJoin(member, eq(member.organizationId, organization.id))
+        .innerJoin(lesson, eq(lesson.classSubjectId, classSubjects.id))
+        .innerJoin(lessonType, eq(lessonType.lessonId, lesson.id))
+        .innerJoin(member, eq(member.organizationId, classSubjects.enrolledClass))
         .innerJoin(user, eq(member.userId, user.id))
         .where(
           and(
             eq(member.role, 'student'),
             eq(classSubjects.id, classId),
-            or(
-              exists(
-                db
-                  .select({ id: member.id })
-                  .from(member)
-                  .innerJoin(classSubjects, eq(member.organizationId, classSubjects.enrolledClass))
-                  .where(and(eq(member.userId, auth.user.id), eq(classSubjects.id, classId)))
-              ),
-              eq(classSubjects.teacherId, auth.user.id)
-            )
+            eq(classSubjects.teacherId, auth.user.id)
           )
         );
 
-      return students;
+      if (students.length === 0) return [];
+
+      const studentIds = students.map((s) => s.userId);
+
+      // 2. Fetch all LessonTypes for this class
+      const lessonTypes = await db
+        .select({
+          id: lessonType.id,
+          type: lessonType.type,
+        })
+        .from(classSubjects)
+        .innerJoin(lesson, eq(lesson.classSubjectId, classSubjects.id))
+        .innerJoin(lessonType, eq(lessonType.lessonId, lesson.id))
+        .where(eq(classSubjects.id, classId));
+
+      const handoutIds = lessonTypes.filter((lt) => lt.type === 'handout').map((lt) => lt.id);
+
+      const activityIds = lessonTypes
+        .filter((lt) => lt.type === 'quiz' || lt.type === 'assignment')
+        .map((lt) => lt.id);
+
+      // 3. Fetch Progress Data
+
+      // A. Handout Progress (markAsDone)
+      let completedHandouts: { userId: string; lessonTypeId: number }[] = [];
+      if (handoutIds.length > 0) {
+        completedHandouts = await db
+          .select({
+            userId: markAsDone.userId,
+            lessonTypeId: markAsDone.lessonTypeId,
+          })
+          .from(markAsDone)
+          .where(
+            and(
+              inArray(markAsDone.userId, studentIds),
+              inArray(markAsDone.lessonTypeId, handoutIds),
+              eq(markAsDone.isDone, true)
+            )
+          );
+      }
+
+      // B. Activity Progress (Quiz Attempts)
+      // We want to count unique quizzes completed.
+      // Even if a student has multiple attempts, it counts as 1 progress.
+      const completedActivitiesMap = new Map<string, number>(); // key: "studentId", value: count
+
+      if (activityIds.length > 0) {
+        // Map Quiz ID -> LessonType ID
+        const quizzes = await db
+          .select({
+            id: quiz.id,
+            lessonTypeId: quiz.lessonTypeId,
+          })
+          .from(quiz)
+          .where(inArray(quiz.lessonTypeId, activityIds));
+
+        const quizIds = quizzes.map((q) => q.id);
+        const quizToLessonMap = new Map(quizzes.map((q) => [q.id, q.lessonTypeId]));
+
+        if (quizIds.length > 0) {
+          // Fetch ALL relevant attempts (submitted/graded/expired)
+          const attempts = await db
+            .select({
+              studentId: quizAttempt.studentId,
+              quizId: quizAttempt.quizId,
+            })
+            .from(quizAttempt)
+            .where(
+              and(
+                inArray(quizAttempt.studentId, studentIds),
+                inArray(quizAttempt.quizId, quizIds),
+                inArray(quizAttempt.status, ['submitted', 'graded', 'expired'])
+              )
+            );
+
+          // DEDUPLICATION LOGIC:
+          // Use a Set to track unique "studentId:lessonTypeId" pairs
+          const uniqueCompletions = new Set<string>();
+
+          attempts.forEach((att) => {
+            const lessonTypeId = quizToLessonMap.get(att.quizId);
+            if (lessonTypeId) {
+              // Create a unique key for this student + this specific activity
+              const key = `${att.studentId}:${lessonTypeId}`;
+              uniqueCompletions.add(key);
+            }
+          });
+
+          // Aggregate counts per student
+          uniqueCompletions.forEach((key) => {
+            const [studentId] = key.split(':');
+            completedActivitiesMap.set(studentId, (completedActivitiesMap.get(studentId) ?? 0) + 1);
+          });
+        }
+      }
+
+      // 4. Aggregate Handout Data (Map)
+      const handoutCountMap = new Map<string, number>();
+      completedHandouts.forEach((h) => {
+        handoutCountMap.set(h.userId, (handoutCountMap.get(h.userId) ?? 0) + 1);
+      });
+
+      // 5. Combine with Student Data
+      return students.map((student) => ({
+        ...student,
+        progress: {
+          handouts: {
+            completed: handoutCountMap.get(student.userId) ?? 0,
+            total: handoutIds.length,
+          },
+          activities: {
+            completed: completedActivitiesMap.get(student.userId) ?? 0,
+            total: activityIds.length,
+          },
+        },
+      }));
     }),
   getAllLessonsWithContentsInClass: protectedProcedure
     .input(z.object({ classId: z.string(), lessonTypeId: z.int().optional() }))
@@ -1176,6 +1283,8 @@ export const classActions = {
           .from(quizQuestionResponse)
           .where(eq(quizQuestionResponse.attemptId, input.attemptId));
 
+        console.log('RESPONSES', responses);
+
         const questionIds = responses.map((r) => r.questionId);
 
         if (questionIds.length > 0) {
@@ -1344,6 +1453,23 @@ export const classActions = {
 
       // 2. Authorization & Availability Checks
       // Check if student has attempts left
+
+      const [activeAttempt] = await db
+        .select({
+          id: quizAttempt.id,
+          status: quizAttempt.status,
+          startedAt: quizAttempt.startedAt,
+        })
+        .from(quizAttempt)
+        .where(
+          and(
+            eq(quizAttempt.quizId, quizId),
+            eq(quizAttempt.studentId, userId),
+            eq(quizAttempt.status, 'in_progress')
+          )
+        )
+        .limit(1);
+
       const [attemptData] = await db
         .select({ count: count() })
         .from(quizAttempt)
@@ -1369,7 +1495,17 @@ export const classActions = {
 
       console.log('RAW QUESTIONS', questionsRaw);
       if (questionsRaw.length === 0) {
-        return { ...quizData, questions: [] };
+        return {
+          ...quizData,
+          questions: [],
+          attemptsUsed: attemptData.count,
+          attempt: activeAttempt
+            ? {
+                id: activeAttempt.id,
+                startedAt: activeAttempt.startedAt,
+              }
+            : null,
+        };
       }
 
       const questionIds = questionsRaw.map((q) => q.id);
@@ -1524,6 +1660,12 @@ export const classActions = {
         ...quizData,
         questions,
         attemptsUsed: attemptData.count,
+        attempt: activeAttempt
+          ? {
+              id: activeAttempt.id,
+              startedAt: activeAttempt.startedAt,
+            }
+          : null,
       };
     }),
   startQuizAttempt: protectedProcedure
@@ -1606,21 +1748,36 @@ export const classActions = {
           startedAt: new Date(),
         })
         .returning();
+      // 5. Trigger Inngest Timer
+      // We send the timeLimit so Inngest knows how long to sleep
+      if (quizData.timeLimit && quizData.timeLimit > 0) {
+        await inngest.send({
+          name: 'quiz/started',
+          data: {
+            attemptId: newAttempt.id,
+            durationInMinutes: quizData.timeLimit,
+          },
+        });
+      }
 
-      return { attemptId: newAttempt.id, isNew: true };
+      return {
+        attemptId: newAttempt.id,
+        isNew: true,
+        startedAt: newAttempt.startedAt,
+      };
     }),
   submitQuiz: protectedProcedure
     .input(
       z.object({
         quizId: z.number(),
-        attemptId: z.number().optional(), // Optional: if resuming
+        attemptId: z.number().optional(),
         answers: z.array(
           z.object({
             questionId: z.number(),
             answer: z.any(), // string, boolean, array, or object
           })
         ),
-        timeSpent: z.number(), // Time spent in seconds
+        timeSpent: z.number(),
       })
     )
     .mutation(async ({ input, ctx }) => {
@@ -1631,7 +1788,6 @@ export const classActions = {
       let attempt;
 
       if (attemptId) {
-        // Validate existing attempt
         const [existing] = await db
           .select()
           .from(quizAttempt)
@@ -1651,7 +1807,6 @@ export const classActions = {
         }
         attempt = existing;
       } else {
-        // Create new attempt if not provided (fallback)
         // Check for existing in_progress first to prevent duplicates
         const [existing] = await db
           .select()
@@ -1695,11 +1850,8 @@ export const classActions = {
 
       // Fetch related data for grading
       const [mcOptions, orderingItems, matchingPairs] = await Promise.all([
-        // MC Options
         db.select().from(quizAnswerOption).where(inArray(quizAnswerOption.questionId, questionIds)),
-        // Ordering Items
         db.select().from(quizOrderingItem).where(inArray(quizOrderingItem.questionId, questionIds)),
-        // Matching Pairs
         db.select().from(quizMatchingPair).where(inArray(quizMatchingPair.questionId, questionIds)),
       ]);
 
@@ -1740,19 +1892,38 @@ export const classActions = {
           pointsEarned = 0;
           isCorrect = false;
         } else if (q.type === 'multiple_choice') {
-          // userAnswer is expected to be the optionId (string)
+          // --- UPDATED LOGIC: Handle Multi-Select ---
           const options = optionsMap.get(q.id) || [];
-          const selectedOption = options.find((opt) => opt.id === userAnswer);
 
-          if (selectedOption && selectedOption.isCorrect) {
+          // 1. Identify Correct IDs
+          const correctIds = options
+            .filter((opt) => opt.isCorrect)
+            .map((opt) => opt.id)
+            .sort();
+
+          // 2. Normalize User Answer to Array
+          let selectedIds: string[] = [];
+          if (Array.isArray(userAnswer)) {
+            selectedIds = (userAnswer as string[]).sort();
+          } else if (typeof userAnswer === 'string') {
+            selectedIds = [userAnswer];
+          }
+
+          // 3. Compare (Strict Exact Match)
+          // Logic: User gets points ONLY if they select ALL correct answers and NO wrong answers.
+          const isExactMatch =
+            selectedIds.length === correctIds.length &&
+            selectedIds.every((val, index) => val === correctIds[index]);
+
+          if (isExactMatch) {
             isCorrect = true;
-            pointsEarned = q.points; // Assuming full points for correct MC
+            pointsEarned = q.points;
           } else {
             isCorrect = false;
             pointsEarned = 0;
           }
+          // --- END UPDATED LOGIC ---
         } else if (q.type === 'true_false') {
-          // userAnswer is boolean
           if (userAnswer === q.correctBoolean) {
             isCorrect = true;
             pointsEarned = q.points;
@@ -1761,9 +1932,7 @@ export const classActions = {
             pointsEarned = 0;
           }
         } else if (q.type === 'ordering') {
-          // userAnswer is string[] (array of item IDs)
           const items = orderingMap.get(q.id) || [];
-          // Sort correct items by position
           const correctOrder = items
             .sort((a, b) => a.correctPosition - b.correctPosition)
             .map((i) => i.id);
@@ -1778,37 +1947,39 @@ export const classActions = {
             pointsEarned = 0;
           }
         } else if (q.type === 'matching') {
-          // userAnswer is Record<string, string> mapping pairId -> selectedRightId
-          // Note: Based on your MatchingRenderer, the value maps pairId to the correct pairId?
-          // Let's assume userAnswer is { [pairId]: selectedRightId }
-          // We need to verify if the selected right ID matches the correct pair's right item.
-
           const pairs = matchingMap.get(q.id) || [];
           let correctCount = 0;
 
+          // Iterate through all correct pairs
           pairs.forEach((pair) => {
-            // Check if user mapped this pair correctly
-            // Note: This logic depends heavily on how MatchingRenderer sends data.
-            // Assuming: Key = pair.id (left), Value = selected pair.id (right)
-            // We check if the right item text matches? Or if the ID matches?
-            // Since matching pairs are unique, usually:
-            // Correct logic: Did user select the RIGHT item that belongs to THIS pair?
-
-            if (userAnswer && userAnswer[pair.id] === pair.id) {
-              // This assumes the 'correct' answer ID is the pair ID itself.
-              // Adjust logic if your 'right' items have separate IDs.
+            // Logic: Does the user's answer for this left item (pair.id) match the correct pair's ID?
+            // We assume the frontend sends { [leftPairId]: selectedRightPairId }
+            if (userAnswer && typeof userAnswer === 'object' && userAnswer[pair.id] === pair.id) {
               correctCount++;
             }
           });
 
-          if (correctCount === pairs.length) {
-            isCorrect = true;
-            pointsEarned = q.points;
+          // --- UPDATED LOGIC: Partial Credit ---
+          if (pairs.length > 0) {
+            // Calculate points per correct match
+            const pointsPerMatch = q.points / pairs.length;
+            pointsEarned = Math.round(correctCount * pointsPerMatch); // Round to avoid decimals
+
+            // Determine correctness status
+            if (correctCount === 0) {
+              isCorrect = false;
+            } else if (correctCount === pairs.length) {
+              isCorrect = true;
+            } else {
+              // Partial credit: We can set isCorrect to null or false depending on your UI needs.
+              // Null usually indicates "needs review" or "partial".
+              isCorrect = false;
+            }
           } else {
             isCorrect = false;
-            // Partial credit? For now: 0
             pointsEarned = 0;
           }
+          // --- END UPDATED LOGIC ---
         } else if (q.type === 'essay') {
           // Essays require manual grading
           isCorrect = null;
@@ -1817,31 +1988,40 @@ export const classActions = {
 
         totalScore += pointsEarned;
 
-        let answerPayload: typeof quizQuestionResponse.$inferInsert.answer;
+        // --- Payload Construction ---
+        let answerPayload:
+          | { type: 'option'; optionId: string }
+          | { type: 'multiple'; optionIds: string[] }
+          | { type: 'boolean'; value: boolean }
+          | { type: 'ordering'; order: string[] }
+          | { type: 'matching'; matches: Record<string, string> }
+          | { type: 'text'; text: string }
+          | null = null;
 
-        // Helper to map raw answer to Schema Type
-        if (userAnswer === undefined || userAnswer === null || userAnswer === '') {
-          answerPayload = null;
-        } else if (q.type === 'multiple_choice') {
-          // Assuming userAnswer is the optionId (string)
-          answerPayload = { type: 'option', optionId: String(userAnswer) };
+        if (q.type === 'multiple_choice') {
+          // Handle serialization for MC
+          if (Array.isArray(userAnswer)) {
+            answerPayload = { type: 'multiple', optionIds: userAnswer };
+          } else if (typeof userAnswer === 'string') {
+            answerPayload = { type: 'option', optionId: userAnswer };
+          }
         } else if (q.type === 'true_false') {
-          // userAnswer is boolean
           answerPayload = { type: 'boolean', value: Boolean(userAnswer) };
         } else if (q.type === 'ordering') {
-          // userAnswer is string[]
-          answerPayload = { type: 'ordering', order: userAnswer as string[] };
+          answerPayload = {
+            type: 'ordering',
+            order: Array.isArray(userAnswer) ? userAnswer : [],
+          };
         } else if (q.type === 'matching') {
-          // userAnswer is Record<string, string>
           answerPayload = {
             type: 'matching',
-            matches: userAnswer as Record<string, string>,
+            matches:
+              typeof userAnswer === 'object' && userAnswer !== null
+                ? (userAnswer as Record<string, string>)
+                : {},
           };
         } else if (q.type === 'essay') {
-          // userAnswer is string
           answerPayload = { type: 'text', text: String(userAnswer) };
-        } else {
-          answerPayload = null;
         }
 
         responseInserts.push({
@@ -1855,12 +2035,10 @@ export const classActions = {
 
       // 4. Database Operations (Transaction)
       await db.transaction(async (tx) => {
-        // Insert Responses
         if (responseInserts.length > 0) {
           await tx.insert(quizQuestionResponse).values(responseInserts);
         }
 
-        // Update Attempt
         const hasEssay = questions.some((q) => q.type === 'essay');
         const finalStatus = hasEssay ? 'submitted' : 'graded';
 
