@@ -35,25 +35,26 @@ export interface OrderingOption {
 // --- Question Type Interfaces ---
 
 export interface MultipleChoiceQuestion extends BaseQuestion {
-  type: "multiple_choice";
+  type: 'multiple_choice';
   multipleChoices: MultipleChoiceOption[];
+  multipleAnswer: boolean;
 }
 
 export interface TrueFalseQuestion extends BaseQuestion {
-  type: "true_false";
+  type: 'true_false';
 }
 
 export interface EssayQuestion extends BaseQuestion {
-  type: "essay";
+  type: 'essay';
 }
 
 export interface OrderingQuestion extends BaseQuestion {
-  type: "ordering";
+  type: 'ordering';
   orderingOptions: OrderingOption[];
 }
 
 export interface MatchingQuestion extends BaseQuestion {
-  type: "matching";
+  type: 'matching';
   matchingOptions: MatchingPair[];
 }
 
@@ -69,7 +70,4 @@ export type QuizQuestion =
 // --- Answer State Types ---
 
 // Map of questionId -> answer value
-export type AnswerMap = Record<
-  number,
-  string | boolean | string[] | Record<string, string>
->;
+export type AnswerMap = Record<number, string | boolean | string[] | Record<string, string>>;
