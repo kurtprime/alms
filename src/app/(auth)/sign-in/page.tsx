@@ -117,7 +117,7 @@ function SignInForm() {
   async function onSubmitUsername(values: z.infer<typeof SignInSchema>) {
     await authClient.signIn.username(
       {
-        username: values.username,
+        username: values.username.trim(),
         password: values.password,
         callbackURL: '/',
       },
@@ -141,7 +141,7 @@ function SignInForm() {
   async function onSubmitEmail(values: z.infer<typeof SignInEmailSchema>) {
     await authClient.signIn.email(
       {
-        email: values.email,
+        email: values.email.trim(),
         password: values.password,
         callbackURL: '/',
       },
