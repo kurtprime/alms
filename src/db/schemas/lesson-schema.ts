@@ -8,107 +8,99 @@ import {
   timestamp,
   uniqueIndex,
   varchar,
-} from "drizzle-orm/pg-core";
-import { classSubjects, publishStatusEnum } from "./subject-schema";
-import { user } from "../schema";
+} from 'drizzle-orm/pg-core';
+import { classSubjects, publishStatusEnum } from './subject-schema';
+import { user } from '../schema';
 
-export const lessonTerm = pgEnum("lesson_term", [
-  "prelims",
-  "midterms",
-  "pre-finals",
-  "finals",
-]);
+export const lessonTerm = pgEnum('lesson_term', ['prelims', 'midterms', 'pre-finals', 'finals']);
 export type LessonTerm = typeof lessonTerm;
 export const lesson = pgTable(
-  "lessons",
+  'lessons',
   {
-    id: serial("id").primaryKey(),
-    name: varchar("name", { length: 50 }).notNull(),
-    terms: lessonTerm("terms"),
-    classSubjectId: varchar("class_subject_id", { length: 255 })
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 50 }).notNull(),
+    terms: lessonTerm('terms'),
+    classSubjectId: varchar('class_subject_id', { length: 255 })
       .references(() => classSubjects.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       })
       .notNull(),
-    status: publishStatusEnum("status")
-      .$default(() => "published")
+    status: publishStatusEnum('status')
+      .$default(() => 'published')
       .notNull(),
-    publishedAt: timestamp("published_at"),
-    createdAt: timestamp("created_at")
+    publishedAt: timestamp('published_at'),
+    createdAt: timestamp('created_at')
       .$defaultFn(() => new Date())
       .notNull(),
   },
   (table) => [
-    index("lesson_class_subject_term_unique").on(
-      table.classSubjectId,
-      table.terms,
-    ),
-    index("lesson_class_subject_idx").on(table.classSubjectId),
-    index("lesson_status_idx").on(table.status, table.classSubjectId),
-  ],
+    index('lesson_class_subject_term_unique').on(table.classSubjectId, table.terms),
+    index('lesson_class_subject_idx').on(table.classSubjectId),
+    index('lesson_status_idx').on(table.status, table.classSubjectId),
+  ]
 );
-export const lessonTypeEnum = pgEnum("lesson_types", [
-  "handout",
-  "quiz",
-  "assignment",
-]);
+export const lessonTypeEnum = pgEnum('lesson_types', ['handout', 'quiz', 'assignment']);
 export const lessonType = pgTable(
-  "lesson_type",
+  'lesson_type',
   {
-    id: serial("id").primaryKey(),
-    name: varchar("name", { length: 50 }),
-    lessonId: integer("lesson_id")
+    id: serial('id').primaryKey(),
+    name: varchar('name', { length: 50 }),
+    lessonId: integer('lesson_id')
       .references(() => lesson.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       })
       .notNull(),
     type: lessonTypeEnum().notNull(),
-    status: publishStatusEnum("status").default("draft"),
-    markup: text("markup"),
-    publishedAt: timestamp("published_at"),
-    createdAt: timestamp("created_at")
+    status: publishStatusEnum('status').default('draft'),
+    markup: text('markup'),
+    publishedAt: timestamp('published_at'),
+    createdAt: timestamp('created_at')
       .$defaultFn(() => new Date())
       .notNull(),
+    aiGeneratedQuestions: text('ai_generated_questions'),
+    aiAnalysis: text('ai_analysis'),
+    aiSuggestions: text('ai_suggestions'),
+    aiGeneratedMaterial: text('ai_generated_material'),
   },
-  (table) => [index("lesson_lesson_id_idx").on(table.lessonId)],
+  (table) => [index('lesson_lesson_id_idx').on(table.lessonId)]
 );
 
-export const announcementTypeEnum = pgEnum("announcement_type", [
-  "lesson_publish", // Auto-generated when a lesson is published
-  "custom", // Teacher wrote a custom message
+export const announcementTypeEnum = pgEnum('announcement_type', [
+  'lesson_publish', // Auto-generated when a lesson is published
+  'custom', // Teacher wrote a custom message
 ]);
 
 export const announcement = pgTable(
-  "announcement",
+  'announcement',
   {
-    id: serial("id").primaryKey(),
-    classId: varchar("class_id", { length: 255 })
+    id: serial('id').primaryKey(),
+    classId: varchar('class_id', { length: 255 })
       .notNull()
-      .references(() => classSubjects.id, { onDelete: "cascade" }),
+      .references(() => classSubjects.id, { onDelete: 'cascade' }),
 
-    lessonTypeId: integer("lesson_type_id")
+    lessonTypeId: integer('lesson_type_id')
       .notNull()
       .references(() => lessonType.id, {
-        onDelete: "cascade",
+        onDelete: 'cascade',
       }),
 
-    type: announcementTypeEnum("type").notNull().default("lesson_publish"),
+    type: announcementTypeEnum('type').notNull().default('lesson_publish'),
 
     // The actual message content.
     // If null for 'lesson_publish', the app can generate it dynamically or the background job sets it.
-    message: text("message"),
+    message: text('message'),
 
-    createdBy: varchar("created_by", { length: 255 })
+    createdBy: varchar('created_by', { length: 255 })
       .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
+      .references(() => user.id, { onDelete: 'cascade' }),
 
-    createdAt: timestamp("created_at").defaultNow().notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
   },
   (table) => [
-    index("announcement_class_idx").on(table.classId, table.createdAt),
-    uniqueIndex("announcement_classId_lessonType_unique_index").on(
+    index('announcement_class_idx').on(table.classId, table.createdAt),
+    uniqueIndex('announcement_classId_lessonType_unique_index').on(
       table.classId,
-      table.lessonTypeId,
+      table.lessonTypeId
     ),
-  ],
+  ]
 );

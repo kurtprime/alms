@@ -22,6 +22,66 @@ type InngestEvents = {
       durationInMinutes: number;
     };
   };
+  'ai/generate.questions': {
+    data: {
+      lessonTypeId: number;
+      teacherId: string;
+      materialContent: string;
+      questionType: 'multiple_choice' | 'true_false' | 'short_answer' | 'essay' | 'all';
+      count: number;
+    };
+  };
+  'ai/analyze.material': {
+    data: {
+      lessonTypeId: number;
+      teacherId: string;
+      materialContent: string;
+      materialType: 'quiz' | 'assignment' | 'handout' | 'module';
+    };
+  };
+  'ai/improve.lesson_plan': {
+    data: {
+      lessonTypeId: number;
+      teacherId: string;
+      lessonPlanContent: string;
+      subject: string;
+      gradeLevel: string;
+    };
+  };
+  'ai/generate.material': {
+    data: {
+      lessonTypeId: number;
+      teacherId: string;
+      topic: string;
+      subject: string;
+      gradeLevel: string;
+      materialType: 'quiz' | 'assignment' | 'handout' | 'module';
+    };
+  };
+  'ai/process.document': {
+    data: {
+      teacherId: string;
+      lessonTypeId: number;
+      fileUrl: string;
+      fileType: string;
+      fileName: string;
+      fileSize: number;
+      analysisType: 'summary' | 'quiz' | 'full';
+    };
+  };
+  'ai/process.batch.documents': {
+    data: {
+      teacherId: string;
+      lessonTypeId: number;
+      files: Array<{
+        fileUrl: string;
+        fileType: string;
+        fileName: string;
+        fileSize: number;
+      }>;
+      analysisType: 'summary' | 'quiz' | 'full';
+    };
+  };
 };
 
 export const inngest = new Inngest({

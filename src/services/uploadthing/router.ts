@@ -32,6 +32,14 @@ const fileTypes = {
     maxFileSize: '16MB', // .ppt files (older PowerPoint format)
     maxFileCount: 10,
   },
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+    maxFileSize: '16MB', // .xlsx files (Excel)
+    maxFileCount: 10,
+  },
+  'application/vnd.ms-excel': {
+    maxFileSize: '16MB', // .xls files (older Excel format)
+    maxFileCount: 10,
+  },
 } as const;
 
 // Valid file types for Assignments (Documents, Images, Archives)
@@ -49,6 +57,11 @@ const assignmentFileTypes = {
     maxFileCount: 5,
   }, // pptx
   'application/vnd.ms-powerpoint': { maxFileSize: '16MB', maxFileCount: 5 }, // ppt
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': {
+    maxFileSize: '16MB',
+    maxFileCount: 5,
+  }, // xlsx
+  'application/vnd.ms-excel': { maxFileSize: '16MB', maxFileCount: 5 }, // xls
   'application/zip': { maxFileSize: '32MB', maxFileCount: 1 }, // For multiple files compressed
   'application/x-zip-compressed': { maxFileSize: '32MB', maxFileCount: 1 },
 } as const;

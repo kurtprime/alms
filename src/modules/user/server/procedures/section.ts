@@ -124,58 +124,65 @@ export const sectionActions = {
     const { id: userId } = ctx.auth.user;
     const isTeacher = ctx.auth.user.role === 'teacher';
 
-    // 1. Fetch Base Class Data
-    const classes = await db
-      .select({
-        id: classSubjects.id,
-        organizationId: organization.id,
-        subjectName: subjectName.name,
-        subjectCode: subjects.code,
-        enrolledClassName: organization.name,
-        teacherName: user.name,
-        teacherId: classSubjects.teacherId,
-      })
-      .from(classSubjects)
-      .innerJoin(subjects, eq(classSubjects.subjectId, subjects.id))
-      .innerJoin(subjectName, eq(subjects.name, subjectName.id))
-      .innerJoin(organization, eq(organization.id, classSubjects.enrolledClass))
-      .innerJoin(member, eq(member.organizationId, organization.id))
-      .innerJoin(user, eq(classSubjects.teacherId, user.id))
-      .where(or(eq(member.userId, userId), eq(classSubjects.teacherId, userId)));
+    // 1. Fetch Base Class Data - Split by role to avoid duplicate rows
+    // Teachers: Get classes they teach (no member join needed)
+    // Students: Get classes where they are a member of the organization
+    const classes = isTeacher
+      ? await db
+          .select({
+            id: classSubjects.id,
+            organizationId: organization.id,
+            subjectName: subjectName.name,
+            subjectCode: subjects.code,
+            enrolledClassName: organization.name,
+            teacherName: user.name,
+            teacherId: classSubjects.teacherId,
+          })
+          .from(classSubjects)
+          .innerJoin(subjects, eq(classSubjects.subjectId, subjects.id))
+          .innerJoin(subjectName, eq(subjects.name, subjectName.id))
+          .innerJoin(organization, eq(organization.id, classSubjects.enrolledClass))
+          .innerJoin(user, eq(classSubjects.teacherId, user.id))
+          .where(eq(classSubjects.teacherId, userId))
+      : await db
+          .select({
+            id: classSubjects.id,
+            organizationId: organization.id,
+            subjectName: subjectName.name,
+            subjectCode: subjects.code,
+            enrolledClassName: organization.name,
+            teacherName: user.name,
+            teacherId: classSubjects.teacherId,
+          })
+          .from(classSubjects)
+          .innerJoin(subjects, eq(classSubjects.subjectId, subjects.id))
+          .innerJoin(subjectName, eq(subjects.name, subjectName.id))
+          .innerJoin(organization, eq(organization.id, classSubjects.enrolledClass))
+          .innerJoin(
+            member,
+            and(eq(member.organizationId, organization.id), eq(member.userId, userId))
+          )
+          .innerJoin(user, eq(classSubjects.teacherId, user.id));
 
     if (classes.length === 0) return [];
 
-    const classIds = classes.map((c) => c.id);
+    // Deduplicate by class ID (safety measure)
+    const uniqueClasses = Array.from(new Map(classes.map((c) => [c.id, c])).values());
+    const classIds = uniqueClasses.map((c) => c.id);
 
-    // 2. ROLE-BASED AGGREGATION
-    if (isTeacher) {
-      // --- TEACHER LOGIC ---
+    // 2. Fetch LessonTypes (shared between both roles)
+    const lessonTypes =
+      classIds.length > 0
+        ? await db
+            .select({ id: lessonType.id, classSubjectId: lesson.classSubjectId })
+            .from(lessonType)
+            .innerJoin(lesson, eq(lesson.id, lessonType.lessonId))
+            .where(inArray(lesson.classSubjectId, classIds))
+        : [];
 
-      const lessonTypes = await db
-        .select({ id: lessonType.id, classSubjectId: lesson.classSubjectId })
-        .from(lessonType)
-        .innerJoin(lesson, eq(lesson.id, lessonType.lessonId))
-        .where(inArray(lesson.classSubjectId, classIds));
-
-      const lessonTypeIds = lessonTypes.map((lt) => lt.id);
-
-      // Map: LessonTypeID -> ClassID
-      const lessonTypeToClassMap = new Map(lessonTypes.map((lt) => [lt.id, lt.classSubjectId]));
-
-      const quizzes = await db
-        .select({ id: quiz.id, lessonTypeId: quiz.lessonTypeId })
-        .from(quiz)
-        .where(inArray(quiz.lessonTypeId, lessonTypeIds));
-
-      const quizIds = quizzes.map((q) => q.id);
-
-      // Map: QuizID -> ClassID
-      const quizToClassMap = new Map(
-        quizzes.map((q) => [q.id, lessonTypeToClassMap.get(q.lessonTypeId)])
-      );
-
-      if (quizIds.length === 0) {
-        // Return empty state if no quizzes
+    // Early exit if no lesson types
+    if (lessonTypes.length === 0) {
+      if (isTeacher) {
         const studentCounts = await db
           .select({ classId: member.organizationId, count: count() })
           .from(member)
@@ -183,7 +190,7 @@ export const sectionActions = {
             and(
               inArray(
                 member.organizationId,
-                classes.map((c) => c.organizationId)
+                uniqueClasses.map((c) => c.organizationId)
               ),
               eq(member.role, 'student')
             )
@@ -192,10 +199,70 @@ export const sectionActions = {
 
         const studentCountMap = new Map(studentCounts.map((s) => [s.classId, s.count]));
 
-        return classes.map((c) => ({
+        return uniqueClasses.map((c) => ({
           ...c,
-          role: 'teacher',
-          studentCount: studentCountMap.get(c.organizationId) || 0,
+          role: 'teacher' as const,
+          studentCount: studentCountMap.get(c.organizationId) ?? 0,
+          toCheckCount: 0,
+        }));
+      }
+
+      return uniqueClasses.map((c) => ({
+        ...c,
+        role: 'student' as const,
+        progress: { total: 0, done: 0 },
+      }));
+    }
+
+    const lessonTypeIds = lessonTypes.map((lt) => lt.id);
+
+    // Map: LessonTypeID -> ClassID
+    const lessonTypeToClassMap = new Map(lessonTypes.map((lt) => [lt.id, lt.classSubjectId]));
+
+    // 3. ROLE-BASED AGGREGATION
+    if (isTeacher) {
+      // --- TEACHER LOGIC ---
+
+      const quizzes = await db
+        .select({ id: quiz.id, lessonTypeId: quiz.lessonTypeId })
+        .from(quiz)
+        .where(inArray(quiz.lessonTypeId, lessonTypeIds));
+
+      // Build QuizID -> ClassID map, handling nullable lessonTypeId
+      const quizToClassMap = new Map<number, string>();
+      for (const q of quizzes) {
+        if (q.lessonTypeId !== null) {
+          const classId = lessonTypeToClassMap.get(q.lessonTypeId);
+          if (classId) {
+            quizToClassMap.set(q.id, classId);
+          }
+        }
+      }
+
+      const quizIds = Array.from(quizToClassMap.keys());
+
+      // Early return if no valid quizzes
+      if (quizIds.length === 0) {
+        const studentCounts = await db
+          .select({ classId: member.organizationId, count: count() })
+          .from(member)
+          .where(
+            and(
+              inArray(
+                member.organizationId,
+                uniqueClasses.map((c) => c.organizationId)
+              ),
+              eq(member.role, 'student')
+            )
+          )
+          .groupBy(member.organizationId);
+
+        const studentCountMap = new Map(studentCounts.map((s) => [s.classId, s.count]));
+
+        return uniqueClasses.map((c) => ({
+          ...c,
+          role: 'teacher' as const,
+          studentCount: studentCountMap.get(c.organizationId) ?? 0,
           toCheckCount: 0,
         }));
       }
@@ -219,18 +286,20 @@ export const sectionActions = {
 
       // Deduplicate: Keep only LATEST attempt per Student per Quiz
       const latestAttemptsMap = new Map<string, (typeof allAttempts)[0]>();
-      allAttempts.forEach((att) => {
+      for (const att of allAttempts) {
         const key = `${att.studentId}-${att.quizId}`;
         if (!latestAttemptsMap.has(key)) {
           latestAttemptsMap.set(key, att);
         }
-      });
+      }
 
       // Aggregate Counts
       const countsMap = new Map<string, { toCheck: number }>();
-      classIds.forEach((id) => countsMap.set(id, { toCheck: 0 }));
+      for (const id of classIds) {
+        countsMap.set(id, { toCheck: 0 });
+      }
 
-      latestAttemptsMap.forEach((att) => {
+      for (const att of latestAttemptsMap.values()) {
         if (att.status === 'submitted' || att.status === 'expired') {
           const classId = quizToClassMap.get(att.quizId);
           if (classId) {
@@ -238,7 +307,7 @@ export const sectionActions = {
             if (entry) entry.toCheck++;
           }
         }
-      });
+      }
 
       // Student Counts
       const studentCounts = await db
@@ -248,7 +317,7 @@ export const sectionActions = {
           and(
             inArray(
               member.organizationId,
-              classes.map((c) => c.organizationId)
+              uniqueClasses.map((c) => c.organizationId)
             ),
             eq(member.role, 'student')
           )
@@ -257,28 +326,14 @@ export const sectionActions = {
 
       const studentCountMap = new Map(studentCounts.map((s) => [s.classId, s.count]));
 
-      return classes.map((c) => ({
+      return uniqueClasses.map((c) => ({
         ...c,
-        role: 'teacher',
-        studentCount: studentCountMap.get(c.organizationId) || 0,
-        toCheckCount: countsMap.get(c.id)?.toCheck || 0,
+        role: 'teacher' as const,
+        studentCount: studentCountMap.get(c.organizationId) ?? 0,
+        toCheckCount: countsMap.get(c.id)?.toCheck ?? 0,
       }));
     } else {
       // --- STUDENT LOGIC ---
-
-      const lessonTypes = await db
-        .select({
-          id: lessonType.id,
-          classSubjectId: lesson.classSubjectId,
-        })
-        .from(lessonType)
-        .innerJoin(lesson, eq(lesson.id, lessonType.lessonId))
-        .where(inArray(lesson.classSubjectId, classIds));
-
-      const lessonTypeIds = lessonTypes.map((lt) => lt.id);
-
-      // Map: LessonTypeID -> ClassID
-      const lessonTypeToClassMap = new Map(lessonTypes.map((lt) => [lt.id, lt.classSubjectId]));
 
       // A. Mark as Done (Handouts)
       const doneItems = await db
@@ -298,12 +353,18 @@ export const sectionActions = {
         .from(quiz)
         .where(inArray(quiz.lessonTypeId, lessonTypeIds));
 
-      const quizIds = quizzes.map((q) => q.id);
+      // Build QuizID -> ClassID map, handling nullable lessonTypeId
+      const quizToClassMap = new Map<number, string>();
+      for (const q of quizzes) {
+        if (q.lessonTypeId !== null) {
+          const classId = lessonTypeToClassMap.get(q.lessonTypeId);
+          if (classId) {
+            quizToClassMap.set(q.id, classId);
+          }
+        }
+      }
 
-      // Map: QuizID -> ClassID
-      const quizToClassMap = new Map(
-        quizzes.map((q) => [q.id, lessonTypeToClassMap.get(q.lessonTypeId)])
-      );
+      const quizIds = Array.from(quizToClassMap.keys());
 
       // C. Fetch Attempts (Newest First)
       // We fetch 'graded', 'submitted', 'expired'. 'in_progress' does NOT count as done yet.
@@ -322,33 +383,35 @@ export const sectionActions = {
 
       // D. Deduplicate: Keep only LATEST attempt per Quiz
       const latestQuizAttempts = new Map<number, (typeof attemptsRaw)[number]>();
-      attemptsRaw.forEach((att) => {
+      for (const att of attemptsRaw) {
         if (!latestQuizAttempts.has(att.quizId)) {
           latestQuizAttempts.set(att.quizId, att);
         }
-      });
+      }
 
       // 3. Aggregate per Class
       const progressMap = new Map<string, { total: number; done: number }>();
-      classIds.forEach((id) => progressMap.set(id, { total: 0, done: 0 }));
+      for (const id of classIds) {
+        progressMap.set(id, { total: 0, done: 0 });
+      }
 
       // Count totals (All LessonTypes)
-      lessonTypes.forEach((lt) => {
+      for (const lt of lessonTypes) {
         const entry = progressMap.get(lt.classSubjectId);
         if (entry) entry.total++;
-      });
+      }
 
       // Count done (Handouts)
-      doneItems.forEach((item) => {
+      for (const item of doneItems) {
         const classId = lessonTypeToClassMap.get(item.lessonTypeId);
         if (classId) {
           const entry = progressMap.get(classId);
           if (entry) entry.done++;
         }
-      });
+      }
 
       // Count done (Quizzes - Based on Latest Attempt)
-      latestQuizAttempts.forEach((att) => {
+      for (const att of latestQuizAttempts.values()) {
         // If the LATEST attempt is NOT in_progress, it counts as done (submitted/graded/expired)
         if (att.status !== 'in_progress') {
           const classId = quizToClassMap.get(att.quizId);
@@ -357,12 +420,12 @@ export const sectionActions = {
             if (entry) entry.done++;
           }
         }
-      });
+      }
 
-      return classes.map((c) => ({
+      return uniqueClasses.map((c) => ({
         ...c,
-        role: 'student',
-        progress: progressMap.get(c.id) || { total: 0, done: 0 },
+        role: 'student' as const,
+        progress: progressMap.get(c.id) ?? { total: 0, done: 0 },
       }));
     }
   }),

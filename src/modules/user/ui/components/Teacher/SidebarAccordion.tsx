@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Badge } from '@/components/ui/badge';
-import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { Session } from '@/lib/auth-client';
+import { SidebarMenuButton, SidebarMenuItem, SidebarTrigger } from '@/components/ui/sidebar';
 
 export default function SidebarAccordion({ session }: { session: Session }) {
   const trpc = useTRPC();
@@ -199,6 +199,11 @@ export default function SidebarAccordion({ session }: { session: Session }) {
           </HoverCard>
         </div>
       </AccordionItem>
+      <SidebarMenuItem>
+        <SidebarMenuButton>
+          <Link href={`/ai`}>AI Features</Link>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
     </>
   );
 }
