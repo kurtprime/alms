@@ -757,8 +757,7 @@ function FooterBar() {
           <h3 className="text-lg mb-2">ARK Technological Institute Education System Inc.</h3>
           <p className="text-sm text-[#ccc] leading-relaxed flex gap-2">
             Empowering students and teachers through innovative technology-driven education using
-            A-LMS, a Smart Teacher-Centered Learning Management System with AI Instructional
-            Support.
+            A-LMS, a Smart Teacher-Centered Learning Management System with AI Instructional Support
           </p>
         </div>
 
