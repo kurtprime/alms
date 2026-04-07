@@ -1,9 +1,9 @@
-import { Session } from "@/lib/auth-client";
-import { getQueryClient, trpc } from "@/trpc/server";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import React, { Suspense } from "react";
-import { ErrorBoundary } from "react-error-boundary";
-import AnnouncementOverview from "../components/AnnouncementOverview";
+import { Session } from '@/lib/auth-client';
+import { getQueryClient, trpc } from '@/trpc/server';
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import React, { Suspense } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import AnnouncementOverview from '../components/AnnouncementOverview';
 
 export default function AnnouncementView({
   classId,
@@ -17,7 +17,13 @@ export default function AnnouncementView({
   void queryClient.prefetchQuery(
     trpc.user.getClassAnnouncement.queryOptions({
       classId,
-    }),
+    })
+  );
+
+  void queryClient.prefetchQuery(
+    trpc.user.getClassSubjectDetails.queryOptions({
+      classId,
+    })
   );
 
   return (

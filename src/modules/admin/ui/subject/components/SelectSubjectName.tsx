@@ -5,8 +5,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Command,
   CommandEmpty,
@@ -14,49 +14,45 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
-import { ControllerRenderProps } from "react-hook-form";
-import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { PlusIcon } from "lucide-react";
-import { authClient } from "@/lib/auth-client";
+} from '@/components/ui/command';
+import { Button } from '@/components/ui/button';
+import { ControllerRenderProps } from 'react-hook-form';
+import { useTRPC } from '@/trpc/client';
+import { useQuery } from '@tanstack/react-query';
+import { PlusIcon } from 'lucide-react';
+import { authClient } from '@/lib/auth-client';
 
 type Props = {
   field: ControllerRenderProps<
     {
       name: string;
-      code: string;
       teacherId: string;
       classId: string;
       description?: string | undefined;
-      status: "draft" | "published" | "archived";
+      status: 'draft' | 'published' | 'archived';
     },
-    "name"
+    'name'
   >;
   setCreateNewSubjectName: (open: boolean) => void;
 };
 
-export default function SelectSubjectName({
-  field,
-  setCreateNewSubjectName,
-}: Props) {
+export default function SelectSubjectName({ field, setCreateNewSubjectName }: Props) {
   const trpc = useTRPC();
   const { data: session } = authClient.useSession();
 
   const { data, isLoading } = useQuery(
-    session?.user.role === "admin"
+    session?.user.role === 'admin'
       ? trpc.admin.getAllSubjectNames.queryOptions()
-      : trpc.user.getAllSubjectNames.queryOptions(),
+      : trpc.user.getAllSubjectNames.queryOptions()
   );
 
-  const { data: currentSubjects, isLoading: isCurrentSubjectsLoading } =
-    useQuery(trpc.user.getCurrentSubjectName.queryOptions());
+  const { data: currentSubjects, isLoading: isCurrentSubjectsLoading } = useQuery(
+    trpc.user.getCurrentSubjectName.queryOptions()
+  );
 
   // Deduplication setup
   const currentSubjectIds = new Set(currentSubjects?.map((c) => c.id) || []);
-  const availableSubjects =
-    data?.filter((subject) => !currentSubjectIds.has(subject.id)) || [];
+  const availableSubjects = data?.filter((subject) => !currentSubjectIds.has(subject.id)) || [];
 
   return (
     <Select
@@ -81,9 +77,7 @@ export default function SelectSubjectName({
                 ) : (
                   currentSubjects.map((subject) => (
                     <CommandItem key={`current-${subject.id}`}>
-                      <SelectItem value={`${subject.id}`}>
-                        {subject.name}
-                      </SelectItem>
+                      <SelectItem value={`${subject.id}`}>{subject.name}</SelectItem>
                     </CommandItem>
                   ))
                 )}
@@ -102,9 +96,7 @@ export default function SelectSubjectName({
                 ) : (
                   availableSubjects.map((subject) => (
                     <CommandItem key={subject.id}>
-                      <SelectItem value={`${subject.id}`}>
-                        {subject.name}
-                      </SelectItem>
+                      <SelectItem value={`${subject.id}`}>{subject.name}</SelectItem>
                     </CommandItem>
                   ))
                 )}
@@ -112,10 +104,9 @@ export default function SelectSubjectName({
             )}
 
             {/* Empty state when both lists are empty */}
-            {availableSubjects.length === 0 &&
-              currentSubjects?.length === 0 && (
-                <CommandEmpty>No subject found.</CommandEmpty>
-              )}
+            {availableSubjects.length === 0 && currentSubjects?.length === 0 && (
+              <CommandEmpty>No subject found.</CommandEmpty>
+            )}
           </CommandList>
         </Command>
 

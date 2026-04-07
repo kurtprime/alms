@@ -1,21 +1,17 @@
-import { organization, user, member } from "@/db/schema";
-import {
-  classSubjects,
-  subjectName,
-  subjects,
-} from "@/db/schemas/subject-schema";
-import { db } from "@/index";
-import { createSubjectSchema } from "@/modules/admin/server/adminSchema";
-import { protectedProcedure } from "@/trpc/init";
-import { TRPCError } from "@trpc/server";
-import { and, eq, or } from "drizzle-orm";
-import { nanoid } from "nanoid";
+import { organization, user, member } from '@/db/schema';
+import { classSubjects, subjectName, subjects } from '@/db/schemas/subject-schema';
+import { db } from '@/index';
+import { createSubjectSchema } from '@/modules/admin/server/adminSchema';
+import { protectedProcedure } from '@/trpc/init';
+import { TRPCError } from '@trpc/server';
+import { and, eq, or } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
 
 export const subjectActions = {
   getAllSubjectNames: protectedProcedure.query(async ({ ctx }) => {
     const { auth } = ctx;
-    if (auth.user.role !== "teacher") {
-      throw new Error("Only teachers can access subject names");
+    if (auth.user.role !== 'teacher') {
+      throw new Error('Only teachers can access subject names');
     }
     return await db
       .select({ id: subjectName.id, name: subjectName.name })
@@ -39,9 +35,9 @@ export const subjectActions = {
     .input(createSubjectSchema)
     .mutation(async ({ input, ctx }) => {
       const { auth } = ctx;
-      const { name, code, classId, description, status } = input;
-      if (auth.user.role !== "teacher") {
-        throw new Error("Only teachers can create subject classes");
+      const { name, classId, description, status } = input;
+      if (auth.user.role !== 'teacher') {
+        throw new Error('Only teachers can create subject classes');
       }
 
       await db.transaction(async (tx) => {

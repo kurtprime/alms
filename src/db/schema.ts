@@ -1,7 +1,13 @@
 import { relations } from 'drizzle-orm';
 
 import { user, session, account } from './schemas/auth-schema';
-import { organization, member, invitation } from './schemas/organization-schema';
+import {
+  organization,
+  member,
+  invitation,
+  inviteCode,
+  joinRequest,
+} from './schemas/organization-schema';
 import { subjects, classSubjects, subjectName } from './schemas/subject-schema';
 import {
   quiz,
@@ -53,6 +59,8 @@ export const accountRelations = relations(account, ({ one }) => ({
 export const organizationRelations = relations(organization, ({ many }) => ({
   members: many(member),
   invitations: many(invitation),
+  inviteCodes: many(inviteCode),
+  joinRequests: many(joinRequest),
   classes: many(classSubjects, { relationName: 'class' }), // Organizations acting as classes
 }));
 
@@ -78,6 +86,39 @@ export const invitationRelations = relations(invitation, ({ one }) => ({
     fields: [invitation.inviterId],
     references: [user.id],
     relationName: 'inviter',
+  }),
+}));
+
+// InviteCode relations
+export const inviteCodeRelations = relations(inviteCode, ({ one, many }) => ({
+  organization: one(organization, {
+    fields: [inviteCode.organizationId],
+    references: [organization.id],
+  }),
+  creator: one(user, {
+    fields: [inviteCode.createdBy],
+    references: [user.id],
+  }),
+  joinRequests: many(joinRequest),
+}));
+
+// JoinRequest relations
+export const joinRequestRelations = relations(joinRequest, ({ one }) => ({
+  organization: one(organization, {
+    fields: [joinRequest.organizationId],
+    references: [organization.id],
+  }),
+  inviteCode: one(inviteCode, {
+    fields: [joinRequest.inviteCodeId],
+    references: [inviteCode.id],
+  }),
+  user: one(user, {
+    fields: [joinRequest.userId],
+    references: [user.id],
+  }),
+  processor: one(user, {
+    fields: [joinRequest.processedBy],
+    references: [user.id],
   }),
 }));
 

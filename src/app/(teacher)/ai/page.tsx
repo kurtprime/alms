@@ -42,9 +42,7 @@ import {
   formatFileSize,
   getFileIcon,
   parseFile,
-  parseFiles,
   type ParsedFile,
-  type DocumentType,
 } from '@/lib/file-parser';
 
 interface FileWithProgress extends ParsedFile {

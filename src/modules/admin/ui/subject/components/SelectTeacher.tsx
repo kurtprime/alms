@@ -5,8 +5,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Command,
   CommandEmpty,
@@ -14,24 +14,23 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { PlusIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ControllerRenderProps } from "react-hook-form";
-import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
+} from '@/components/ui/command';
+import { PlusIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ControllerRenderProps } from 'react-hook-form';
+import { useTRPC } from '@/trpc/client';
+import { useQuery } from '@tanstack/react-query';
 
 type Props = {
   field: ControllerRenderProps<
     {
       name: string;
-      code: string;
       teacherId: string;
       classId: string;
       description?: string | undefined;
-      status: "draft" | "published" | "archived";
+      status: 'draft' | 'published' | 'archived';
     },
-    "teacherId"
+    'teacherId'
   >;
   setCreateNewTeacher: (open: boolean) => void;
 };
@@ -40,9 +39,7 @@ export default function SelectTeacher({ field, setCreateNewTeacher }: Props) {
   const trpc = useTRPC();
   //const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery(
-    trpc.admin.getManyTeachers.queryOptions({}),
-  );
+  const { data, isLoading } = useQuery(trpc.admin.getManyTeachers.queryOptions({}));
 
   return (
     <Select onValueChange={field.onChange} defaultValue={field.value}>

@@ -636,7 +636,7 @@ export function GradebookDataTable({ data, classId, isTeacher }: GradebookProps)
       ) : (
         /* DESKTOP VIEW */
         <div className="rounded-md border">
-          <ScrollArea className="whitespace-nowrap w-sceen md:w-[calc(100vw-340px)]">
+          <ScrollArea className="whitespace-nowrap w-full">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (

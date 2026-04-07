@@ -1,6 +1,6 @@
-import React from "react";
-import { UseFormReturn } from "react-hook-form";
-import { z } from "zod";
+import React from 'react';
+import { UseFormReturn } from 'react-hook-form';
+import { z } from 'zod';
 import {
   Form,
   FormControl,
@@ -8,8 +8,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -18,19 +18,19 @@ import {
   SelectLabel,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import ResponsiveDialog from "@/components/responsive-dialog";
-import { createSubjectSchema } from "@/modules/admin/server/adminSchema";
-import SelectSubjectName from "../admin/ui/subject/components/SelectSubjectName";
-import CreateNewSubjectName from "../admin/ui/subject/components/CreateNewSubjectName";
-import { AdminCreateTeacherForm } from "../admin/ui/users/components/AdminCreateTeacher";
-import SectionForm from "../admin/ui/section/components/SectionForm";
-import SelectTeacher from "../admin/ui/subject/components/SelectTeacher";
-import SelectSection from "../admin/ui/subject/components/SelectSection";
-import { authClient, Session } from "@/lib/auth-client";
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Spinner } from '@/components/ui/spinner';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import ResponsiveDialog from '@/components/responsive-dialog';
+import { createSubjectSchema } from '@/modules/admin/server/adminSchema';
+import SelectSubjectName from '../admin/ui/subject/components/SelectSubjectName';
+import CreateNewSubjectName from '../admin/ui/subject/components/CreateNewSubjectName';
+import { AdminCreateTeacherForm } from '../admin/ui/users/components/AdminCreateTeacher';
+import SectionForm from '../admin/ui/section/components/SectionForm';
+import SelectTeacher from '../admin/ui/subject/components/SelectTeacher';
+import SelectSection from '../admin/ui/subject/components/SelectSection';
+import { authClient, Session } from '@/lib/auth-client';
 
 // Define the schema type
 type SubjectFormValues = z.infer<typeof createSubjectSchema>;
@@ -74,42 +74,38 @@ interface SubjectFormProps {
 }
 
 // Status values - import from your schema or define here
-const statusEnumValues = ["draft", "archived", "published"] as const;
+const statusEnumValues = ['draft', 'archived', 'published'] as const;
 
 export function AddSubjectForm({
   form,
   onSubmit,
   isSubmitting = false,
-  submitButtonText = "Add Subject Class",
-  loadingButtonText = "Adding Subject...",
+  submitButtonText = 'Add Subject Class',
+  loadingButtonText = 'Adding Subject...',
   createNewSubjectName,
   createNewTeacher,
   createNewSection,
   setCreateNewSubjectName,
   setCreateNewTeacher,
   setCreateNewSection,
-  createSubjectNameComponent = (
-    <CreateNewSubjectName onOpenChange={setCreateNewSubjectName} />
-  ),
-  createTeacherComponent = (
-    <AdminCreateTeacherForm setOpen={setCreateNewTeacher} />
-  ),
+  createSubjectNameComponent = <CreateNewSubjectName onOpenChange={setCreateNewSubjectName} />,
+  createTeacherComponent = <AdminCreateTeacherForm setOpen={setCreateNewTeacher} />,
   createSectionComponent = <SectionForm setOpen={setCreateNewSection} />,
   session,
 }: SubjectFormProps) {
   const handleSubmit = form.handleSubmit(onSubmit);
 
-  const isTeacher = session?.user.role === "teacher";
+  const isTeacher = session?.user.role === 'teacher';
 
   if (isTeacher) {
-    form.setValue("teacherId", session.user.id);
+    form.setValue('teacherId', session.user.id);
   }
 
   return (
     <>
       <Form {...form}>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <FormField
               control={form.control}
               name="name"
@@ -127,7 +123,7 @@ export function AddSubjectForm({
               )}
             />
 
-            <FormField
+            {/* <FormField
               control={form.control}
               name="code"
               render={({ field }) => (
@@ -139,7 +135,7 @@ export function AddSubjectForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
           </div>
           {!isTeacher && (
             <FormField
@@ -149,10 +145,7 @@ export function AddSubjectForm({
                 <FormItem>
                   <FormLabel>Teacher</FormLabel>
                   <FormControl>
-                    <SelectTeacher
-                      field={field}
-                      setCreateNewTeacher={setCreateNewTeacher}
-                    />
+                    <SelectTeacher field={field} setCreateNewTeacher={setCreateNewTeacher} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -160,7 +153,7 @@ export function AddSubjectForm({
             />
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-[2fr_0.7fr] gap-4">
+          <div className="grid grid-cols-1 gap-4">
             <FormField
               control={form.control}
               name="classId"
@@ -168,17 +161,14 @@ export function AddSubjectForm({
                 <FormItem>
                   <FormLabel>Class</FormLabel>
                   <FormControl>
-                    <SelectSection
-                      field={field}
-                      setCreateNewSection={setCreateNewSection}
-                    />
+                    <SelectSection field={field} setCreateNewSection={setCreateNewSection} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
-            <FormField
+            {/* <FormField
               control={form.control}
               name="status"
               render={({ field }) => (
@@ -211,13 +201,10 @@ export function AddSubjectForm({
                   <FormMessage />
                 </FormItem>
               )}
-            />
+            /> */}
           </div>
 
-          <Button
-            type="submit"
-            disabled={isSubmitting || form.formState.isSubmitting}
-          >
+          <Button type="submit" disabled={isSubmitting || form.formState.isSubmitting}>
             {isSubmitting || form.formState.isSubmitting ? (
               <>
                 <Spinner className="mr-2" />
@@ -231,10 +218,7 @@ export function AddSubjectForm({
       </Form>
 
       {/* New Subject Name Dialog */}
-      <Dialog
-        open={createNewSubjectName}
-        onOpenChange={setCreateNewSubjectName}
-      >
+      <Dialog open={createNewSubjectName} onOpenChange={setCreateNewSubjectName}>
         <DialogContent>{createSubjectNameComponent}</DialogContent>
       </Dialog>
 
