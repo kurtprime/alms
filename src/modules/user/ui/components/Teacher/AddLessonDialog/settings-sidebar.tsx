@@ -71,7 +71,7 @@ export function SettingsSidebar({
                   onClick={() => onOpenAddNewLesson(true)}
                 >
                   <Plus className="h-4 w-4" />
-                  Create New Lesson
+                  Create New Topic
                 </Button>
               </div>
 

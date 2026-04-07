@@ -3,6 +3,8 @@ import {
   assignmentDocument,
   classSubjects,
   comment,
+  inviteCode,
+  joinRequest,
   lesson,
   lessonDocument,
   lessonType,
@@ -30,6 +32,7 @@ import {
   eq,
   exists,
   getTableColumns,
+  gt,
   inArray,
   isNotNull,
   not,
@@ -42,6 +45,7 @@ import {
 import z from 'zod';
 import { lessonTypeOptionSchema, StudentGradeRow } from '../userSchema';
 import { inngest } from '@/services/inngest/client';
+import { nanoid } from 'nanoid';
 
 type ResultReviewAnswer =
   | { type: 'option'; optionId: string }
@@ -2143,4 +2147,359 @@ export const classActions = {
 
     return classesWithStats;
   }),
+  getClassSubjectDetails: protectedProcedure
+    .input(z.object({ classId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const { classId } = input;
+      const userId = ctx.auth.user.id;
+
+      const [result] = await db
+        .select({
+          id: classSubjects.id,
+          headerImage: classSubjects.headerImage,
+          teacherId: classSubjects.teacherId,
+          enrolledClass: classSubjects.enrolledClass,
+          subjectId: classSubjects.subjectId,
+          enrolledAt: classSubjects.enrolledAt,
+          organizationSlug: organization.slug,
+        })
+        .from(classSubjects)
+        .innerJoin(organization, eq(classSubjects.enrolledClass, organization.id))
+        .where(eq(classSubjects.id, classId));
+
+      if (!result) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Class not found' });
+      }
+
+      return result;
+    }),
+  updateClassSubjectHeaderImage: protectedProcedure
+    .input(z.object({ classId: z.string(), headerImage: z.string().url() }))
+    .mutation(async ({ ctx, input }) => {
+      const { classId, headerImage } = input;
+      const userId = ctx.auth.user.id;
+
+      const [existing] = await db
+        .select({
+          id: classSubjects.id,
+          teacherId: classSubjects.teacherId,
+        })
+        .from(classSubjects)
+        .where(eq(classSubjects.id, classId));
+
+      if (!existing) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Class not found' });
+      }
+
+      if (existing.teacherId !== userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only the teacher can update the header image',
+        });
+      }
+
+      await db.update(classSubjects).set({ headerImage }).where(eq(classSubjects.id, classId));
+
+      return { success: true };
+    }),
+  getOrganizationBySlug: protectedProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ input }) => {
+      const [org] = await db
+        .select({
+          id: organization.id,
+          name: organization.name,
+          slug: organization.slug,
+          logo: organization.logo,
+        })
+        .from(organization)
+        .where(eq(organization.slug, input.slug));
+
+      if (!org) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Organization not found' });
+      }
+
+      return org;
+    }),
+  requestJoin: protectedProcedure
+    .input(
+      z.object({
+        slug: z.string(),
+        code: z.string(),
+        message: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.auth.user.id;
+
+      const [org] = await db
+        .select({
+          id: organization.id,
+          name: organization.name,
+        })
+        .from(organization)
+        .where(eq(organization.slug, input.slug));
+
+      if (!org) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Organization not found' });
+      }
+
+      const [existingMember] = await db
+        .select()
+        .from(member)
+        .where(and(eq(member.organizationId, org.id), eq(member.userId, userId)));
+
+      if (existingMember) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'You are already a member of this organization',
+        });
+      }
+
+      const [inviteCodeRecord] = await db
+        .select()
+        .from(inviteCode)
+        .where(and(eq(inviteCode.code, input.code), eq(inviteCode.organizationId, org.id)));
+
+      if (!inviteCodeRecord) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Invalid invite code' });
+      }
+
+      if (new Date() > inviteCodeRecord.expiresAt) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Invite code has expired' });
+      }
+
+      const usedCount = parseInt(inviteCodeRecord.usedCount, 10);
+      const maxUses = parseInt(inviteCodeRecord.maxUses, 10);
+      if (usedCount >= maxUses) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Invite code has reached maximum uses',
+        });
+      }
+
+      const [existingRequest] = await db
+        .select()
+        .from(joinRequest)
+        .where(
+          and(
+            eq(joinRequest.organizationId, org.id),
+            eq(joinRequest.userId, userId),
+            eq(joinRequest.inviteCodeId, inviteCodeRecord.id)
+          )
+        );
+
+      if (existingRequest) {
+        if (existingRequest.status === 'pending') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'You already have a pending join request for this organization',
+          });
+        }
+        if (existingRequest.status === 'approved') {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: 'Your join request was already approved',
+          });
+        }
+      }
+
+      const [newRequest] = await db
+        .insert(joinRequest)
+        .values({
+          id: nanoid(),
+          organizationId: org.id,
+          inviteCodeId: inviteCodeRecord.id,
+          userId,
+          message: input.message,
+        })
+        .returning();
+
+      return newRequest;
+    }),
+  getJoinRequestStatus: protectedProcedure
+    .input(z.object({ organizationId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const userId = ctx.auth.user.id;
+
+      const requests = await db
+        .select()
+        .from(joinRequest)
+        .where(
+          and(eq(joinRequest.organizationId, input.organizationId), eq(joinRequest.userId, userId))
+        )
+        .orderBy(desc(joinRequest.requestedAt));
+
+      return requests;
+    }),
+  processJoinRequestForTeacher: protectedProcedure
+    .input(
+      z.object({
+        classId: z.string(),
+        requestId: z.string(),
+        action: z.enum(['approve', 'reject']),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.auth.user.id;
+
+      const classSubject = await db
+        .select({
+          enrolledClass: classSubjects.enrolledClass,
+          teacherId: classSubjects.teacherId,
+        })
+        .from(classSubjects)
+        .where(eq(classSubjects.id, input.classId));
+
+      if (!classSubject[0]) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Class not found' });
+      }
+
+      if (classSubject[0].teacherId !== userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only the teacher can process join requests',
+        });
+      }
+
+      const [request] = await db
+        .select()
+        .from(joinRequest)
+        .where(eq(joinRequest.id, input.requestId));
+
+      if (!request) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Join request not found' });
+      }
+
+      if (request.status !== 'pending') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Request already processed' });
+      }
+
+      if (input.action === 'approve') {
+        const [codeRecord] = await db
+          .select()
+          .from(inviteCode)
+          .where(eq(inviteCode.id, request.inviteCodeId));
+
+        if (!codeRecord) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Invite code not found' });
+        }
+
+        const [newMember] = await db
+          .insert(member)
+          .values({
+            id: nanoid(),
+            organizationId: request.organizationId,
+            userId: request.userId,
+            role: codeRecord.role as 'student' | 'teacher' | 'owner' | 'irregular' | 'advisor',
+          })
+          .returning();
+
+        const currentUsed = parseInt(codeRecord.usedCount, 10);
+        await db
+          .update(inviteCode)
+          .set({ usedCount: String(currentUsed + 1) })
+          .where(eq(inviteCode.id, request.inviteCodeId));
+
+        await db
+          .update(joinRequest)
+          .set({
+            status: 'approved',
+            processedBy: userId,
+            processedAt: new Date(),
+          })
+          .where(eq(joinRequest.id, input.requestId));
+
+        return { success: true, member: newMember };
+      } else {
+        await db
+          .update(joinRequest)
+          .set({
+            status: 'rejected',
+            processedBy: userId,
+            processedAt: new Date(),
+          })
+          .where(eq(joinRequest.id, input.requestId));
+
+        return { success: true };
+      }
+    }),
+  createInviteCodeForTeacher: protectedProcedure
+    .input(
+      z.object({
+        classId: z.string(),
+        role: z.enum(['student', 'teacher', 'irregular', 'advisor']),
+        maxUses: z.number().min(1).default(1),
+        expiresInDays: z.number().min(1).default(7),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.auth.user.id;
+
+      const [classSubject] = await db
+        .select({
+          enrolledClass: classSubjects.enrolledClass,
+          teacherId: classSubjects.teacherId,
+        })
+        .from(classSubjects)
+        .where(eq(classSubjects.id, input.classId));
+
+      if (!classSubject) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Class not found' });
+      }
+
+      if (classSubject.teacherId !== userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only the teacher can create invite codes',
+        });
+      }
+
+      const code = nanoid(8);
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + input.expiresInDays);
+
+      const [newCode] = await db
+        .insert(inviteCode)
+        .values({
+          id: nanoid(),
+          organizationId: classSubject.enrolledClass,
+          code,
+          role: input.role,
+          maxUses: String(input.maxUses),
+          usedCount: '0',
+          expiresAt,
+          createdBy: userId,
+        })
+        .returning();
+
+      return newCode;
+    }),
+  deleteInviteCodeForTeacher: protectedProcedure
+    .input(z.object({ classId: z.string(), codeId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const userId = ctx.auth.user.id;
+
+      const [classSubject] = await db
+        .select({
+          enrolledClass: classSubjects.enrolledClass,
+          teacherId: classSubjects.teacherId,
+        })
+        .from(classSubjects)
+        .where(eq(classSubjects.id, input.classId));
+
+      if (!classSubject) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Class not found' });
+      }
+
+      if (classSubject.teacherId !== userId) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only the teacher can delete invite codes',
+        });
+      }
+
+      await db.delete(inviteCode).where(eq(inviteCode.id, input.codeId));
+      return { success: true };
+    }),
 };

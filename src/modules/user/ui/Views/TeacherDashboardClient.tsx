@@ -172,7 +172,7 @@ export default function TeacherDashboardClient({ session }: { session: Session }
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-semibold">My Classes</h2>
-          <Button variant="ghost" size="sm" onClick={() => router.push('/classes')}>
+          <Button variant="ghost" size="sm" onClick={() => router.push('/class')}>
             View All
             <ChevronRight className="h-4 w-4 ml-1" />
           </Button>

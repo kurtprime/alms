@@ -5,8 +5,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Spinner } from "@/components/ui/spinner";
+} from '@/components/ui/select';
+import { Spinner } from '@/components/ui/spinner';
 import {
   Command,
   CommandEmpty,
@@ -14,25 +14,24 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-} from "@/components/ui/command";
-import { PlusIcon } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { ControllerRenderProps } from "react-hook-form";
-import { useTRPC } from "@/trpc/client";
-import { useQuery } from "@tanstack/react-query";
-import { authClient } from "@/lib/auth-client";
+} from '@/components/ui/command';
+import { PlusIcon } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ControllerRenderProps } from 'react-hook-form';
+import { useTRPC } from '@/trpc/client';
+import { useQuery } from '@tanstack/react-query';
+import { authClient } from '@/lib/auth-client';
 
 type Props = {
   field: ControllerRenderProps<
     {
       name: string;
-      code: string;
       teacherId: string;
       classId: string;
       description?: string | undefined;
-      status: "published" | "draft" | "archived";
+      status: 'published' | 'draft' | 'archived';
     },
-    "classId"
+    'classId'
   >;
   setCreateNewSection: (open: boolean) => void;
 };
@@ -42,21 +41,20 @@ export default function SelectSection({ field, setCreateNewSection }: Props) {
   const trpc = useTRPC();
 
   const { data, isLoading } = useQuery(
-    session?.user.role === "admin"
+    session?.user.role === 'admin'
       ? trpc.admin.getManySections.queryOptions({})
-      : trpc.user.getManySections.queryOptions({}),
+      : trpc.user.getManySections.queryOptions({})
   );
 
   const { data: currentClass, isLoading: isCurrentClassLoading } = useQuery(
-    trpc.user.getTheCurrentJoinedSections.queryOptions({}),
+    trpc.user.getTheCurrentJoinedSections.queryOptions({})
   );
 
   // FIX: Create Set of current class IDs for O(1) lookup
   const currentClassIds = new Set(currentClass?.map((c) => c.id) || []);
 
   // Filter data to exclude items already shown in Current Class
-  const availableClasses =
-    data?.filter((subject) => !currentClassIds.has(subject.id)) || [];
+  const availableClasses = data?.filter((subject) => !currentClassIds.has(subject.id)) || [];
 
   return (
     <Select onValueChange={field.onChange} defaultValue={field.value}>

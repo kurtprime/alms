@@ -193,6 +193,24 @@ export const customFileRouter = {
       console.log('Profile image uploaded:', file.url);
       return { url: file.url };
     }),
+  classHeaderUploader: f({
+    image: {
+      maxFileSize: '8MB',
+      maxFileCount: 1,
+    },
+  })
+    .middleware(async () => {
+      const currentUser = await getCurrentUser();
+
+      if (!currentUser?.user?.id) {
+        throw new UploadThingError('Unauthorized');
+      }
+
+      return { userId: currentUser.user.id };
+    })
+    .onUploadComplete(async ({ file }) => {
+      return { url: file.url };
+    }),
 
   assignmentSubmissionUploader: f(assignmentFileTypes)
     .input(

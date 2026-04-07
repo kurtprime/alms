@@ -1,0 +1,1 @@
+ALTER TABLE "class_subject" ADD COLUMN "header_image" text;

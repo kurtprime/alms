@@ -1,17 +1,18 @@
-import { z } from "zod";
-import type { AppRouter } from "@/trpc/routers/_app";
-import { inferRouterOutputs } from "@trpc/server";
+import { z } from 'zod';
+import type { AppRouter } from '@/trpc/routers/_app';
+import { inferRouterOutputs } from '@trpc/server';
 import {
   lessonTerm,
   lessonTypeEnum,
+  organizationMemberRole,
   organizationMemberStrand,
   statusEnumValues,
-} from "@/db/schema";
-import { desc } from "drizzle-orm";
+} from '@/db/schema';
+import { desc } from 'drizzle-orm';
 
 export const createSectionFormSchema = z.object({
-  name: z.string().min(2, { message: "Strand name is needed" }).max(100),
-  slug: z.string().min(2, { message: "What is the section name" }).max(50),
+  name: z.string().min(2, { message: 'Strand name is needed' }).max(100),
+  slug: z.string().min(2, { message: 'What is the section name' }).max(50),
 });
 
 export const updateMarkUp = z.object({
@@ -20,12 +21,7 @@ export const updateMarkUp = z.object({
 });
 
 const MAX_FILE_SIZE = 5000000; // 5MB
-const ACCEPTED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/jpg",
-  "image/png",
-  "image/webp",
-];
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 export const markupImageUpload = z.object({
   image: z
@@ -33,75 +29,66 @@ export const markupImageUpload = z.object({
     .refine((file) => file.size <= MAX_FILE_SIZE, `Max image size is 5MB.`)
     .refine(
       (file) => ACCEPTED_IMAGE_TYPES.includes(file.type),
-      "Only .jpg, .jpeg, .png and .webp formats are supported.",
+      'Only .jpg, .jpeg, .png and .webp formats are supported.'
     ),
 });
 
 export const createStudentFormSchema = z
   .object({
-    firstName: z.string().min(1, { message: "Name is required" }).max(100),
-    lastName: z.string().min(1, { message: "Last name is required" }).max(100),
+    firstName: z.string().min(1, { message: 'Name is required' }).max(100),
+    lastName: z.string().min(1, { message: 'Last name is required' }).max(100),
     middleInitial: z
       .string()
-      .max(2, { message: "Middle initial must be at most 2 characters" })
+      .max(2, { message: 'Middle initial must be at most 2 characters' })
       .optional(),
     organizationId: z.string().nullish(),
-    userId: z.string().min(1, { message: "User ID is required" }),
+    userId: z.string().min(1, { message: 'User ID is required' }),
     strand: z.enum(organizationMemberStrand.enumValues),
   })
-  .refine((data) => !(data.organizationId && data.strand === "Not Specified"), {
+  .refine((data) => !(data.organizationId && data.strand === 'Not Specified'), {
     message: "Cannot select 'Not Specified' strand with an organization",
-    path: ["strand"],
+    path: ['strand'],
   })
-  .refine(
-    (data) => !(data.strand !== "Not Specified" && !data.organizationId),
-    {
-      message:
-        "Organization is required for all strands except 'Not Specified'",
-      path: ["organizationId"],
-    },
-  );
+  .refine((data) => !(data.strand !== 'Not Specified' && !data.organizationId), {
+    message: "Organization is required for all strands except 'Not Specified'",
+    path: ['organizationId'],
+  });
 
 export const updateStudentFormSchema = z
   .object({
     ...createStudentFormSchema.shape,
-    id: z.string().min(1, { message: "Student ID is required" }),
+    id: z.string().min(1, { message: 'Student ID is required' }),
   })
-  .refine((data) => !(data.organizationId && data.strand === "Not Specified"), {
+  .refine((data) => !(data.organizationId && data.strand === 'Not Specified'), {
     message: "Cannot select 'Not Specified' strand with an organization",
-    path: ["strand"],
+    path: ['strand'],
   })
-  .refine(
-    (data) => !(data.strand !== "Not Specified" && !data.organizationId),
-    {
-      message:
-        "Organization is required for all strands except 'Not Specified'",
-      path: ["organizationId"],
-    },
-  );
+  .refine((data) => !(data.strand !== 'Not Specified' && !data.organizationId), {
+    message: "Organization is required for all strands except 'Not Specified'",
+    path: ['organizationId'],
+  });
 export const createTeacherFormSchema = z.object({
-  firstName: z.string().min(1, { message: "Name is required" }).max(100),
-  lastName: z.string().min(1, { message: "Last name is required" }).max(100),
+  firstName: z.string().min(1, { message: 'Name is required' }).max(100),
+  lastName: z.string().min(1, { message: 'Last name is required' }).max(100),
 });
 
 export const createSubjectSchema = z.object({
-  name: z.string().min(1, { message: "Subject name is required" }),
-  code: z.string().min(1, { message: "Subject Code is Required" }).max(6),
+  name: z.string().min(1, { message: 'Subject name is required' }),
   description: z.string().optional(),
-  teacherId: z.string().min(1, { message: "Teacher is required" }),
-  classId: z.string().min(1, { message: "Class is required" }),
+  teacherId: z.string().min(1, { message: 'Teacher is required' }),
+  classId: z.string().min(1, { message: 'Class is required' }),
   status: z.enum(statusEnumValues),
 });
 
 export const createLessonSchema = z.object({
-  name: z.string().min(1, { message: "Lesson name is required" }).max(50),
+  name: z.string().min(1, { message: 'Lesson name is required' }).max(50),
   terms: z.enum(lessonTerm.enumValues),
-  classId: z.string().min(1, { message: "Class ID is required" }),
+  classId: z.string().min(1, { message: 'Class ID is required' }),
 });
 
 export const createLessonTypeSchema = z.object({
   name: z.string(),
-  lessonId: z.int().min(1, { message: "something went wrong" }),
+  lessonId: z.int().min(1, { message: 'something went wrong' }),
   type: z.enum(lessonTypeEnum.enumValues),
 });
 
@@ -139,13 +126,13 @@ export const updateQuizSettingsFormSchema = z
       return diffInHours >= 1;
     },
     {
-      message: "End date must be at least 1 hour after start date",
-      path: ["endDate"],
-    },
+      message: 'End date must be at least 1 hour after start date',
+      path: ['endDate'],
+    }
   );
 
 export const newSubjectNameSchema = z.object({
-  name: z.string().min(1, { message: "Subject name is required" }).max(100),
+  name: z.string().min(1, { message: 'Subject name is required' }).max(100),
   description: z.string().optional(),
 });
 
@@ -168,11 +155,11 @@ export const getSubjectSchema = z.object({});
 export const getManyTeachersSchema = z.object({});
 
 export const getAllSubjectsForClassSchema = z.object({
-  subjectId: z.int().min(1, { message: "Class ID is required" }),
+  subjectId: z.int().min(1, { message: 'Class ID is required' }),
 });
 
 export const getAllSubjectInfoSchema = z.object({
-  id: z.string().min(1, { message: "Class ID is required" }),
+  id: z.string().min(1, { message: 'Class ID is required' }),
 });
 
 const multipleChoiceSchema = z.object({
@@ -188,9 +175,9 @@ const multipleChoiceSchema = z.object({
 
 export const updateMultipleChoiceQuestionDetailsSchema = z
   .object({
-    id: z.number().min(1, { message: "Question ID is required" }),
+    id: z.number().min(1, { message: 'Question ID is required' }),
     question: z.string(),
-    points: z.number().min(1, { message: "Total points must not be below 1" }),
+    points: z.number().min(1, { message: 'Total points must not be below 1' }),
     required: z.boolean().nullable(),
     multipleChoices: z.array(multipleChoiceSchema),
     imageBase64: z.string().nullish(),
@@ -200,24 +187,19 @@ export const updateMultipleChoiceQuestionDetailsSchema = z
     (data) => {
       // If question is required, ensure at least one correct answer exists
       if (data.required) {
-        const hasCorrectAnswer = data.multipleChoices.some(
-          (choice) => choice.isCorrect === true,
-        );
+        const hasCorrectAnswer = data.multipleChoices.some((choice) => choice.isCorrect === true);
         return hasCorrectAnswer;
       }
       return true; // Not required, so no validation needed
     },
     {
-      message: "Required questions must have at least one correct answer",
-      path: ["multipleChoices"], // Error appears on the choices field
-    },
+      message: 'Required questions must have at least one correct answer',
+      path: ['multipleChoices'], // Error appears on the choices field
+    }
   )
   .transform((data) => ({
     ...data,
-    points: data.multipleChoices.reduce(
-      (acc, choice) => acc + choice.points,
-      0,
-    ), // Auto-calculate
+    points: data.multipleChoices.reduce((acc, choice) => acc + choice.points, 0), // Auto-calculate
   }));
 
 const orderingChoiceSchema = z.object({
@@ -261,74 +243,98 @@ export const updateMatchingPairDetailSchema = z.object({
 });
 
 export const updateTrueOrFalseQuestionDetailsSchema = z.object({
-  id: z.number().min(1, { message: "Question ID is required" }),
+  id: z.number().min(1, { message: 'Question ID is required' }),
   question: z.string(),
-  points: z.number().min(1, { message: "Points cannot go below 1" }),
+  points: z.number().min(1, { message: 'Points cannot go below 1' }),
   required: z.boolean().nullable(),
   correctBoolean: z.boolean(),
   imageBase64Jpg: z.string().nullish(),
 });
 
 export const updateEssayQuestionDetailSchema = z.object({
-  id: z.number().min(1, { message: "Question ID is required" }),
+  id: z.number().min(1, { message: 'Question ID is required' }),
   question: z.string(),
-  points: z.number().min(1, { message: "Points cannot go below 1" }),
+  points: z.number().min(1, { message: 'Points cannot go below 1' }),
   required: z.boolean().nullable(),
   imageBase64Jpg: z.string().nullish(),
 });
 
 export const mdxEditorSchema = z.object({ description: z.string() });
 
-export type AdminCreateSection =
-  inferRouterOutputs<AppRouter>["admin"]["create"];
+export const createInviteCodeSchema = z.object({
+  organizationId: z.string().min(1, { message: 'Organization ID is required' }),
+  role: z.enum(organizationMemberRole.enumValues).default('student'),
+  maxUses: z.number().min(1).default(1),
+  expiresInDays: z.number().min(1).default(7),
+});
 
-export type AdminSectionGetMany =
-  inferRouterOutputs<AppRouter>["admin"]["getManySections"];
+export const getManyInviteCodesSchema = z.object({
+  organizationId: z.string().min(1, { message: 'Organization ID is required' }),
+});
 
-export type AdminGetStudents =
-  inferRouterOutputs<AppRouter>["admin"]["getManyStudents"];
+export const deleteInviteCodeSchema = z.object({
+  id: z.string().min(1, { message: 'Invite code ID is required' }),
+});
 
-export type AdminGetTeachers =
-  inferRouterOutputs<AppRouter>["admin"]["getManyTeachers"];
+export const getManyJoinRequestsSchema = z.object({
+  organizationId: z.string().min(1, { message: 'Organization ID is required' }),
+  status: z.enum(['pending', 'approved', 'rejected']).optional(),
+});
+
+export const processJoinRequestSchema = z.object({
+  id: z.string().min(1, { message: 'Join request ID is required' }),
+  action: z.enum(['approve', 'reject']),
+});
+
+export type AdminCreateSection = inferRouterOutputs<AppRouter>['admin']['create'];
+
+export type AdminSectionGetMany = inferRouterOutputs<AppRouter>['admin']['getManySections'];
+
+export type AdminGetStudents = inferRouterOutputs<AppRouter>['admin']['getManyStudents'];
+
+export type AdminGetTeachers = inferRouterOutputs<AppRouter>['admin']['getManyTeachers'];
 
 export type AdminGetAllClassPerSubject =
-  inferRouterOutputs<AppRouter>["admin"]["getAllSubjectInfo"];
+  inferRouterOutputs<AppRouter>['admin']['getAllSubjectInfo'];
 
 export type AdminGetAllClassPerSubjectId =
-  inferRouterOutputs<AppRouter>["admin"]["getAllSubjectIdPerClass"];
+  inferRouterOutputs<AppRouter>['admin']['getAllSubjectIdPerClass'];
 
-export type AdminGetLessonsPerClass =
-  inferRouterOutputs<AppRouter>["admin"]["getLessonsPerClass"];
+export type AdminGetLessonsPerClass = inferRouterOutputs<AppRouter>['admin']['getLessonsPerClass'];
 
-export type AdminGetLessonsTypes =
-  inferRouterOutputs<AppRouter>["admin"]["getLessonType"];
+export type AdminGetLessonsTypes = inferRouterOutputs<AppRouter>['admin']['getLessonType'];
 
-export type AdminGetQuizSettings =
-  inferRouterOutputs<AppRouter>["admin"]["getQuizSettings"];
+export type AdminGetQuizSettings = inferRouterOutputs<AppRouter>['admin']['getQuizSettings'];
 
-export type AdminGetQuizQuestions =
-  inferRouterOutputs<AppRouter>["admin"]["getQuizQuestions"];
+export type AdminGetQuizQuestions = inferRouterOutputs<AppRouter>['admin']['getQuizQuestions'];
 
 export type AdminGetMultipleChoiceQuizQuestions =
-  inferRouterOutputs<AppRouter>["admin"]["getMultipleChoiceQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['getMultipleChoiceQuestionDetails'];
 
 export type AdminUpdateMultipleChoiceQuizQuestions =
-  inferRouterOutputs<AppRouter>["admin"]["updateMultipleChoiceQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['updateMultipleChoiceQuestionDetails'];
 
 export type AdminGetTrueOrFalseQuizQuestions =
-  inferRouterOutputs<AppRouter>["admin"]["getTrueOrFalseQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['getTrueOrFalseQuestionDetails'];
 
 export type AdminGetEssayQuizQuestion =
-  inferRouterOutputs<AppRouter>["admin"]["getEssayQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['getEssayQuestionDetails'];
 
 export type AdminGetOrderingQuizQuestion =
-  inferRouterOutputs<AppRouter>["admin"]["getOrderingQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['getOrderingQuestionDetails'];
 
 export type AdminOrderingChoiceQuizQuestions =
-  inferRouterOutputs<AppRouter>["admin"]["updateOrderingQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['updateOrderingQuestionDetails'];
 
 export type AdminGetMatchingPairQuestion =
-  inferRouterOutputs<AppRouter>["admin"]["getMatchingQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['getMatchingQuestionDetails'];
 
 export type AdminMatchingPairQuestion =
-  inferRouterOutputs<AppRouter>["admin"]["updateMatchingQuestionDetails"];
+  inferRouterOutputs<AppRouter>['admin']['updateMatchingQuestionDetails'];
+
+export type AdminCreateInviteCode = inferRouterOutputs<AppRouter>['admin']['createInviteCode'];
+
+export type AdminGetManyInviteCodes = inferRouterOutputs<AppRouter>['admin']['getManyInviteCodes'];
+
+export type AdminGetManyJoinRequests =
+  inferRouterOutputs<AppRouter>['admin']['getManyJoinRequests'];

@@ -1,22 +1,22 @@
-"use client";
-import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { isActivePath, useIsActivePath } from "@/lib/navigation";
-import { cn } from "@/lib/utils";
-import { Calendar, Home } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import React from "react";
+'use client';
+import { SidebarMenuButton, SidebarMenuItem } from '@/components/ui/sidebar';
+import { isActivePath, useIsActivePath } from '@/lib/navigation';
+import { cn } from '@/lib/utils';
+import { Calendar, Home } from 'lucide-react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import React from 'react';
 
 // Menu items.
 const items = [
   {
-    title: "Home",
-    url: "/",
+    title: 'Home',
+    url: '/',
     icon: Home,
   },
   {
-    title: "Calendar",
-    url: "/calendar",
+    title: 'Calendar',
+    url: '/calendar',
     icon: Calendar,
   },
 ];
@@ -24,7 +24,7 @@ const items = [
 export default function SidebarMenuItemsParams() {
   return (
     <>
-      {items.map((item) => {
+      {/* {items.map((item) => {
         // eslint-disable-next-line react-hooks/rules-of-hooks
         const isActive = useIsActivePath(item.url);
         return (
@@ -43,7 +43,7 @@ export default function SidebarMenuItemsParams() {
             </SidebarMenuButton>
           </SidebarMenuItem>
         );
-      })}
+      })} */}
     </>
   );
 }

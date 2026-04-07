@@ -3,25 +3,33 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
-} from "@/components/ui/sidebar";
-import { getCurrentUser } from "@/lib/auth-server";
-import { Accordion } from "@/components/ui/accordion";
-import { getQueryClient, trpc } from "@/trpc/server";
-import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
-import { Suspense } from "react";
-import { ErrorBoundary } from "react-error-boundary";
-import SidebarAccordion from "./components/Teacher/SidebarAccordion";
-import SidebarMenuItemsParams from "./components/SidebarMenuItemsParams";
-import StudentSideBarAccordion from "./components/Student/StudentSidebarAccordion";
+} from '@/components/ui/sidebar';
+import { getCurrentUser } from '@/lib/auth-server';
+import { Accordion } from '@/components/ui/accordion';
+import { getQueryClient, trpc } from '@/trpc/server';
+import { dehydrate, HydrationBoundary } from '@tanstack/react-query';
+import { Suspense } from 'react';
+import { ErrorBoundary } from 'react-error-boundary';
+import SidebarAccordion from './components/Teacher/SidebarAccordion';
+import SidebarMenuItemsParams from './components/SidebarMenuItemsParams';
+import StudentSideBarAccordion from './components/Student/StudentSidebarAccordion';
+import Image from 'next/image';
 
 export function AppSidebar() {
   return (
-    <Sidebar>
-      <SidebarContent>
+    <Sidebar className="rounded-r-3xl" collapsible="icon">
+      <SidebarContent className="rounded-r-3xl">
+        <div className="px-3 py-4">
+          <Image
+            src="/assets/ark-logo.png"
+            alt="Logo"
+            width={120}
+            height={40}
+            className="mx-auto object-contain"
+          />
+        </div>
         <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItemsParams />
@@ -37,11 +45,9 @@ export function AppSidebar() {
 async function DynamicSideBar() {
   const session = await getCurrentUser();
   const queryClient = getQueryClient();
-  void queryClient.prefetchQuery(
-    trpc.user.getCurrentSectionInfo.queryOptions(),
-  );
+  void queryClient.prefetchQuery(trpc.user.getCurrentSectionInfo.queryOptions());
 
-  if (session.user.role === "teacher") {
+  if (session.user.role === 'teacher') {
     return (
       <>
         <HydrationBoundary state={dehydrate(queryClient)}>
@@ -57,7 +63,7 @@ async function DynamicSideBar() {
     );
   }
 
-  if (session.user.role === "student")
+  if (session.user.role === 'student')
     return (
       <>
         <HydrationBoundary state={dehydrate(queryClient)}>
