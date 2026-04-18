@@ -17,6 +17,7 @@ import {
   Archive,
   Star,
   Sparkle,
+  House,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -30,7 +31,7 @@ import { cn } from '@/lib/utils';
 import { LucideIcon } from 'lucide-react';
 
 const teacherMenuItems = [
-  { title: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
+  { title: 'Home', href: '/teacher', icon: House },
   { title: 'Classes', href: '/class', icon: BookOpen },
   { title: 'Assignments', href: '/teacher/assignments', icon: FileText },
   { title: 'Quizzes', href: '/teacher/quizzes', icon: ClipboardList },

@@ -1,34 +1,30 @@
-"use client";
-import { GeneratedAvatar } from "@/components/generatedAvatar";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
-import { separateFullName } from "@/hooks/separate-name";
-import { authClient, Session } from "@/lib/auth-client";
-import { LogOut, Settings, Shield } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import React from "react";
+'use client';
+import { GeneratedAvatar } from '@/components/generatedAvatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Separator } from '@/components/ui/separator';
+import { separateFullName } from '@/hooks/separate-name';
+import { authClient, Session } from '@/lib/auth-client';
+import { LogOut, Settings, Shield, ChevronDown } from 'lucide-react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import React from 'react';
 
 export default function ProfilePopupClient({
   initials,
   user,
 }: {
   initials: string;
-  user: Session["user"];
+  user: Session['user'];
 }) {
   const router = useRouter();
   const handleSignOut = async () => {
     await authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          router.push("/sign-in");
+          router.push('/sign-in');
         },
       },
     });
@@ -39,27 +35,31 @@ export default function ProfilePopupClient({
       <PopoverTrigger asChild>
         <Button
           variant="ghost"
-          className="relative h-9 w-9 rounded-full ring-offset-background transition-all hover:ring-2 hover:ring-ring hover:ring-offset-2"
+          className="flex items-center gap-3 h-auto py-1.5 px-3 rounded-lg transition-all hover:bg-accent"
         >
-          {user.image ? (
-            <Avatar className="h-9 w-9">
-              <AvatarImage src={user.image} alt={user.name} />
-              <AvatarFallback className="bg-linear-to-br from-indigo-500 to-purple-600 text-white font-medium">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          ) : (
-            <GeneratedAvatar
-              seed={initials}
-              variant="initials"
-              className="h-9 w-9"
-            />
-          )}
+          <div className="relative">
+            {user.image ? (
+              <Avatar className="h-9 w-9 border border-border">
+                <AvatarImage src={user.image} alt={user.name} />
+                <AvatarFallback className="bg-indigo-500 text-white">{initials}</AvatarFallback>
+              </Avatar>
+            ) : (
+              <GeneratedAvatar seed={initials} variant="initials" className="h-9 w-9" />
+            )}
+          </div>
+
+          <div className="flex flex-col items-start text-left">
+            <p className="text-sm font-bold leading-tight text-foreground">{user.name}</p>
+            <p className="text-xs text-muted-foreground leading-tight">
+              {user.displayUsername || user.username || '@username'}
+            </p>
+          </div>
+
+          <ChevronDown className="h-4 w-4 text-muted-foreground ml-1" />
         </Button>
       </PopoverTrigger>
 
       <PopoverContent className="w-80 p-0" align="end" sideOffset={8}>
-        {/* Header with User Info */}
         <div className="flex flex-col gap-4 p-5 pb-3">
           <div className="flex items-start gap-4">
             {user.image ? (
@@ -68,21 +68,16 @@ export default function ProfilePopupClient({
               </Avatar>
             ) : (
               <GeneratedAvatar
-                seed={separateFullName(user.name).join(" ")}
-                variant={"initials"}
+                seed={separateFullName(user.name).join(' ')}
+                variant={'initials'}
                 className="h-12 w-12"
               />
             )}
             <div className="flex flex-col gap-1 min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <p className="text-sm font-semibold leading-none truncate">
-                  {user.name}
-                </p>
+                <p className="text-sm font-semibold leading-none truncate">{user.name}</p>
                 {user.banned && (
-                  <Badge
-                    variant="destructive"
-                    className="text-[10px] px-1 py-0"
-                  >
+                  <Badge variant="destructive" className="text-[10px] px-1 py-0">
                     Banned
                   </Badge>
                 )}
@@ -93,10 +88,7 @@ export default function ProfilePopupClient({
               </p>
 
               {user.role && (
-                <Badge
-                  variant="secondary"
-                  className="w-fit mt-1 text-xs font-normal"
-                >
+                <Badge variant="secondary" className="w-fit mt-1 text-xs font-normal">
                   <Shield className="mr-1 h-3 w-3" />
                   {user.role}
                 </Badge>

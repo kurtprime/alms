@@ -81,63 +81,68 @@ export default function TeacherDashboardClient({ session }: { session: Session }
   const totalClasses = teacherClasses.length;
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-3 space-y-3 w-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Teacher Dashboard</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Welcome back, {session.user.name || 'Teacher'}</p>
         </div>
-        <Button className="gap-2" onClick={() => setOpenCreateClass(true)}>
-          <Plus className="h-4 w-4" />
-          Create Class
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Classes</CardTitle>
-            <BookOpen className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalClasses}</div>
-            <p className="text-xs text-muted-foreground">Active teaching assignments</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Students</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totalStudents}</div>
-            <p className="text-xs text-muted-foreground">Across all classes</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Review</CardTitle>
-            <AlertCircle className="h-4 w-4 text-amber-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-amber-600">{totalPending}</div>
-            <p className="text-xs text-muted-foreground">Submissions to grade</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Completion Rate</CardTitle>
-            <TrendingUp className="h-4 w-4 text-emerald-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-emerald-600">
-              {totalPending === 0 && totalClasses > 0 ? '100%' : '--'}
+        <Card className="flex flex-row items-center p-4 h-24 shadow-none bg-white border border-border hover:shadow-md transition-shadow">
+          <div className="flex-1 flex flex-col justify-between h-full py-0.5">
+            <div>
+              <p className="text-[12px] font-bold">Total Classes</p>
+              <div className="text-2xl font-bold leading-none mb-3">{totalClasses}</div>
             </div>
-            <p className="text-xs text-muted-foreground">Grading completion</p>
-          </CardContent>
+            <p className="text-[10px] text-muted-foreground text-left">
+              Active teaching assignments
+            </p>
+          </div>
+
+          <div className="p-2 bg-rose-50 rounded-full flex items-center justify-center self-start shadow-none">
+            <BookOpen className="h-4 w-4 text-rose-500" />
+          </div>
+        </Card>
+
+        <Card className="flex flex-row items-center p-4 h-24 shadow-none bg-white border border-border hover:shadow-md transition-shadow">
+          <div className="flex-1 flex flex-col justify-between h-full py-0.5">
+            <div>
+              <p className="text-[12px] font-bold">Total Students</p>
+              <div className="text-2xl font-bold leading-none text-left">{totalStudents}</div>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-left">Across all classes</p>
+          </div>
+          <div className="p-2 bg-emerald-50 rounded-xl flex items-center justify-center">
+            <Users className="h-6 w-6 text-emerald-600" />
+          </div>
+        </Card>
+
+        <Card className="flex flex-row items-center p-4 h-24 shadow-none bg-white border border-border hover:shadow-md transition-shadow">
+          <div className="flex-1 flex flex-col justify-between h-full py-0.5">
+            <div>
+              <p className="text-[12px] font-bold">Upcoming Deadlines</p>
+              <div className="text-2xl font-bold leading-none text-left">0</div>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-left">Check deadlines this week</p>
+          </div>
+          <div className="p-2 bg-amber-50 rounded-xl flex items-center justify-center">
+            <Calendar className="h-6 w-6 text-amber-500" />
+          </div>
+        </Card>
+
+        <Card className="flex flex-row items-center p-4 h-24 shadow-none bg-white border border-border hover:shadow-md transition-shadow">
+          <div className="flex-1 flex flex-col justify-between h-full py-0.5">
+            <div>
+              <p className="text-[12px] font-bold">Pending Review</p>
+              <div className="text-2xl font-bold leading-none text-left">{totalPending}</div>
+            </div>
+            <p className="text-[10px] text-muted-foreground text-left">Submissions to grade</p>
+          </div>
+          <div className="p-2 bg-rose-50 rounded-xl flex items-center justify-center">
+            <AlertCircle className="h-6 w-6 text-rose-500" />
+          </div>
         </Card>
       </div>
 

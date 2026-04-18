@@ -18,13 +18,16 @@ import Image from 'next/image';
 
 export function AppSidebar() {
   return (
-    <Sidebar className="rounded-r-3xl" collapsible="icon">
+    <Sidebar
+      className="rounded-r-[15px] overflow-hidden border-r-0 [--sidebar-width:200px]"
+      collapsible="icon"
+    >
       <SidebarContent className="rounded-r-3xl">
         <div className="px-3 py-4">
           <Image
             src="/assets/ark-logo.png"
             alt="Logo"
-            width={120}
+            width={100}
             height={40}
             className="mx-auto object-contain"
           />
