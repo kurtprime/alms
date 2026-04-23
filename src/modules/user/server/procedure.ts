@@ -5,6 +5,7 @@ import { classActions } from './procedures/class';
 import { lessonActions } from './procedures/lesson';
 import { checkActivityAction } from './procedures/checkActivity';
 import { aiActions } from './procedures/ai';
+import { quizActions } from './procedures/quiz';
 export const userRouter = createTRPCRouter({
   ...sectionActions,
   ...subjectActions,
@@ -12,4 +13,5 @@ export const userRouter = createTRPCRouter({
   ...lessonActions,
   ...checkActivityAction,
   ...aiActions,
+  ...quizActions,
 });

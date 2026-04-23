@@ -1,5 +1,5 @@
 // src/lib/navigation.ts
-import { usePathname } from "next/navigation";
+import { usePathname } from 'next/navigation';
 
 /**
  * Checks if a navigation item is active based on current pathname
@@ -12,19 +12,7 @@ export function useIsActivePath(href: string): boolean {
 
   if (!pathname) return false;
 
-  // Normalize paths (remove trailing slashes except for root)
-  const normalizedHref = href === "/" ? "/" : href.replace(/\/$/, "");
-  const normalizedPath = pathname === "/" ? "/" : pathname.replace(/\/$/, "");
-
-  // Exact match
-  if (normalizedPath === normalizedHref) return true;
-
-  // For root, only exact match
-  if (normalizedHref === "/") return false;
-
-  // Check if current path starts with href (for nested routes)
-  // Ensure we match /settings but not /settings-other
-  return normalizedPath.startsWith(normalizedHref + "/");
+  return isActivePath(pathname, href);
 }
 
 /**
@@ -33,11 +21,22 @@ export function useIsActivePath(href: string): boolean {
 export function isActivePath(pathname: string | null, href: string): boolean {
   if (!pathname) return false;
 
-  const normalizedHref = href === "/" ? "/" : href.replace(/\/$/, "");
-  const normalizedPath = pathname === "/" ? "/" : pathname.replace(/\/$/, "");
+  // Normalize paths (remove trailing slashes except for root)
+  const normalizedHref = href === '/' ? '/' : href.replace(/\/$/, '');
+  const normalizedPath = pathname === '/' ? '/' : pathname.replace(/\/$/, '');
 
+  // Exact match
   if (normalizedPath === normalizedHref) return true;
-  if (normalizedHref === "/") return false;
 
-  return normalizedPath.startsWith(normalizedHref + "/");
+  // For root, only exact match
+  if (normalizedHref === '/') return false;
+
+  // Exact-match-only paths: these have child routes that should not
+  // highlight the parent. Add paths here that should only match exactly.
+  const exactMatchOnlyPaths = ['/teacher'];
+  if (exactMatchOnlyPaths.includes(normalizedHref)) return false;
+
+  // Check if current path starts with href (for nested routes)
+  // Ensure we match /settings but not /settings-other
+  return normalizedPath.startsWith(normalizedHref + '/');
 }
