@@ -32,7 +32,7 @@ import { LucideIcon } from 'lucide-react';
 const teacherMenuItems = [
   { title: 'Dashboard', href: '/teacher', icon: LayoutDashboard },
   { title: 'Classes', href: '/class', icon: BookOpen },
-  { title: 'Assignments', href: '/teacher/assignments', icon: FileText },
+  { title: 'Assignments', href: '/check/s', icon: FileText },
   { title: 'Quizzes', href: '/teacher/quizzes', icon: ClipboardList },
   { title: 'Grades', href: '/teacher/grades', icon: Star },
   { title: 'AI Features', href: '/ai', icon: Sparkle },
